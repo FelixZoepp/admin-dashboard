@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Content Leads Sales Dashboard">
+    <title>Content Leads — Sales Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #1a1d27;
+            --accent-blue: #4f8cff;
+            --accent-green: #34d399;
+            --accent-red: #f87171;
+            --accent-yellow: #fbbf24;
+            --text-primary: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: #2d3142;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        html, body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+        }
+
+        body {
+            padding-bottom: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, #232a3a 100%);
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            sticky: top;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, #7ba3ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        /* Section Title */
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 28px 0 16px 0;
+            padding: 0 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* KPI Cards */
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 0 16px;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+        }
+
+        .kpi-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 160px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .kpi-card:hover {
+            border-color: var(--accent-blue);
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, #232a3a 100%);
+            transform: translateY(-2px);
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .kpi-subtext {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .kpi-change {
+            font-weight: 600;
+        }
+
+        .change-positive {
+            color: var(--accent-green);
+        }
+
+        .change-negative {
+            color: var(--accent-red);
+        }
+
+        /* Sales Funnel */
+        .funnel-container {
+            padding: 0 16px;
+            margin-bottom: 24px;
+        }
+
+        .funnel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .funnel-stage {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .funnel-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .funnel-bar {
+            flex: 1;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .funnel-bar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+            pointer-events: none;
+        }
+
+        .funnel-stage-1 { background: linear-gradient(90deg, #4f8cff 0%, #6ba3ff 100%); width: 100%; }
+        .funnel-stage-2 { background: linear-gradient(90deg, #5a94ff 0%, #75abff 100%); width: 86%; }
+        .funnel-stage-3 { background: linear-gradient(90deg, #65a0ff 0%, #85b9ff 100%); width: 2%; }
+        .funnel-stage-4 { background: linear-gradient(90deg, #34d399 0%, #51e0b8 100%); width: 0%; }
+        .funnel-stage-5 { background: linear-gradient(90deg, #fbbf24 0%, #fcd34d 100%); width: 0%; }
+
+        .funnel-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            width: 100px;
+        }
+
+        .funnel-stats {
+            font-size: 11px;
+            color: var(--text-muted);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Table */
+        .table-container {
+            padding: 0 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .table-wrapper {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #1a1d27 0%, #232a3a 100%);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        tbody tr {
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(79, 140, 255, 0.05);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .metric-highlight {
+            background: rgba(79, 140, 255, 0.15);
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .arrow-up {
+            color: var(--accent-green);
+            font-weight: 700;
+        }
+
+        .arrow-down {
+            color: var(--accent-red);
+            font-weight: 700;
+        }
+
+        /* Chart */
+        .chart-container {
+            padding: 0 16px;
+            margin-bottom: 24px;
+        }
+
+        .bar-chart {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .chart-bars {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            gap: 8px;
+            height: 200px;
+            padding: 0 8px;
+        }
+
+        .chart-bar {
+            flex: 1;
+            min-width: 30px;
+            background: linear-gradient(180deg, var(--accent-blue) 0%, #5a94ff 100%);
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            cursor: pointer;
+        }
+
+        .chart-bar:hover {
+            filter: brightness(1.1);
+        }
+
+        .chart-bar.current-week {
+            background: linear-gradient(180deg, var(--accent-green) 0%, #51e0b8 100%);
+        }
+
+        .chart-bar-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            text-align: center;
+            width: 100%;
+            white-space: nowrap;
+        }
+
+        .chart-bar-value {
+            font-size: 10px;
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        /* Cards List */
+        .cards-container {
+            padding: 0 16px;
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card:hover {
+            border-color: var(--accent-green);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-badge {
+            font-size: 12px;
+            background: rgba(52, 211, 153, 0.2);
+            color: var(--accent-green);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--accent-green);
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .status-pending {
+            background: rgba(251, 191, 36, 0.2);
+            color: var(--accent-yellow);
+        }
+
+        .status-active {
+            background: rgba(79, 140, 255, 0.2);
+            color: var(--accent-blue);
+        }
+
+        .status-won {
+            background: rgba(52, 211, 153, 0.2);
+            color: var(--accent-green);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-green) 100%);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { transform: translateX(-100%); }
+            50% { transform: translateX(100%); }
+        }
+
+        /* Status Groups */
+        .status-group {
+            margin-bottom: 16px;
+        }
+
+        .status-group-header {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            padding: 0 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .status-group-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .status-group-item:hover {
+            border-color: var(--accent-blue);
+            background: rgba(79, 140, 255, 0.05);
+        }
+
+        .status-group-count {
+            font-size: 12px;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .status-group-value {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Month Summary */
+        .month-summary {
+            padding: 0 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .summary-metric {
+            margin-bottom: 20px;
+        }
+
+        .summary-metric:last-child {
+            margin-bottom: 0;
+        }
+
+        .summary-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .summary-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .summary-description {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-title {
+                font-size: 20px;
+            }
+
+            .header-meta {
+                gap: 8px;
+                font-size: 12px;
+            }
+
+            .kpi-container {
+                padding: 0;
+                margin: 0 -16px 24px -16px;
+                border-radius: 0;
+                gap: 8px;
+            }
+
+            .kpi-card {
+                min-width: 140px;
+                padding: 12px;
+                border-radius: 8px;
+            }
+
+            .kpi-value {
+                font-size: 24px;
+            }
+
+            .section-title {
+                padding: 0;
+                font-size: 16px;
+                margin: 24px 0 12px 0;
+            }
+
+            .funnel-container,
+            .table-container,
+            .chart-container,
+            .month-summary {
+                padding: 0;
+                margin-bottom: 20px;
+            }
+
+            .funnel,
+            .bar-chart,
+            .summary-card,
+            .table-wrapper {
+                border-radius: 8px;
+                margin: 0 16px;
+            }
+
+            .cards-container {
+                grid-template-columns: 1fr;
+                padding: 0;
+                margin: 0 -16px 20px -16px;
+            }
+
+            .card {
+                margin: 0 16px;
+                border-radius: 8px;
+            }
+
+            .chart-bars {
+                height: 160px;
+            }
+
+            .summary-value {
+                font-size: 20px;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-blue);
+        }
+
+        /* Loading Animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-title">📊 Content Leads — Sales Dashboard</div>
+            <div class="header-meta">
+                <div class="meta-item">📅 <span id="weekNumber">KW 14</span></div>
+                <div class="meta-item">📆 <span id="dateRange">30.03 - 05.04.2026</span></div>
+                <div class="meta-item">🕐 <span id="lastUpdated">Aktualisiert vor 2 Min.</span></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- KPI Cards -->
+        <section class="section-title">📈 Kennzahlen</section>
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <div class="kpi-label">Anwahlen</div>
+                <div class="kpi-value">547</div>
+                <div class="kpi-subtext"><span class="change-negative arrow-down">▼ -35%</span> vs. Vorwoche</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">CC-Protokolle</div>
+                <div class="kpi-value">473</div>
+                <div class="kpi-subtext">CC-Quote: <span class="change-positive">86%</span></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Settings</div>
+                <div class="kpi-value">13</div>
+                <div class="kpi-subtext">Quali-Quote: <span class="change-positive">3%</span></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Won Deals</div>
+                <div class="kpi-value">1</div>
+                <div class="kpi-subtext"><span class="change-positive">€3.590</span> Wert</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Pipeline</div>
+                <div class="kpi-value">88</div>
+                <div class="kpi-subtext"><span class="change-positive">€145.230</span> Wert</div>
+            </div>
+        </div>
+
+        <!-- Sales Funnel -->
+        <section class="section-title">🔄 Sales Funnel (KW 14)</section>
+        <div class="funnel-container">
+            <div class="funnel">
+                <div class="funnel-stage">
+                    <div class="funnel-bar-container">
+                        <div class="funnel-label">Anwahlen</div>
+                        <div class="funnel-bar funnel-stage-1">547</div>
+                        <div class="funnel-stats">100%</div>
+                    </div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="funnel-bar-container">
+                        <div class="funnel-label">CC</div>
+                        <div class="funnel-bar funnel-stage-2">473</div>
+                        <div class="funnel-stats">86%</div>
+                    </div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="funnel-bar-container">
+                        <div class="funnel-label">Settings</div>
+                        <div class="funnel-bar funnel-stage-3">13</div>
+                        <div class="funnel-stats">3%</div>
+                    </div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="funnel-bar-container">
+                        <div class="funnel-label">Closing</div>
+                        <div class="funnel-bar funnel-stage-4">0</div>
+                        <div class="funnel-stats">0%</div>
+                    </div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="funnel-bar-container">
+                        <div class="funnel-label">Won</div>
+                        <div class="funnel-bar funnel-stage-5">0</div>
+                        <div class="funnel-stats">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Opener Performance -->
+        <section class="section-title">👥 Opener Performance (KW 14)</section>
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Anwahlen</th>
+                            <th>CC</th>
+                            <th>CC-Quote</th>
+                            <th>Settings</th>
+                            <th>Quali-Quote</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Felix Zoepp</td>
+                            <td class="metric-highlight">2</td>
+                            <td>10</td>
+                            <td>500%</td>
+                            <td class="metric-highlight">13</td>
+                            <td class="metric-highlight">130%</td>
+                        </tr>
+                        <tr>
+                            <td>John Santillan</td>
+                            <td class="metric-highlight">545</td>
+                            <td class="metric-highlight">463</td>
+                            <td class="metric-highlight">85%</td>
+                            <td>0</td>
+                            <td>0%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Weekly Trend Chart -->
+        <section class="section-title">📊 Wöchentlicher Trend - Anwahlen (letzte 8 Wochen)</section>
+        <div class="chart-container">
+            <div class="bar-chart">
+                <div class="chart-bars">
+                    <div class="chart-bar" style="height: 85%;">
+                        <div class="chart-bar-value">720</div>
+                        <div class="chart-bar-label">KW 7</div>
+                    </div>
+                    <div class="chart-bar" style="height: 92%;">
+                        <div class="chart-bar-value">780</div>
+                        <div class="chart-bar-label">KW 8</div>
+                    </div>
+                    <div class="chart-bar" style="height: 88%;">
+                        <div class="chart-bar-value">750</div>
+                        <div class="chart-bar-label">KW 9</div>
+                    </div>
+                    <div class="chart-bar" style="height: 76%;">
+                        <div class="chart-bar-value">650</div>
+                        <div class="chart-bar-label">KW 10</div>
+                    </div>
+                    <div class="chart-bar" style="height: 82%;">
+                        <div class="chart-bar-value">700</div>
+                        <div class="chart-bar-label">KW 11</div>
+                    </div>
+                    <div class="chart-bar" style="height: 100%;">
+                        <div class="chart-bar-value">850</div>
+                        <div class="chart-bar-label">KW 13</div>
+                    </div>
+                    <div class="chart-bar current-week" style="height: 64%;">
+                        <div class="chart-bar-value">547</div>
+                        <div class="chart-bar-label">KW 14 ★</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Won Deals -->
+        <section class="section-title">🎉 Won Deals (April)</section>
+        <div class="cards-container">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Michael Walter</div>
+                    <div class="card-badge">✓ Won</div>
+                </div>
+                <div class="card-value">€3.590</div>
+                <div class="card-meta">
+                    <div>📅 01.04.2026</div>
+                    <div>👤 Felix Zoepp</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Pipeline -->
+        <section class="section-title">📋 Active Pipeline nach Status</section>
+        <div style="padding: 0 16px; margin-bottom: 24px;">
+            <div class="summary-card">
+                <div class="status-group">
+                    <div class="status-group-header">🎯 Setting - Terminiert</div>
+                    <div class="status-group-item">
+                        <div>
+                            <div class="status-group-count">12 Deals</div>
+                            <div class="status-group-value">€45.200 Wert</div>
+                        </div>
+                        <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                            <div class="progress-fill" style="width: 85%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-group">
+                    <div class="status-group-header">🔄 Setting - Follow Up</div>
+                    <div class="status-group-item">
+                        <div>
+                            <div class="status-group-count">15 Deals</div>
+                            <div class="status-group-value">€52.300 Wert</div>
+                        </div>
+                        <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                            <div class="progress-fill" style="width: 75%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-group">
+                    <div class="status-group-header">❌ Setting - No Show</div>
+                    <div class="status-group-item">
+                        <div>
+                            <div class="status-group-count">3 Deals</div>
+                            <div class="status-group-value">€8.900 Wert</div>
+                        </div>
+                        <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                            <div class="progress-fill" style="width: 20%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-group">
+                    <div class="status-group-header">🚀 Closing - Terminiert</div>
+                    <div class="status-group-item">
+                        <div>
+                            <div class="status-group-count">8 Deals</div>
+                            <div class="status-group-value">€28.500 Wert</div>
+                        </div>
+                        <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                            <div class="progress-fill" style="width: 70%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-group">
+                    <div class="status-group-header">⏰ Closing - Follow Up</div>
+                    <div class="status-group-item">
+                        <div>
+                            <div class="status-group-count">5 Deals</div>
+                            <div class="status-group-value">€15.400 Wert</div>
+                        </div>
+                        <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                            <div class="progress-fill" style="width: 35%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-group">
+                    <div class="status-group-header">💰 CC2 - Terminiert</div>
+                    <div class="status-group-item">
+                        <div>
+                            <div class="status-group-count">1 Deal</div>
+                            <div class="status-group-value">€7.200 Wert</div>
+                        </div>
+                        <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                            <div class="progress-fill" style="width: 15%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-group">
+                    <div class="status-group-header">📧 Angebot verschickt</div>
+                    <div class="status-group-item">
+                        <div>
+                            <div class="status-group-count">38 Deals</div>
+                            <div class="status-group-value">€120.730 Wert</div>
+                        </div>
+                        <div class="progress-bar" style="flex: 1; margin: 0 12px;">
+                            <div class="progress-fill" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Month-to-Date Summary -->
+        <section class="section-title">📈 Month-to-Date Summary</section>
+        <div class="month-summary">
+            <div class="summary-card">
+                <div class="summary-metric">
+                    <div class="summary-label">Umsatz April (bis 05.04)</div>
+                    <div class="summary-value">€3.590</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 24%;"></div>
+                    </div>
+                    <div class="summary-description">Target: €15.000 | 24% erreicht</div>
+                </div>
+
+                <div class="summary-metric">
+                    <div class="summary-label">Prognose Monatsende</div>
+                    <div class="summary-value">€51.290</div>
+                    <div class="summary-description">Basierend auf linearer Extrapolation (5 Tage Daten)</div>
+                </div>
+
+                <div class="summary-metric">
+                    <div class="summary-label">Top Deal (Pipeline)</div>
+                    <div class="summary-value">Range Solutions</div>
+                    <div class="summary-description">€7.200 | CC2 - Terminiert | 10.04.2026</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize dashboard with current date info
+        function initializeDashboard() {
+            // Get current week number and date range
+            const today = new Date(2026, 3, 6); // April 6, 2026
+            const weekNumber = 14;
+            const dateRange = '30.03 - 05.04.2026';
+
+            // Update header
+            document.getElementById('weekNumber').textContent = `KW ${weekNumber}`;
+            document.getElementById('dateRange').textContent = dateRange;
+            document.getElementById('lastUpdated').textContent = 'Aktualisiert vor 2 Min.';
+        }
+
+        // Animate KPI values on load
+        function animateKPIValues() {
+            const cards = document.querySelectorAll('.kpi-card');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 50);
+            });
+        }
+
+        // Smooth scroll for KPI container on mobile
+        function setupMobileScroll() {
+            const kpiContainer = document.querySelector('.kpi-container');
+            if (window.innerWidth < 768) {
+                kpiContainer.style.scrollBehavior = 'smooth';
+            }
+        }
+
+        // Animate progress bars
+        function animateProgressBars() {
+            const fills = document.querySelectorAll('.progress-fill');
+            fills.forEach(fill => {
+                const width = fill.style.width;
+                fill.style.width = '0';
+                setTimeout(() => {
+                    fill.style.width = width;
+                }, 100);
+            });
+        }
+
+        // Animate chart bars
+        function animateChartBars() {
+            const bars = document.querySelectorAll('.chart-bar');
+            bars.forEach((bar, index) => {
+                const height = bar.style.height;
+                bar.style.height = '0';
+                setTimeout(() => {
+                    bar.style.height = height;
+                }, 100 + (index * 50));
+            });
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeDashboard();
+            animateKPIValues();
+            setupMobileScroll();
+            animateProgressBars();
+            animateChartBars();
+        });
+
+        // Refresh data every hour (in production)
+        setInterval(() => {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const timeString = `vor ${Math.floor(Math.random() * 55) + 5} Min.`;
+            document.getElementById('lastUpdated').textContent = `Aktualisiert ${timeString}`;
+        }, 300000); // Update every 5 minutes
+
+        // Handle window resize for responsive adjustments
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                setupMobileScroll();
+            }, 250);
+        });
+    </script>
+</body>
+</html>
