@@ -145,9 +145,9 @@ with w as (
       from opportunities
      where status='won' and won_at >= (select week_start from w)
 )
-select 'Anwahlen'       as stage, 1 as ord, (select anwahlen from base)::int as count, null::numeric as value from base limit 1
+select 'Anwahlen'       as stage, 1 as ord, (select anwahlen from base)::int as count, null::numeric as value
 union all
-select 'CC',             2, (select cc from base)::int,     null from base limit 1
+select 'CC',             2, (select cc from base)::int,     null
 union all
 select 'Setting',        3, coalesce((select c from opps where g='setting'), 0),  null
 union all
