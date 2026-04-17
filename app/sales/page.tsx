@@ -13,20 +13,24 @@ export default async function Sales() {
   const sb = await supabaseServer();
   const [
     { data: funnel },
+    { data: funnelDetailed },
     { data: trend },
     { data: wonDeals },
     { data: pipeline },
-    { data: byOwner },
     { data: bySource },
     { data: leadStatus },
+    { data: roleTotals },
+    { data: roleQuotas },
   ] = await Promise.all([
     sb.from("v_sales_funnel_week").select("*"),
+    sb.from("v_sales_funnel_detailed").select("*"),
     sb.from("v_sales_weekly_trend").select("*").limit(8),
     sb.from("v_won_deals_month").select("*").limit(10),
     sb.from("v_pipeline_by_stage").select("*"),
-    sb.from("v_sales_by_owner_week").select("*"),
     sb.from("v_pipeline_by_source").select("*"),
     sb.from("v_leads_by_status").select("*"),
+    sb.from("v_sales_role_totals").select("*"),
+    sb.from("v_sales_role_quotas").select("*"),
   ]);
 
   const f = funnel ?? [];
@@ -48,19 +52,23 @@ export default async function Sales() {
           <KpiCard label="Closing Rate" value={formatPercent(f[4]?.pct ?? 0)} sub="Won / Anw." />
         </KpiGrid>
 
-        <div className="section-title">Sales Funnel</div>
+        <div className="section-title">Sales Funnel (detailliert)</div>
         <Funnel
-          stages={f.map((s: any, idx: number) => ({
-            label: s.stage,
-            count: s.count,
-            pct: top > 0 ? (s.count / top) * 100 : 0,
-            color:
-              idx === 4
-                ? "linear-gradient(90deg,#fbbf24,#fcd34d)"
-                : idx === 3
-                  ? "linear-gradient(90deg,#34d399,#51e0b8)"
-                  : undefined,
-          }))}
+          stages={(funnelDetailed ?? []).map((s: any) => {
+            const tt = (funnelDetailed ?? [])[0]?.count ?? 1;
+            const COLORS: Record<string, string> = {
+              "Won": "linear-gradient(90deg,#fbbf24,#fcd34d)",
+              "Angebot": "linear-gradient(90deg,#a78bfa,#c4b5fd)",
+              "Closing": "linear-gradient(90deg,#34d399,#51e0b8)",
+              "No Show": "linear-gradient(90deg,#f87171,#fca5a5)",
+            };
+            return {
+              label: s.stage,
+              count: s.count,
+              pct: tt > 0 ? (s.count / tt) * 100 : 0,
+              color: COLORS[s.stage],
+            };
+          })}
         />
 
         <div className="section-title">Wochentrend — Anwahlen</div>
@@ -133,9 +141,53 @@ export default async function Sales() {
           )}
         </div>
 
-        <div className="section-title">Sales-Team — Wochenperformance</div>
+        <div className="section-title">Quoten nach Rolle (KW)</div>
         <div className="card">
-          {(byOwner ?? []).length === 0 ? (
+          {(roleTotals ?? []).length === 0 ? (
+            <div className="text-center py-4 text-muted text-sm">
+              Noch keine Rollen-Daten
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-bg-tertiary border-b-2 border-border">
+                  <tr>
+                    <th className="text-left p-2 font-semibold text-muted uppercase text-[10px]">Rolle</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Anw.</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">CC</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">CC%</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Sett.</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Quali%</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Clos.</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Won</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Close%</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Wert</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(roleTotals ?? []).map((r: any) => (
+                    <tr key={r.role} className="border-b border-border last:border-0">
+                      <td className="p-2 font-semibold capitalize">{r.role.replace("_", " ")}</td>
+                      <td className="p-2 text-right">{formatNumber(r.anwahlen)}</td>
+                      <td className="p-2 text-right">{formatNumber(r.cc)}</td>
+                      <td className="p-2 text-right text-accent-blue">{formatPercent(r.cc_rate, 1)}</td>
+                      <td className="p-2 text-right">{formatNumber(r.settings_count)}</td>
+                      <td className="p-2 text-right text-accent-purple">{formatPercent(r.quali_rate, 1)}</td>
+                      <td className="p-2 text-right">{formatNumber(r.closings_count)}</td>
+                      <td className="p-2 text-right text-accent-green">{formatNumber(r.won_count)}</td>
+                      <td className="p-2 text-right text-accent-yellow">{formatPercent(r.closing_rate, 1)}</td>
+                      <td className="p-2 text-right font-semibold">{formatEUR(r.won_value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="section-title">Performance pro Person (KW)</div>
+        <div className="card">
+          {(roleQuotas ?? []).length === 0 ? (
             <div className="text-center py-4 text-muted text-sm">
               Noch keine Aktivitäten diese Woche
             </div>
@@ -145,18 +197,32 @@ export default async function Sales() {
                 <thead className="bg-bg-tertiary border-b-2 border-border">
                   <tr>
                     <th className="text-left p-2 font-semibold text-muted uppercase text-[10px]">Name</th>
-                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Anwahlen</th>
-                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">CC</th>
+                    <th className="text-left p-2 font-semibold text-muted uppercase text-[10px]">Rolle</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Anw.</th>
                     <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">CC%</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Sett.</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Quali%</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Won</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Close%</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Wert</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(byOwner ?? []).map((r: any) => (
-                    <tr key={r.owner} className="border-b border-border last:border-0">
-                      <td className="p-2">{r.owner}</td>
+                  {(roleQuotas ?? []).map((r: any) => (
+                    <tr key={r.user_name} className="border-b border-border last:border-0">
+                      <td className="p-2">{r.user_name}</td>
+                      <td className="p-2">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 capitalize">
+                          {r.role.replace("_", " ")}
+                        </span>
+                      </td>
                       <td className="p-2 text-right">{formatNumber(r.anwahlen)}</td>
-                      <td className="p-2 text-right">{formatNumber(r.cc)}</td>
-                      <td className="p-2 text-right text-accent-green">{formatPercent(r.cc_pct)}</td>
+                      <td className="p-2 text-right text-accent-blue">{formatPercent(r.cc_rate, 0)}</td>
+                      <td className="p-2 text-right">{formatNumber(r.settings_count)}</td>
+                      <td className="p-2 text-right text-accent-purple">{formatPercent(r.quali_rate, 0)}</td>
+                      <td className="p-2 text-right text-accent-green">{formatNumber(r.won_count)}</td>
+                      <td className="p-2 text-right text-accent-yellow">{formatPercent(r.closing_rate, 0)}</td>
+                      <td className="p-2 text-right font-semibold">{formatEUR(r.won_value)}</td>
                     </tr>
                   ))}
                 </tbody>

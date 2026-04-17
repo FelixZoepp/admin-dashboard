@@ -10,6 +10,9 @@ const FUNCTIONS = [
   "sync-instagram",
   "sync-linkedin",
   "sync-instantly",
+  "sync-perspective",
+  "sync-onepage",
+  "sync-copecart",
 ];
 
 Deno.serve(async () => {

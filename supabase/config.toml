@@ -37,6 +37,12 @@ verify_jwt = false
 verify_jwt = false
 [functions.sync-instantly]
 verify_jwt = false
+[functions.sync-perspective]
+verify_jwt = false
+[functions.sync-onepage]
+verify_jwt = false
+[functions.sync-copecart]
+verify_jwt = false
 [functions.import-commerzbank-csv]
 verify_jwt = true
 [functions.sync-all]

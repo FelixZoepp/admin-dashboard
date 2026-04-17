@@ -85,6 +85,9 @@ Supabase Dashboard → Authentication → Users → nur deine Email manuell anle
 | Meta Ads      | `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID`   | Campaigns + Daily Insights               |
 | Instagram     | `IG_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID` | Account Stats + Posts + Insights         |
 | LinkedIn      | `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_ORG_URN` | Followers + Page/Share Statistics        |
+| Perspective   | `PERSPECTIVE_API_KEY`                       | Funnels + Daily Analytics (Views/Leads/CVR) |
+| OnePage       | `ONEPAGE_API_KEY`, `ONEPAGE_API_BASE`       | Landing Pages + Daily Analytics          |
+| CopeCart      | `COPECART_API_KEY`                          | Produkte + Sales + Refunds               |
 | Coaching      | —                                           | Form-Einreichung direkt in Supabase      |
 | Recruiting    | —                                           | Form-Einreichung direkt in Supabase      |
 
@@ -115,11 +118,11 @@ npm run db:push          # Migrations anwenden
 ## Features
 
 - **Overview**: Realtime KPIs aller Bereiche (Cash, Outreach, Team) + Integration Status
-- **Sales**: Funnel, Wochentrend, Won Deals, Pipeline nach Stage/Quelle, Team-Performance, Leads nach Status
+- **Sales**: detaillierter Funnel (Anwahlen → CC → Setting → Closing → Angebot → No Show → Won), Wochentrend, Won Deals, Pipeline nach Stage/Quelle, **Quoten pro Rolle** (Opener / Setter / Closer / Full-Cycle) mit CC-/Quali-/Closing-Rate, Performance pro Person, Leads nach Status
 - **Outreach**: Instantly E-Mail-KPIs, Kampagnen, Close-Lead-Status, Cashflow MTD mit Ein-/Ausgängen pro Bank, offene Rechnungen
 - **Recruiting**: Bewerbungen-Funnel (Bewerbung → Screening → Interview → Probetag → Angebot → Hire), offene Stellen, Kostenstruktur, Cost-per-Trial + Cost-per-Hire, Formulare für Bewerbungen und Kosten
 - **Fulfillment**: Tägliche Produktivität, Wochentrend, Kategorien
-- **Marketing**: Meta Ads, LinkedIn, Instagram Performance
+- **Marketing**: Meta Ads, LinkedIn, Instagram, **Perspective-Funnels** (Views/Leads/CVR pro Funnel), **OnePage Landing Pages**, **CopeCart** (Produkt-Sales + Refunds)
 - **Finanzen**: Cashflow mit Ein-/Ausgängen pro Bank (Qonto + Commerzbank), Umsatz MTD, offene RG, Monatsverlauf
 - **Team**: Monday Boards, Auslastung pro Person
 - **Coaching**: Kunden-Einreichungen (Umsatz, Leads, Calls, Closes)
