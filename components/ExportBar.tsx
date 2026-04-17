@@ -43,6 +43,14 @@ export function ExportBar({ tab }: { tab: string }) {
           Steuer-Export
         </a>
       )}
+      {tab === "finanzen" && (
+        <a
+          href={`/api/export/ustva?month=${new Date().toISOString().slice(0, 7)}`}
+          className="text-xs px-3 py-1.5 rounded border border-border hover:border-accent-yellow hover:text-accent-yellow transition-colors"
+        >
+          UStVA XML
+        </a>
+      )}
       <button
         onClick={createShare}
         disabled={loading}

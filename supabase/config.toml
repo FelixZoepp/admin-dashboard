@@ -51,5 +51,15 @@ verify_jwt = false
 verify_jwt = false
 [functions.sync-airtable-push]
 verify_jwt = false
+[functions.webhook-close]
+verify_jwt = false
+[functions.webhook-instantly]
+verify_jwt = false
+[functions.webhook-monday]
+verify_jwt = false
+[functions.webhook-qonto]
+verify_jwt = false
+[functions.send-daily-digest]
+verify_jwt = false
 [functions.sync-all]
 verify_jwt = false

@@ -18,6 +18,7 @@ import Team from "@/app/team/page";
 import Coaching from "@/app/coaching/page";
 import Clients from "@/app/clients/page";
 import Airtable from "@/app/airtable/page";
+import Forecast from "@/app/forecast/page";
 import Overview from "@/app/page";
 
 export default async function SharePage({
@@ -31,6 +32,7 @@ export default async function SharePage({
 
   const PAGES: Record<string, () => Promise<React.JSX.Element>> = {
     overview: Overview,
+    forecast: Forecast,
     clients: Clients,
     sales: Sales,
     outreach: Outreach,

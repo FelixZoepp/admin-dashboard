@@ -28,6 +28,8 @@ export default async function Clients() {
     { data: teamHours },
     { data: costBreakdown },
     { data: recentCosts },
+    { data: health },
+    { data: hoursUsage },
   ] = await Promise.all([
     sb.from("v_clients_kpis").select("*").single(),
     sb.from("v_client_profitability").select("*"),
@@ -38,7 +40,13 @@ export default async function Clients() {
       .select("id, client_id, category, description, amount, incurred_at, invoice_number")
       .order("incurred_at", { ascending: false })
       .limit(20),
+    sb.from("v_client_health").select("*"),
+    sb.from("v_contract_hours_usage").select("*"),
   ]);
+  const healthByClient = new Map(((health ?? []) as any[]).map((h) => [h.client_id, h]));
+  const overageWarnings = ((hoursUsage ?? []) as any[]).filter(
+    (h) => h.status === "overage" || h.status === "warning",
+  );
 
   const clientRows = (rows ?? []) as any[];
   const top3 = [...clientRows].sort((a, b) => (b.margin_month ?? 0) - (a.margin_month ?? 0)).slice(0, 3);
@@ -184,11 +192,21 @@ export default async function Clients() {
                     <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Posts</th>
                     <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">h/Post</th>
                     <th className="text-center p-2 font-semibold text-muted uppercase text-[10px]">Signal</th>
+                    <th className="text-center p-2 font-semibold text-muted uppercase text-[10px]">Health</th>
                   </tr>
                 </thead>
                 <tbody>
                   {clientRows.map((c: any) => {
                     const b = marginBadge(c.margin_pct);
+                    const h = healthByClient.get(c.id) ?? { health_score: null, health_status: "—" };
+                    const hCls =
+                      h.health_status === "healthy"
+                        ? "bg-accent-green/20 text-accent-green"
+                        : h.health_status === "at_risk"
+                          ? "bg-accent-yellow/20 text-accent-yellow"
+                          : h.health_status === "critical"
+                            ? "bg-accent-red/20 text-accent-red"
+                            : "bg-white/10 text-muted";
                     return (
                       <tr key={c.id} className="border-b border-border last:border-0">
                         <td className="p-2">
@@ -222,6 +240,13 @@ export default async function Clients() {
                             {b.label}
                           </span>
                         </td>
+                        <td className="p-2 text-center">
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded font-semibold ${hCls}`}
+                          >
+                            {h.health_score !== null ? `${h.health_score}` : "—"}
+                          </span>
+                        </td>
                       </tr>
                     );
                   })}
@@ -230,6 +255,46 @@ export default async function Clients() {
             </div>
           )}
         </div>
+
+        {/* ============ HOURS WARNINGS ============ */}
+        {overageWarnings.length > 0 && (
+          <>
+            <div className="section-title">
+              <span>⏱</span> Stunden-Warnung
+            </div>
+            <div className="card">
+              {overageWarnings.map((w: any) => (
+                <div
+                  key={w.contract_id}
+                  className="flex justify-between items-start py-2 border-b border-border last:border-0 gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold">{w.client_name}</div>
+                    <div className="text-[11px] text-muted">
+                      {w.contract_name} · {formatNumber(w.hours_used)} / {formatNumber(w.hours_included)} h
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div
+                      className={`text-sm font-bold ${
+                        w.status === "overage"
+                          ? "text-accent-red"
+                          : "text-accent-yellow"
+                      }`}
+                    >
+                      {formatPercent(w.usage_pct, 0)}
+                    </div>
+                    {w.upsell_potential_month > 0 && (
+                      <div className="text-[10px] text-accent-green">
+                        Upsell: +{formatEUR(w.upsell_potential_month)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* ============ TEAM HOURS ============ */}
         <div className="section-title">Team-Stunden (Monat)</div>
