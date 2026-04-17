@@ -2,6 +2,7 @@ import { Header } from "@/components/Header";
 import { KpiCard, KpiGrid } from "@/components/KpiCard";
 import { Funnel } from "@/components/Funnel";
 import { ChartBars } from "@/components/ChartBars";
+import { StatusList } from "@/components/StatusList";
 import { ExportBar } from "@/components/ExportBar";
 import { supabaseServer } from "@/lib/supabase/server";
 import { formatEUR, formatNumber, formatPercent } from "@/lib/utils";
@@ -10,13 +11,23 @@ export const revalidate = 60;
 
 export default async function Sales() {
   const sb = await supabaseServer();
-  const [{ data: funnel }, { data: trend }, { data: wonDeals }, { data: pipeline }] =
-    await Promise.all([
-      sb.from("v_sales_funnel_week").select("*"),
-      sb.from("v_sales_weekly_trend").select("*").limit(8),
-      sb.from("v_won_deals_month").select("*").limit(10),
-      sb.from("v_pipeline_by_stage").select("*"),
-    ]);
+  const [
+    { data: funnel },
+    { data: trend },
+    { data: wonDeals },
+    { data: pipeline },
+    { data: byOwner },
+    { data: bySource },
+    { data: leadStatus },
+  ] = await Promise.all([
+    sb.from("v_sales_funnel_week").select("*"),
+    sb.from("v_sales_weekly_trend").select("*").limit(8),
+    sb.from("v_won_deals_month").select("*").limit(10),
+    sb.from("v_pipeline_by_stage").select("*"),
+    sb.from("v_sales_by_owner_week").select("*"),
+    sb.from("v_pipeline_by_source").select("*"),
+    sb.from("v_leads_by_status").select("*"),
+  ]);
 
   const f = funnel ?? [];
   const top = f[0]?.count ?? 1;
@@ -86,7 +97,7 @@ export default async function Sales() {
           ))
         )}
 
-        <div className="section-title">Active Pipeline</div>
+        <div className="section-title">Active Pipeline — nach Stage</div>
         <div className="card">
           {(pipeline ?? []).map((p: any) => (
             <div
@@ -101,6 +112,64 @@ export default async function Sales() {
             </div>
           ))}
         </div>
+
+        <div className="section-title">Pipeline — nach Quelle</div>
+        <div className="card">
+          {(bySource ?? []).length === 0 ? (
+            <div className="text-center py-4 text-muted text-sm">Keine Daten</div>
+          ) : (
+            (bySource ?? []).map((r: any) => (
+              <div
+                key={r.source}
+                className="flex justify-between items-center py-2 border-b border-border last:border-0"
+              >
+                <div>
+                  <div className="text-sm capitalize">{r.source}</div>
+                  <div className="text-[11px] text-muted">{formatNumber(r.deals)} Deals</div>
+                </div>
+                <div className="text-sm font-semibold text-accent-blue">{formatEUR(r.value)}</div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="section-title">Sales-Team — Wochenperformance</div>
+        <div className="card">
+          {(byOwner ?? []).length === 0 ? (
+            <div className="text-center py-4 text-muted text-sm">
+              Noch keine Aktivitäten diese Woche
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-bg-tertiary border-b-2 border-border">
+                  <tr>
+                    <th className="text-left p-2 font-semibold text-muted uppercase text-[10px]">Name</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">Anwahlen</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">CC</th>
+                    <th className="text-right p-2 font-semibold text-muted uppercase text-[10px]">CC%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(byOwner ?? []).map((r: any) => (
+                    <tr key={r.owner} className="border-b border-border last:border-0">
+                      <td className="p-2">{r.owner}</td>
+                      <td className="p-2 text-right">{formatNumber(r.anwahlen)}</td>
+                      <td className="p-2 text-right">{formatNumber(r.cc)}</td>
+                      <td className="p-2 text-right text-accent-green">{formatPercent(r.cc_pct)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="section-title">Leads — nach Status</div>
+        <StatusList
+          items={(leadStatus ?? []).map((r: any) => ({ label: r.status, count: r.count }))}
+          totalLabel="Leads gesamt"
+        />
       </main>
     </>
   );

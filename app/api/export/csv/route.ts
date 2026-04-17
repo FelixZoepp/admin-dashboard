@@ -3,6 +3,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 const SOURCES: Record<string, { table: string; order?: string }> = {
   sales: { table: "v_won_deals_month", order: "won_at" },
+  outreach: { table: "v_outreach_campaigns" },
+  recruiting: { table: "v_recruiting_applications_recent", order: "applied_at" },
   fulfillment: { table: "v_fulfillment_by_day" },
   marketing: { table: "v_marketing_overview" },
   finanzen: { table: "invoices", order: "due_date" },

@@ -35,5 +35,9 @@ verify_jwt = false
 verify_jwt = false
 [functions.sync-linkedin]
 verify_jwt = false
+[functions.sync-instantly]
+verify_jwt = false
+[functions.import-commerzbank-csv]
+verify_jwt = true
 [functions.sync-all]
 verify_jwt = false

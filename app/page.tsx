@@ -2,7 +2,7 @@ import { Header } from "@/components/Header";
 import { KpiCard, KpiGrid } from "@/components/KpiCard";
 import { ExportBar } from "@/components/ExportBar";
 import { getOverviewKpis } from "@/lib/queries";
-import { formatEUR, formatNumber } from "@/lib/utils";
+import { formatEUR, formatNumber, formatPercent } from "@/lib/utils";
 
 export const revalidate = 60;
 
@@ -14,7 +14,7 @@ export default async function Overview() {
       <Header lastSync={kpis.lastSync} />
       <main className="p-4">
         <ExportBar tab="overview" />
-        <div className="section-title">Heute</div>
+        <div className="section-title">💰 Umsatz &amp; Cash</div>
         <KpiGrid>
           <KpiCard
             label="Umsatz MTD"
@@ -30,12 +30,22 @@ export default async function Overview() {
           <KpiCard
             label="Kontostand"
             value={formatEUR(kpis.bankBalance)}
-            sub="Qonto"
+            sub="Qonto + Commerzbank"
           />
           <KpiCard
             label="Offene RG"
             value={formatEUR(kpis.unpaidInvoices)}
             sub={`${formatNumber(kpis.unpaidInvoicesCount)} Rechnungen`}
+          />
+        </KpiGrid>
+
+        <div className="section-title">📧 Outreach &amp; Marketing</div>
+        <KpiGrid>
+          <KpiCard
+            label="E-Mails versandt KW"
+            value={formatNumber(kpis.outreachSentWeek)}
+            sub={`Reply Rate: ${formatPercent(kpis.outreachReplyRate, 1)}`}
+            subTrend="up"
           />
           <KpiCard
             label="Ad Spend heute"
@@ -43,19 +53,28 @@ export default async function Overview() {
             sub="Meta Ads"
           />
           <KpiCard
+            label="Reichweite KW"
+            value={formatNumber(kpis.socialReachWeek)}
+            sub="IG + LinkedIn"
+          />
+        </KpiGrid>
+
+        <div className="section-title">👥 Team &amp; Operations</div>
+        <KpiGrid>
+          <KpiCard
             label="Fulfillment offen"
             value={formatNumber(kpis.fulfillmentOpen)}
             sub="Monday Tasks"
           />
           <KpiCard
+            label="Recruiting im Prozess"
+            value={formatNumber(kpis.recruitingInProcess)}
+            sub={`${formatNumber(kpis.recruitingHiredMonth)} eingestellt im Monat`}
+          />
+          <KpiCard
             label="Coaching Clients"
             value={formatNumber(kpis.coachingActive)}
             sub={`${formatNumber(kpis.coachingSubmissionsWeek)} Einreichungen KW`}
-          />
-          <KpiCard
-            label="Reichweite KW"
-            value={formatNumber(kpis.socialReachWeek)}
-            sub="IG + LinkedIn"
           />
         </KpiGrid>
 

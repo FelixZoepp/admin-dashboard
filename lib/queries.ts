@@ -19,6 +19,10 @@ export type OverviewKpis = {
   coachingActive: number;
   coachingSubmissionsWeek: number;
   socialReachWeek: number;
+  outreachSentWeek: number;
+  outreachReplyRate: number;
+  recruitingInProcess: number;
+  recruitingHiredMonth: number;
   lastSync: string | null;
   integrations: IntegrationStatus[];
 };
@@ -36,16 +40,23 @@ const EMPTY: OverviewKpis = {
   coachingActive: 0,
   coachingSubmissionsWeek: 0,
   socialReachWeek: 0,
+  outreachSentWeek: 0,
+  outreachReplyRate: 0,
+  recruitingInProcess: 0,
+  recruitingHiredMonth: 0,
   lastSync: null,
   integrations: [
     { name: "Close CRM", status: "pending", note: "API-Key in Supabase Secrets eintragen" },
+    { name: "Instantly", status: "pending", note: "INSTANTLY_API_KEY eintragen" },
     { name: "Monday.com", status: "pending", note: "API-Token + Board-IDs eintragen" },
     { name: "Easybill", status: "pending", note: "API-Key eintragen" },
     { name: "Qonto", status: "pending", note: "Login + Secret Key eintragen" },
+    { name: "Commerzbank", status: "pending", note: "CSV-Upload via /functions/v1/import-commerzbank-csv" },
     { name: "Meta Ads", status: "pending", note: "Access Token + Ad Account ID eintragen" },
     { name: "Instagram", status: "pending", note: "Business Account ID + Token eintragen" },
     { name: "LinkedIn", status: "pending", note: "Access Token + Org URN eintragen" },
     { name: "Coaching", status: "ok", note: "Supabase Form, keine externe API nötig" },
+    { name: "Recruiting", status: "ok", note: "Supabase Form, keine externe API nötig" },
   ],
 };
 

@@ -77,13 +77,16 @@ Supabase Dashboard → Authentication → Users → nur deine Email manuell anle
 | Source        | Secrets                                     | Scope                                    |
 |---------------|---------------------------------------------|------------------------------------------|
 | Close CRM     | `CLOSE_API_KEY`                             | Leads, Opportunities, Activities         |
+| Instantly     | `INSTANTLY_API_KEY`                         | E-Mail-Kampagnen, Leads, Daily Metrics   |
 | Monday.com    | `MONDAY_API_TOKEN`, `MONDAY_BOARD_IDS`      | Fulfillment Items per Board              |
 | Easybill      | `EASYBILL_API_KEY`                          | Rechnungen                               |
 | Qonto         | `QONTO_LOGIN`, `QONTO_SECRET_KEY`           | Konten + Transaktionen                   |
+| Commerzbank   | —                                           | CSV-Upload (kein REST-API verfügbar)     |
 | Meta Ads      | `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID`   | Campaigns + Daily Insights               |
 | Instagram     | `IG_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID` | Account Stats + Posts + Insights         |
 | LinkedIn      | `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_ORG_URN` | Followers + Page/Share Statistics        |
 | Coaching      | —                                           | Form-Einreichung direkt in Supabase      |
+| Recruiting    | —                                           | Form-Einreichung direkt in Supabase      |
 
 Alle Syncs laufen als **Supabase Edge Functions** (Deno) unter
 `supabase/functions/sync-*`. `pg_cron` ruft täglich `sync-all` auf.
@@ -111,11 +114,13 @@ npm run db:push          # Migrations anwenden
 
 ## Features
 
-- **Overview**: Realtime KPIs aller Bereiche + Integration Status
-- **Sales**: Funnel, Wochentrend, Won Deals, Pipeline nach Stage
-- **Fulfillment**: Tägliche Produktivität (Lisa), Wochentrend, Kategorien
+- **Overview**: Realtime KPIs aller Bereiche (Cash, Outreach, Team) + Integration Status
+- **Sales**: Funnel, Wochentrend, Won Deals, Pipeline nach Stage/Quelle, Team-Performance, Leads nach Status
+- **Outreach**: Instantly E-Mail-KPIs, Kampagnen, Close-Lead-Status, Cashflow MTD mit Ein-/Ausgängen pro Bank, offene Rechnungen
+- **Recruiting**: Bewerbungen-Funnel (Bewerbung → Screening → Interview → Probetag → Angebot → Hire), offene Stellen, Kostenstruktur, Cost-per-Trial + Cost-per-Hire, Formulare für Bewerbungen und Kosten
+- **Fulfillment**: Tägliche Produktivität, Wochentrend, Kategorien
 - **Marketing**: Meta Ads, LinkedIn, Instagram Performance
-- **Finanzen**: Umsatz MTD, Offene RG, Qonto-Kontostand + Transaktionen
+- **Finanzen**: Cashflow mit Ein-/Ausgängen pro Bank (Qonto + Commerzbank), Umsatz MTD, offene RG, Monatsverlauf
 - **Team**: Monday Boards, Auslastung pro Person
 - **Coaching**: Kunden-Einreichungen (Umsatz, Leads, Calls, Closes)
 - **Export**: CSV je Tab, PDF via Browser-Print

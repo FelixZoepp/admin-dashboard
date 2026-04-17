@@ -26,6 +26,8 @@ Deno.serve(async () => {
       iban: a.iban,
       balance: a.balance,
       currency: a.currency ?? "EUR",
+      institution: "qonto",
+      source: "api",
       synced_at: new Date().toISOString(),
     }));
     let rows = await upsertBatch(db, "bank_accounts", accounts);
@@ -55,6 +57,7 @@ Deno.serve(async () => {
           txOut.push({
             id: t.id,
             account_id: a.id,
+            institution: "qonto",
             amount: t.amount,
             currency: t.currency,
             label: t.label,
@@ -62,6 +65,7 @@ Deno.serve(async () => {
             category: t.category ?? null,
             tx_date: t.emitted_at?.slice(0, 10),
             settled_at: t.settled_at,
+            direction: t.amount >= 0 ? "in" : "out",
             synced_at: new Date().toISOString(),
           });
         }

@@ -5,6 +5,8 @@ import { supabaseServer } from "@/lib/supabase/server";
 const ALLOWED_TABS = [
   "overview",
   "sales",
+  "outreach",
+  "recruiting",
   "fulfillment",
   "marketing",
   "finanzen",

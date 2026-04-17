@@ -8,6 +8,8 @@
 import { notFound } from "next/navigation";
 import { verifyShareToken } from "@/lib/share";
 import Sales from "@/app/sales/page";
+import Outreach from "@/app/outreach/page";
+import Recruiting from "@/app/recruiting/page";
 import Fulfillment from "@/app/fulfillment/page";
 import Marketing from "@/app/marketing/page";
 import Finanzen from "@/app/finanzen/page";
@@ -27,6 +29,8 @@ export default async function SharePage({
   const PAGES: Record<string, () => Promise<React.JSX.Element>> = {
     overview: Overview,
     sales: Sales,
+    outreach: Outreach,
+    recruiting: Recruiting,
     fulfillment: Fulfillment,
     marketing: Marketing,
     finanzen: Finanzen,

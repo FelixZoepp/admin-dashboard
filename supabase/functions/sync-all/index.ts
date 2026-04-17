@@ -9,6 +9,7 @@ const FUNCTIONS = [
   "sync-meta",
   "sync-instagram",
   "sync-linkedin",
+  "sync-instantly",
 ];
 
 Deno.serve(async () => {
