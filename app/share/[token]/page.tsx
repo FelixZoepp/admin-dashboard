@@ -13,6 +13,7 @@ import Recruiting from "@/app/recruiting/page";
 import Fulfillment from "@/app/fulfillment/page";
 import Marketing from "@/app/marketing/page";
 import Finanzen from "@/app/finanzen/page";
+import Steuer from "@/app/steuer/page";
 import Team from "@/app/team/page";
 import Coaching from "@/app/coaching/page";
 import Clients from "@/app/clients/page";
@@ -37,6 +38,7 @@ export default async function SharePage({
     fulfillment: Fulfillment,
     marketing: Marketing,
     finanzen: Finanzen,
+    steuer: Steuer,
     team: Team,
     coaching: Coaching,
     airtable: Airtable,

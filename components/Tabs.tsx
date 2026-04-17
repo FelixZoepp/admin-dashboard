@@ -13,6 +13,7 @@ const TABS = [
   { slug: "fulfillment", label: "Fulfillment" },
   { slug: "marketing", label: "Marketing" },
   { slug: "finanzen", label: "Finanzen" },
+  { slug: "steuer", label: "Steuer" },
   { slug: "team", label: "Team" },
   { slug: "coaching", label: "Coaching" },
   { slug: "airtable", label: "Airtable" },

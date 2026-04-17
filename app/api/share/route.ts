@@ -11,6 +11,7 @@ const ALLOWED_TABS = [
   "fulfillment",
   "marketing",
   "finanzen",
+  "steuer",
   "team",
   "coaching",
   "airtable",
