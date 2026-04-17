@@ -129,35 +129,30 @@ order by
 
 -- Extended funnel with proposal + no_show + follow_up breakdown
 create or replace view v_sales_funnel_detailed as
-with w as (
-    select date_trunc('week', now()) as week_start
-), base as (
-    select count(*) filter (where type='call' and occurred_at >= (select week_start from w))::int as anwahlen,
-           count(*) filter (where type='call' and outcome='connected' and occurred_at >= (select week_start from w))::int as cc
-      from activities
-), opps as (
-    select sales_stage_group(stage) as g, count(*)::int as c
-      from opportunities
-     where created_at >= (select week_start from w) or won_at >= (select week_start from w)
-     group by 1
-), won as (
-    select count(*)::int as c, coalesce(sum(value),0)::numeric as v
-      from opportunities
-     where status='won' and won_at >= (select week_start from w)
-)
-select 'Anwahlen'       as stage, 1 as ord, (select anwahlen from base)::int as count, null::numeric as value
-union all
-select 'CC',             2, (select cc from base)::int,     null
-union all
-select 'Setting',        3, coalesce((select c from opps where g='setting'), 0),  null
-union all
-select 'Closing',        4, coalesce((select c from opps where g='closing'), 0),  null
-union all
-select 'Angebot',        5, coalesce((select c from opps where g='proposal'), 0), null
-union all
-select 'No Show',        6, coalesce((select c from opps where g='no_show'), 0),  null
-union all
-select 'Won',            7, (select c from won),    (select v from won)
+select stage, count, value, ord from (
+    values
+        ('Anwahlen'::text, 1::int,
+            (select count(*)::int from activities where type='call' and occurred_at >= date_trunc('week', now())),
+            null::numeric),
+        ('CC', 2,
+            (select count(*)::int from activities where type='call' and outcome='connected' and occurred_at >= date_trunc('week', now())),
+            null::numeric),
+        ('Setting', 3,
+            (select count(*)::int from opportunities where sales_stage_group(stage)='setting' and (created_at >= date_trunc('week', now()) or won_at >= date_trunc('week', now()))),
+            null::numeric),
+        ('Closing', 4,
+            (select count(*)::int from opportunities where sales_stage_group(stage)='closing' and (created_at >= date_trunc('week', now()) or won_at >= date_trunc('week', now()))),
+            null::numeric),
+        ('Angebot', 5,
+            (select count(*)::int from opportunities where sales_stage_group(stage)='proposal' and (created_at >= date_trunc('week', now()) or won_at >= date_trunc('week', now()))),
+            null::numeric),
+        ('No Show', 6,
+            (select count(*)::int from opportunities where sales_stage_group(stage)='no_show' and (created_at >= date_trunc('week', now()) or won_at >= date_trunc('week', now()))),
+            null::numeric),
+        ('Won', 7,
+            (select count(*)::int from opportunities where status='won' and won_at >= date_trunc('week', now())),
+            (select coalesce(sum(value),0)::numeric from opportunities where status='won' and won_at >= date_trunc('week', now())))
+) as t(stage, ord, count, value)
 order by ord;
 
 -- =============================================================
