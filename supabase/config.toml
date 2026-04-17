@@ -1,0 +1,39 @@
+project_id = "imdcuumthauvrfhghqtz"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = true
+
+[functions.sync-close]
+verify_jwt = false
+[functions.sync-monday]
+verify_jwt = false
+[functions.sync-easybill]
+verify_jwt = false
+[functions.sync-qonto]
+verify_jwt = false
+[functions.sync-meta]
+verify_jwt = false
+[functions.sync-instagram]
+verify_jwt = false
+[functions.sync-linkedin]
+verify_jwt = false
+[functions.sync-all]
+verify_jwt = false
