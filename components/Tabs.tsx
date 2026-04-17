@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { slug: "", label: "Overview" },
+  { slug: "clients", label: "Kunden" },
   { slug: "sales", label: "Sales" },
   { slug: "outreach", label: "Outreach" },
   { slug: "recruiting", label: "Recruiting" },
@@ -14,6 +15,7 @@ const TABS = [
   { slug: "finanzen", label: "Finanzen" },
   { slug: "team", label: "Team" },
   { slug: "coaching", label: "Coaching" },
+  { slug: "airtable", label: "Airtable" },
 ];
 
 export function Tabs() {

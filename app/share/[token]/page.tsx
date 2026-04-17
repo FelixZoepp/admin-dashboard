@@ -15,6 +15,8 @@ import Marketing from "@/app/marketing/page";
 import Finanzen from "@/app/finanzen/page";
 import Team from "@/app/team/page";
 import Coaching from "@/app/coaching/page";
+import Clients from "@/app/clients/page";
+import Airtable from "@/app/airtable/page";
 import Overview from "@/app/page";
 
 export default async function SharePage({
@@ -28,6 +30,7 @@ export default async function SharePage({
 
   const PAGES: Record<string, () => Promise<React.JSX.Element>> = {
     overview: Overview,
+    clients: Clients,
     sales: Sales,
     outreach: Outreach,
     recruiting: Recruiting,
@@ -36,6 +39,7 @@ export default async function SharePage({
     finanzen: Finanzen,
     team: Team,
     coaching: Coaching,
+    airtable: Airtable,
   };
   const Page = PAGES[payload.tab];
   if (!Page) notFound();

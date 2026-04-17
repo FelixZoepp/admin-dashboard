@@ -10,6 +10,7 @@ const SOURCES: Record<string, { table: string; order?: string }> = {
   finanzen: { table: "invoices", order: "due_date" },
   team: { table: "v_team_boards" },
   coaching: { table: "v_coaching_recent_submissions", order: "week_start" },
+  clients: { table: "v_client_profitability" },
   overview: { table: "v_overview_kpis" },
 };
 

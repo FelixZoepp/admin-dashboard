@@ -88,6 +88,8 @@ Supabase Dashboard → Authentication → Users → nur deine Email manuell anle
 | Perspective   | `PERSPECTIVE_API_KEY`                       | Funnels + Daily Analytics (Views/Leads/CVR) |
 | OnePage       | `ONEPAGE_API_KEY`, `ONEPAGE_API_BASE`       | Landing Pages + Daily Analytics          |
 | CopeCart      | `COPECART_API_KEY`                          | Produkte + Sales + Refunds               |
+| Clockify      | `CLOCKIFY_API_KEY`, `CLOCKIFY_WORKSPACE_ID` | Zeiterfassung pro Kunde + Mitarbeiter    |
+| Airtable      | `AIRTABLE_API_KEY`                          | Bidirektional: Pull manueller Daten + Push von Leads/Deals/Applications |
 | Coaching      | —                                           | Form-Einreichung direkt in Supabase      |
 | Recruiting    | —                                           | Form-Einreichung direkt in Supabase      |
 
@@ -115,9 +117,35 @@ npm run db:push          # Migrations anwenden
 
 ---
 
+## Client Profitability (Kunden-Tab)
+
+Pro Social-Media-Kunde wird alles zusammengeführt:
+
+- **Umsatz**: aus `contracts` (Retainer monthly_value → MRR/ARR)
+- **Arbeitszeit**: aus `time_entries` (Clockify-Sync oder manuell via Airtable) — jeder Mitarbeiter hat einen Stundensatz (`hourly_cost`), daraus ergeben sich die Lohnkosten pro Kunde
+- **Delivery-Kosten**: aus `delivery_costs` (z.B. Nils fürs Filming, Requisiten, Paid Ads pro Kunden-Konto) mit Kategorie + Belegnummer
+- **Marge**: MRR − Lohnkosten − Delivery-Kosten
+- **ROI-Multiple**: MRR / Gesamtkosten
+- **€ pro Stunde**: effektiver Stundensatz (MRR / Stunden)
+- **Stunden pro Post**: Arbeits-Aufwand je Deliverable
+- **Signal-Badge**: Top (>50 % Marge) / OK (25–50 %) / Schwach (0–25 %) / Minus (< 0 %)
+
+So siehst du auf einen Blick **wo du extrem Plus machst und wo du drauflegst**.
+
+## Finanzamt-Export
+
+`/api/export/tax?from=2026-01-01&to=2026-12-31` liefert ein CSV mit:
+- Alle Einnahmen (Easybill-Rechnungen + manuelle Einnahmen)
+- Alle Ausgaben (Delivery-Kosten pro Kunde, manuelle Ausgaben, Recruiting-Kosten)
+- Jeweils mit Datum, Beleg-Nr., Gegenpartei, Kategorie, Betrag, Währung, Notiz
+
+Direkt an den Steuerberater weiterleiten oder in DATEV/Elster importieren.
+
 ## Features
 
 - **Overview**: Realtime KPIs aller Bereiche (Cash, Outreach, Team) + Integration Status
+- **Kunden**: Profitabilität pro Kunde (MRR, Stunden, Lohn- + Delivery-Kosten, Marge, ROI, €/h, Posts, h/Post), Top/Bottom-3, Team-Stunden pro Monat, Delivery-Kosten-Ledger
+- **Airtable**: Bi-direktionale Sync-Steuerung (Pull/Push Toggle), manuelle Finanz-KPIs, Ausgaben/Einnahmen-Listen
 - **Sales**: detaillierter Funnel (Anwahlen → CC → Setting → Closing → Angebot → No Show → Won), Wochentrend, Won Deals, Pipeline nach Stage/Quelle, **Quoten pro Rolle** (Opener / Setter / Closer / Full-Cycle) mit CC-/Quali-/Closing-Rate, Performance pro Person, Leads nach Status
 - **Outreach**: Instantly E-Mail-KPIs, Kampagnen, Close-Lead-Status, Cashflow MTD mit Ein-/Ausgängen pro Bank, offene Rechnungen
 - **Recruiting**: Bewerbungen-Funnel (Bewerbung → Screening → Interview → Probetag → Angebot → Hire), offene Stellen, Kostenstruktur, Cost-per-Trial + Cost-per-Hire, Formulare für Bewerbungen und Kosten

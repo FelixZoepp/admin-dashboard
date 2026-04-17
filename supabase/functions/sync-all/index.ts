@@ -2,6 +2,7 @@
 // Called by pg_cron daily at 06:00 UTC (see migration 20260417000004_cron.sql).
 
 const FUNCTIONS = [
+  // Pull from external sources first
   "sync-close",
   "sync-monday",
   "sync-easybill",
@@ -13,6 +14,11 @@ const FUNCTIONS = [
   "sync-perspective",
   "sync-onepage",
   "sync-copecart",
+  // Time tracking
+  "sync-clockify",
+  // Airtable: pull manual inputs, then push mirrors
+  "sync-airtable-pull",
+  "sync-airtable-push",
 ];
 
 Deno.serve(async () => {

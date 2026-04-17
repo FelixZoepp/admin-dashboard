@@ -22,7 +22,7 @@ export function ExportBar({ tab }: { tab: string }) {
   }
 
   return (
-    <div className="flex gap-2 mb-4 justify-end">
+    <div className="flex gap-2 mb-4 justify-end flex-wrap">
       <a
         href={`/api/export/csv?tab=${tab}`}
         className="text-xs px-3 py-1.5 rounded border border-border hover:border-accent-blue hover:text-accent-blue transition-colors"
@@ -35,6 +35,14 @@ export function ExportBar({ tab }: { tab: string }) {
       >
         PDF
       </a>
+      {(tab === "finanzen" || tab === "clients" || tab === "overview") && (
+        <a
+          href="/api/export/tax"
+          className="text-xs px-3 py-1.5 rounded border border-border hover:border-accent-yellow hover:text-accent-yellow transition-colors"
+        >
+          Steuer-Export
+        </a>
+      )}
       <button
         onClick={createShare}
         disabled={loading}

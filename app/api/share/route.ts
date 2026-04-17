@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 const ALLOWED_TABS = [
   "overview",
+  "clients",
   "sales",
   "outreach",
   "recruiting",
@@ -12,6 +13,7 @@ const ALLOWED_TABS = [
   "finanzen",
   "team",
   "coaching",
+  "airtable",
 ];
 
 export async function POST(req: Request) {
