@@ -24,7 +24,7 @@ export function Tabs() {
   const pathname = usePathname();
   return (
     <nav
-      className="flex gap-0 overflow-x-auto -mx-5 px-5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex gap-1 overflow-x-auto -mx-5 px-5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {TABS.map((t) => {
         const href = t.slug ? `/${t.slug}` : "/";
@@ -35,11 +35,16 @@ export function Tabs() {
             key={t.slug || "overview"}
             href={href}
             className={cn(
-              "px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all",
+              "px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] whitespace-nowrap rounded-t-md border-b-2 transition-all duration-200 font-mono",
               active
-                ? "text-accent-blue border-accent-blue"
-                : "text-muted border-transparent hover:text-white",
+                ? "text-neon-cyan border-neon-cyan bg-neon-cyan/5"
+                : "text-muted border-transparent hover:text-white hover:bg-white/[0.03]",
             )}
+            style={
+              active
+                ? { textShadow: "0 0 8px rgba(68, 231, 255, 0.6)" }
+                : undefined
+            }
           >
             {t.label}
           </Link>

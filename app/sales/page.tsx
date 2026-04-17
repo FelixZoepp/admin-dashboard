@@ -42,14 +42,14 @@ export default async function Sales() {
       <main className="p-4">
         <ExportBar tab="sales" />
 
-        <div className="section-title">Kennzahlen diese Woche</div>
+        <div className="section-title">// Kennzahlen diese Woche</div>
         <KpiGrid>
-          <KpiCard label="Anwahlen" value={formatNumber(f[0]?.count ?? 0)} sub="Calls" />
-          <KpiCard label="CC-Protokolle" value={formatNumber(f[1]?.count ?? 0)} sub={`CC-Quote: ${formatPercent(f[1]?.pct ?? 0)}`} subTrend="up" />
-          <KpiCard label="Settings" value={formatNumber(f[2]?.count ?? 0)} sub={`Quali: ${formatPercent(f[2]?.pct ?? 0)}`} subTrend="up" />
-          <KpiCard label="Won Deals" value={formatNumber(f[4]?.count ?? 0)} sub={formatEUR(f[4]?.value ?? 0)} subTrend="up" />
-          <KpiCard label="Pipeline" value={formatNumber((pipeline ?? []).reduce((s, r: any) => s + r.count, 0))} sub={formatEUR((pipeline ?? []).reduce((s, r: any) => s + Number(r.value), 0))} subTrend="up" />
-          <KpiCard label="Closing Rate" value={formatPercent(f[4]?.pct ?? 0)} sub="Won / Anw." />
+          <KpiCard label="Anwahlen" value={formatNumber(f[0]?.count ?? 0)} accent="cyan" icon="☎" sub="Calls" />
+          <KpiCard label="CC-Protokolle" value={formatNumber(f[1]?.count ?? 0)} accent="purple" icon="◉" sub={`CC-Quote ${formatPercent(f[1]?.pct ?? 0)}`} subTrend="up" />
+          <KpiCard label="Settings" value={formatNumber(f[2]?.count ?? 0)} accent="pink" icon="◆" sub={`Quali ${formatPercent(f[2]?.pct ?? 0)}`} subTrend="up" />
+          <KpiCard label="Won Deals" value={formatNumber(f[4]?.count ?? 0)} accent="green" icon="★" sub={formatEUR(f[4]?.value ?? 0)} subTrend="up" />
+          <KpiCard label="Pipeline" value={formatNumber((pipeline ?? []).reduce((s, r: any) => s + r.count, 0))} accent="blue" icon="◈" sub={formatEUR((pipeline ?? []).reduce((s, r: any) => s + Number(r.value), 0))} subTrend="up" />
+          <KpiCard label="Closing Rate" value={formatPercent(f[4]?.pct ?? 0)} accent="yellow" icon="%" sub="Won / Anw." />
         </KpiGrid>
 
         <div className="section-title">Sales Funnel (detailliert)</div>

@@ -59,55 +59,15 @@ export default async function Clients() {
         <ExportBar tab="clients" />
 
         {/* ============ Gesamt-KPIs ============ */}
-        <div className="section-title">
-          <span>💼</span> Kunden-Rentabilität (Monat)
-        </div>
+        <div className="section-title">// Kunden-Rentabilität (Monat)</div>
         <KpiGrid>
-          <KpiCard
-            label="Aktive Kunden"
-            value={formatNumber(kpis?.active_clients)}
-            sub="im Retainer"
-          />
-          <KpiCard
-            label="MRR gesamt"
-            value={formatEUR(kpis?.total_mrr)}
-            sub="Retainer Revenue"
-            valueClass="text-accent-green"
-          />
-          <KpiCard
-            label="Stunden-Kosten"
-            value={formatEUR(kpis?.total_labor_cost_month)}
-            sub={`${formatNumber(kpis?.total_hours_month, )} h`}
-            valueClass="text-accent-red"
-          />
-          <KpiCard
-            label="Delivery-Kosten"
-            value={formatEUR(kpis?.total_delivery_cost_month)}
-            sub="Filming, Material, Ads"
-            valueClass="text-accent-red"
-          />
-          <KpiCard
-            label="Netto-Marge"
-            value={formatEUR(kpis?.total_margin_month)}
-            sub="MRR − alle Kosten"
-            valueClass={
-              (kpis?.total_margin_month ?? 0) >= 0
-                ? "text-accent-green"
-                : "text-accent-red"
-            }
-          />
-          <KpiCard
-            label="High-Margin"
-            value={formatNumber(kpis?.clients_high_margin)}
-            sub="Kunden > 50% Marge"
-            valueClass="text-accent-green"
-          />
-          <KpiCard
-            label="Minus-Kunden"
-            value={formatNumber(kpis?.clients_unprofitable)}
-            sub="aktuell unrentabel"
-            valueClass={(kpis?.clients_unprofitable ?? 0) > 0 ? "text-accent-red" : ""}
-          />
+          <KpiCard label="Aktive Kunden" value={formatNumber(kpis?.active_clients)} accent="cyan" icon="◈" sub="im Retainer" />
+          <KpiCard label="MRR gesamt" value={formatEUR(kpis?.total_mrr)} accent="green" icon="▲" sub="Retainer Revenue" />
+          <KpiCard label="Stunden-Kosten" value={formatEUR(kpis?.total_labor_cost_month)} accent="orange" icon="⏱" sub={`${formatNumber(kpis?.total_hours_month)} h`} />
+          <KpiCard label="Delivery-Kosten" value={formatEUR(kpis?.total_delivery_cost_month)} accent="red" icon="$" sub="Filming, Material, Ads" />
+          <KpiCard label="Netto-Marge" value={formatEUR(kpis?.total_margin_month)} accent={((kpis?.total_margin_month ?? 0) >= 0) ? "green" : "red"} icon="Σ" sub="MRR − alle Kosten" />
+          <KpiCard label="High-Margin" value={formatNumber(kpis?.clients_high_margin)} accent="green" icon="★" sub="Kunden > 50% Marge" />
+          <KpiCard label="Minus-Kunden" value={formatNumber(kpis?.clients_unprofitable)} accent="red" icon="!" sub="aktuell unrentabel" />
         </KpiGrid>
 
         {/* ============ TOP / BOTTOM ============ */}

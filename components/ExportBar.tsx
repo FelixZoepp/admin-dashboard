@@ -21,32 +21,35 @@ export function ExportBar({ tab }: { tab: string }) {
     }
   }
 
+  const btn =
+    "text-[10px] font-bold uppercase tracking-[0.12em] px-3 py-1.5 rounded border border-border font-mono transition-all";
+
   return (
     <div className="flex gap-2 mb-4 justify-end flex-wrap">
       <a
         href={`/api/export/csv?tab=${tab}`}
-        className="text-xs px-3 py-1.5 rounded border border-border hover:border-accent-blue hover:text-accent-blue transition-colors"
+        className={`${btn} text-muted hover:border-neon-cyan hover:text-neon-cyan`}
       >
         CSV
       </a>
       <a
         href={`/api/export/pdf?tab=${tab}`}
-        className="text-xs px-3 py-1.5 rounded border border-border hover:border-accent-blue hover:text-accent-blue transition-colors"
+        className={`${btn} text-muted hover:border-neon-cyan hover:text-neon-cyan`}
       >
         PDF
       </a>
       {(tab === "finanzen" || tab === "clients" || tab === "overview") && (
         <a
           href="/api/export/tax"
-          className="text-xs px-3 py-1.5 rounded border border-border hover:border-accent-yellow hover:text-accent-yellow transition-colors"
+          className={`${btn} text-muted hover:border-neon-yellow hover:text-neon-yellow`}
         >
-          Steuer-Export
+          Steuer
         </a>
       )}
       {tab === "finanzen" && (
         <a
           href={`/api/export/ustva?month=${new Date().toISOString().slice(0, 7)}`}
-          className="text-xs px-3 py-1.5 rounded border border-border hover:border-accent-yellow hover:text-accent-yellow transition-colors"
+          className={`${btn} text-muted hover:border-neon-yellow hover:text-neon-yellow`}
         >
           UStVA XML
         </a>
@@ -54,7 +57,7 @@ export function ExportBar({ tab }: { tab: string }) {
       <button
         onClick={createShare}
         disabled={loading}
-        className="text-xs px-3 py-1.5 rounded border border-border hover:border-accent-green hover:text-accent-green transition-colors disabled:opacity-50"
+        className={`${btn} text-muted hover:border-neon-green hover:text-neon-green disabled:opacity-50`}
       >
         {loading ? "…" : "Share-Link"}
       </button>
@@ -63,7 +66,7 @@ export function ExportBar({ tab }: { tab: string }) {
           readOnly
           value={shareUrl}
           onFocus={(e) => e.currentTarget.select()}
-          className="text-[11px] bg-bg-tertiary border border-border rounded px-2 w-60"
+          className="text-[10px] bg-bg-tertiary border border-border rounded px-2 w-60 font-mono"
         />
       )}
     </div>
