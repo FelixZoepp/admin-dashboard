@@ -1,8 +1,21 @@
 -- ==========================================================
 -- Content Leads Dashboard - Complete Setup (migrations + seed)
 -- One-shot: paste this whole file into Supabase SQL Editor & Run.
--- (Cron migrations excluded; run separately after setting app.settings.*)
+-- Idempotent: can be re-run, drops + recreates everything.
+-- (pg_cron jobs excluded, run separately after setting app.settings.*)
 -- ==========================================================
+
+-- Clean slate (WARNING: drops all existing data in public schema)
+drop schema if exists public cascade;
+create schema public;
+grant usage on schema public to postgres, anon, authenticated, service_role;
+grant all   on schema public to postgres, service_role;
+grant all on all tables    in schema public to postgres, anon, authenticated, service_role;
+grant all on all sequences in schema public to postgres, anon, authenticated, service_role;
+grant all on all functions in schema public to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on tables    to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to postgres, anon, authenticated, service_role;
 
 -- ==== 20260417000001_schema.sql ====
 -- =============================================================
@@ -940,6 +953,9 @@ group by 1
 order by value desc;
 
 -- ============ Extended Overview (replaces earlier v_overview_kpis) ============
+-- Column list changes vs. migration 2; CREATE OR REPLACE cannot rename columns,
+-- so drop the previous definition first.
+drop view if exists v_overview_kpis cascade;
 create or replace view v_overview_kpis as
 select
     (select revenue_mtd from v_finance_kpis)                              as "revenueMTD",
@@ -1013,7 +1029,9 @@ $$ language sql immutable;
 -- Per-person role performance (KW). Uses the sales_roles table to
 -- label each user with a role, then aggregates their stage-specific
 -- KPIs.
-create or replace view v_sales_role_quotas as
+drop view if exists v_sales_role_totals cascade;
+drop view if exists v_sales_role_quotas cascade;
+create view v_sales_role_quotas as
 with w as (
     select date_trunc('week', now()) as week_start
 ), acts as (
@@ -1023,7 +1041,20 @@ with w as (
         count(*) filter (where type='call' and outcome='connected' and occurred_at >= (select week_start from w))::int as cc,
         count(*) filter (where type='meeting' and occurred_at >= (select week_start from w))::int as meetings
     from activities
+    where user_name is not null
     group by user_name
+), opps_enriched as (
+    select
+        o.*,
+        coalesce(
+            o.owner,
+            (select a.user_name
+               from activities a
+              where a.lead_id = o.lead_id
+              order by a.occurred_at desc
+              limit 1)
+        ) as user_name
+    from opportunities o
 ), opps as (
     select
         user_name,
@@ -1033,16 +1064,8 @@ with w as (
         count(*) filter (where status='won'  and won_at  >= (select week_start from w))::int as won_count,
         coalesce(sum(value) filter (where status='won' and won_at >= (select week_start from w)), 0)::numeric as won_value,
         count(*) filter (where status='lost' and lost_at >= (select week_start from w))::int as lost_count
-    from (
-        select o.*, coalesce(o.owner, a.user_name) as user_name_eff
-        from opportunities o
-        left join lateral (
-            select user_name from activities
-             where lead_id = o.lead_id
-             order by occurred_at desc limit 1
-        ) a on true
-    ) t
-    cross join lateral (select t.user_name_eff as user_name) u
+    from opps_enriched
+    where user_name is not null
     group by user_name
 )
 select

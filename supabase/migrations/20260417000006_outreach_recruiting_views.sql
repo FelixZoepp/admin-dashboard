@@ -219,6 +219,9 @@ group by 1
 order by value desc;
 
 -- ============ Extended Overview (replaces earlier v_overview_kpis) ============
+-- Column list changes vs. migration 2; CREATE OR REPLACE cannot rename columns,
+-- so drop the previous definition first.
+drop view if exists v_overview_kpis cascade;
 create or replace view v_overview_kpis as
 select
     (select revenue_mtd from v_finance_kpis)                              as "revenueMTD",

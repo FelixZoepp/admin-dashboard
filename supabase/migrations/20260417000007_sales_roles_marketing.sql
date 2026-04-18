@@ -44,7 +44,9 @@ $$ language sql immutable;
 -- Per-person role performance (KW). Uses the sales_roles table to
 -- label each user with a role, then aggregates their stage-specific
 -- KPIs.
-create or replace view v_sales_role_quotas as
+drop view if exists v_sales_role_totals cascade;
+drop view if exists v_sales_role_quotas cascade;
+create view v_sales_role_quotas as
 with w as (
     select date_trunc('week', now()) as week_start
 ), acts as (
@@ -54,7 +56,20 @@ with w as (
         count(*) filter (where type='call' and outcome='connected' and occurred_at >= (select week_start from w))::int as cc,
         count(*) filter (where type='meeting' and occurred_at >= (select week_start from w))::int as meetings
     from activities
+    where user_name is not null
     group by user_name
+), opps_enriched as (
+    select
+        o.*,
+        coalesce(
+            o.owner,
+            (select a.user_name
+               from activities a
+              where a.lead_id = o.lead_id
+              order by a.occurred_at desc
+              limit 1)
+        ) as user_name
+    from opportunities o
 ), opps as (
     select
         user_name,
@@ -64,16 +79,8 @@ with w as (
         count(*) filter (where status='won'  and won_at  >= (select week_start from w))::int as won_count,
         coalesce(sum(value) filter (where status='won' and won_at >= (select week_start from w)), 0)::numeric as won_value,
         count(*) filter (where status='lost' and lost_at >= (select week_start from w))::int as lost_count
-    from (
-        select o.*, coalesce(o.owner, a.user_name) as user_name_eff
-        from opportunities o
-        left join lateral (
-            select user_name from activities
-             where lead_id = o.lead_id
-             order by occurred_at desc limit 1
-        ) a on true
-    ) t
-    cross join lateral (select t.user_name_eff as user_name) u
+    from opps_enriched
+    where user_name is not null
     group by user_name
 )
 select
