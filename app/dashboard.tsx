@@ -106,6 +106,82 @@ interface DashboardData {
     upsellRevenue: number
     upsellRevenueShare: number
   }
+  airtableMetrics: {
+    customers: {
+      dealName: string
+      kundenId: string
+      status: 'Aktiv' | 'Gekündigt'
+      produkt: string
+      vertragstyp: 'Erstdeal' | 'Upsell'
+      vertragssumme: number
+      monatlicheRate: number
+      vertragslaufzeit: number
+      vertragsbeginn: string
+      vertragsende: string
+      kuendigungsgrund: string
+      upsellDatum: string
+      notizen: string
+    }[]
+    totalCustomers: number
+    activeCustomers: number
+    churned: number
+    churnRate: number
+    mrr: number
+    arr: number
+    arpu: number
+    ltv: number
+    avgContractLength: number
+    totalContractVolume: number
+    upsellCount: number
+    upsellRate: number
+    churnReasons: { reason: string; count: number }[]
+    productMix: { product: string; total: number; active: number; mrr: number }[]
+    activeList: {
+      dealName: string
+      kundenId: string
+      status: 'Aktiv' | 'Gekündigt'
+      produkt: string
+      vertragstyp: 'Erstdeal' | 'Upsell'
+      vertragssumme: number
+      monatlicheRate: number
+      vertragslaufzeit: number
+      vertragsbeginn: string
+      vertragsende: string
+      kuendigungsgrund: string
+      upsellDatum: string
+      notizen: string
+    }[]
+    churnedList: {
+      dealName: string
+      kundenId: string
+      status: 'Aktiv' | 'Gekündigt'
+      produkt: string
+      vertragstyp: 'Erstdeal' | 'Upsell'
+      vertragssumme: number
+      monatlicheRate: number
+      vertragslaufzeit: number
+      vertragsbeginn: string
+      vertragsende: string
+      kuendigungsgrund: string
+      upsellDatum: string
+      notizen: string
+    }[]
+    upsellList: {
+      dealName: string
+      kundenId: string
+      status: 'Aktiv' | 'Gekündigt'
+      produkt: string
+      vertragstyp: 'Erstdeal' | 'Upsell'
+      vertragssumme: number
+      monatlicheRate: number
+      vertragslaufzeit: number
+      vertragsbeginn: string
+      vertragsende: string
+      kuendigungsgrund: string
+      upsellDatum: string
+      notizen: string
+    }[]
+  }
   allWonDeals: { name: string; value: number; date: string; user: string }[]
   allLostDeals: { name: string; value: number; date: string }[]
   todayISO: string
@@ -1152,60 +1228,85 @@ export default function Dashboard({ data }: { data: DashboardData }) {
              ═══════════════════════════════════════════════════ */}
           {activeNav === 'kunden' && (
             <>
-              {/* KPI Grid */}
+              {/* KPI Grid Row 1 — gold accent */}
               <div className="kpi-grid">
-                <div className="za-panel fade-up" style={{ animationDelay: '60ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Kunden</span></div>
-                  <div className="kpi-value">{data.customerAnalytics.totalCustomers}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">{data.customerAnalytics.activeCustomers} aktiv / {data.customerAnalytics.inactiveCustomers} inaktiv (90 Tage)</span></div>
+                <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">MRR</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.airtableMetrics.mrr)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Monthly Recurring Revenue</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '140ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Upsell Rate</span></div>
-                  <div className="kpi-value">{data.customerAnalytics.upsellRate}<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">{data.customerAnalytics.upsellCustomers} von {data.customerAnalytics.totalCustomers} Kunden kauften erneut</span></div>
+                <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">ARR</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.airtableMetrics.arr)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Annual Run Rate</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">&Oslash; CLV</span></div>
-                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.customerAnalytics.avgCLV)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Customer Lifetime Value</span></div>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Churn Rate</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>{data.airtableMetrics.churnRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">{data.airtableMetrics.churned} von {data.airtableMetrics.totalCustomers} Kunden gek&uuml;ndigt</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '300ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Churn Risk</span></div>
-                  <div className="kpi-value" style={{ color: data.customerAnalytics.churnRate > 30 ? 'var(--za-danger)' : undefined }}>{data.customerAnalytics.churnRate}<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">{data.customerAnalytics.inactiveCustomers} Kunden &gt;90 Tage inaktiv</span></div>
-                </div>
-              </div>
-
-              {/* Revenue Split Panel */}
-              <div className="za-panel fade-up" style={{ animationDelay: '360ms', marginBottom: '16px' }}>
-                <div className="panel-head">
-                  <div>
-                    <span className="panel-eyebrow">Revenue</span>
-                    <div className="panel-title">Umsatz-Aufteilung</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--za-border)' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--za-fg-2)' }}>Upsell-Umsatz</span>
-                    <span style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 600, color: 'var(--za-gold-2)' }}>{fmtEuro(data.customerAnalytics.upsellRevenue)} ({data.customerAnalytics.upsellRevenueShare}%)</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--za-border)' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--za-fg-2)' }}>Top 3 Konzentration</span>
-                    <span style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 600, color: data.customerAnalytics.revenueConcentration > 50 ? 'var(--za-danger)' : 'var(--za-fg-1)' }}>{data.customerAnalytics.revenueConcentration}% des Gesamtumsatzes</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--za-fg-2)' }}>&Oslash; Tage bis Upsell</span>
-                    <span style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 600, color: 'var(--za-fg-1)' }}>{data.customerAnalytics.avgTimeBetweenDeals} Tage</span>
-                  </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '300ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">LTV</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.airtableMetrics.ltv)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">&Oslash; Customer Lifetime Value</span></div>
                 </div>
               </div>
 
-              {/* Customer Table */}
-              <div className="za-panel fade-up" style={{ animationDelay: '420ms', marginBottom: '16px' }}>
+              {/* KPI Grid Row 2 */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '360ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Aktive Kunden</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{data.airtableMetrics.activeCustomers}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">von {data.airtableMetrics.totalCustomers} gesamt</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '420ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">ARPU</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.airtableMetrics.arpu)}<span className="unit">/Mo</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Avg Revenue Per User</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '480ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Upsells</span></div>
+                  <div className="kpi-value">{data.airtableMetrics.upsellCount}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{data.airtableMetrics.upsellRate}% Upsell Rate</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">&Oslash; Laufzeit</span></div>
+                  <div className="kpi-value">{data.airtableMetrics.avgContractLength}<span className="unit"> Monate</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Vertragslaufzeit</span></div>
+                </div>
+              </div>
+
+              {/* MRR nach Produkt */}
+              <div className="za-panel fade-up" style={{ animationDelay: '600ms', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
-                    <span className="panel-eyebrow">Alle Kunden</span>
-                    <div className="panel-title">{data.customerAnalytics.totalCustomers} Kunden &middot; {fmtEuro(data.totalRevenue)}</div>
+                    <span className="panel-eyebrow">MRR nach Produkt</span>
+                    <div className="panel-title">&euro;{fmtNum(data.airtableMetrics.mrr)}/Mo Recurring Revenue</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {data.airtableMetrics.productMix.filter(p => p.mrr > 0).map((p, i) => {
+                    const maxMrr = Math.max(...data.airtableMetrics.productMix.map(x => x.mrr))
+                    const pct = maxMrr > 0 ? (p.mrr / maxMrr) * 100 : 0
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '160px', flexShrink: 0, fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)' }}>{p.product}</div>
+                        <div style={{ flex: 1, height: '24px', background: 'rgba(249,249,249,0.04)', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, var(--za-gold), var(--za-gold-2))', borderRadius: '6px', transition: 'width 0.8s ease' }} />
+                        </div>
+                        <div style={{ width: '100px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontSize: '13px', fontWeight: 700, color: 'var(--za-gold-2)' }}>&euro;{fmtNum(p.mrr)}/Mo</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Aktive Kunden Table */}
+              <div className="za-panel fade-up" style={{ animationDelay: '660ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Aktive Kunden</span>
+                    <div className="panel-title">{data.airtableMetrics.activeCustomers} aktive Vertr&auml;ge</div>
                   </div>
                 </div>
                 <div className="za-table-wrap">
@@ -1213,118 +1314,110 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                     <thead>
                       <tr>
                         <th>Kunde</th>
-                        <th>Deals</th>
-                        <th>Umsatz</th>
-                        <th>Erster Deal</th>
-                        <th>Letzter Deal</th>
-                        <th>Status</th>
+                        <th>Produkt</th>
+                        <th>Rate/Mo</th>
+                        <th>Laufzeit</th>
+                        <th>Endet am</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {data.customerAnalytics.customers.map((customer, i) => {
-                        const ninetyDaysAgoDate = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
-                        const isActive = customer.latestDeal >= ninetyDaysAgoDate
-                        const isUpsell = customer.dealCount > 1
+                      {[...data.airtableMetrics.activeList].sort((a, b) => b.monatlicheRate - a.monatlicheRate).map((c, i) => {
+                        const name = c.dealName.replace(/^CL-\d+\s*[-–]\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
                         return (
                           <tr key={i}>
                             <td>
                               <div className="t-co">
-                                <span className="t-co-mark">{customer.name.charAt(0)}</span>
-                                <span className="t-co-name">{customer.name}</span>
+                                <span className="t-co-mark">{name.charAt(0)}</span>
+                                <span className="t-co-name">{name}</span>
                               </div>
                             </td>
-                            <td>{customer.dealCount}</td>
-                            <td>{fmtEuro(customer.totalRevenue)}</td>
-                            <td>{fmtDate(customer.firstDeal)}</td>
-                            <td>{fmtDate(customer.latestDeal)}</td>
-                            <td>
-                              {isUpsell && <span className="t-status" style={{ background: 'rgba(197,160,89,0.15)', color: 'var(--za-gold-2)', marginRight: '4px' }}>Upsell</span>}
-                              {isActive
-                                ? <span className="t-status won">Aktiv</span>
-                                : <span className="t-status" style={{ background: 'rgba(232,116,103,0.15)', color: 'var(--za-danger)' }}>Inaktiv</span>
-                              }
-                            </td>
+                            <td><span style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{c.produkt}</span></td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>&euro;{fmtNum(c.monatlicheRate)}</td>
+                            <td>{c.vertragslaufzeit ? `${c.vertragslaufzeit} Mo` : '\u2013'}</td>
+                            <td style={{ fontSize: '12px', color: 'var(--za-fg-3)' }}>{c.vertragsende ? fmtDate(c.vertragsende) : '\u2013'}</td>
                           </tr>
                         )
                       })}
-                      {data.customerAnalytics.customers.length === 0 && (
-                        <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--za-fg-3)', padding: '20px' }}>Keine Kunden vorhanden</td></tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
 
-              {/* Upsell Champions Panel */}
-              <div className="za-panel fade-up" style={{ animationDelay: '480ms', marginBottom: '16px' }}>
+              {/* Churn Analyse */}
+              <div className="za-panel fade-up" style={{ animationDelay: '720ms', marginBottom: '16px', borderLeft: '3px solid var(--za-danger)' }}>
                 <div className="panel-head">
                   <div>
-                    <span className="panel-eyebrow">Upsell Champions</span>
-                    <div className="panel-title">{data.customerAnalytics.upsellCustomers} Kunden mit mehreren Deals</div>
+                    <span className="panel-eyebrow" style={{ color: 'var(--za-danger)' }}>Churn Analyse</span>
+                    <div className="panel-title">{data.airtableMetrics.churned} K&uuml;ndigungen</div>
                   </div>
                 </div>
-                {data.customerAnalytics.customers.filter(c => c.dealCount > 1).length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--za-fg-3)', fontSize: '12px' }}>
-                    Keine Upsell-Kunden vorhanden
-                  </div>
-                )}
-                {data.customerAnalytics.customers.filter(c => c.dealCount > 1).map((customer, i) => (
-                  <div key={i} className="za-panel" style={{ margin: '8px 0', padding: '12px 16px', background: 'rgba(197,160,89,0.04)', border: '1px solid rgba(197,160,89,0.12)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span className="t-co-mark" style={{ background: 'linear-gradient(135deg, var(--za-gold), var(--za-gold-2))' }}>{customer.name.charAt(0)}</span>
-                        <div>
-                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{customer.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>{customer.dealCount} Deals</div>
-                        </div>
-                      </div>
-                      <span style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 700, color: 'var(--za-gold-2)' }}>{fmtEuro(customer.totalRevenue)}</span>
-                    </div>
-                    <div style={{ borderTop: '1px solid var(--za-border)', paddingTop: '8px' }}>
-                      {customer.deals
-                        .sort((a, b) => b.date.localeCompare(a.date))
-                        .map((deal, j) => (
-                          <div key={j} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '12px' }}>
-                            <span style={{ color: 'var(--za-fg-3)' }}>{fmtDate(deal.date)}</span>
-                            <span style={{ fontWeight: 600, color: 'var(--za-success)' }}>{fmtEuro(deal.value)}</span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ))}
+                <div className="za-table-wrap">
+                  <table className="za-table">
+                    <thead>
+                      <tr>
+                        <th>Kunde</th>
+                        <th>Produkt</th>
+                        <th>Grund</th>
+                        <th>Volumen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.airtableMetrics.churnedList.map((c, i) => {
+                        const name = c.dealName.replace(/^CL-\d+\s*[-–]\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
+                        const reasonColors: Record<string, string> = {
+                          'Umsetzung fehlte': '#f59e0b',
+                          'Zeitmangel': '#eab308',
+                          'Keine Ergebnisse': '#ef4444',
+                          'Vertriebsprobleme': '#f97316',
+                          'Todesfall': '#6b7280',
+                          'Ausgelaufen / happy': '#22c55e',
+                          'Nicht gepasst zu ihm': '#a78bfa',
+                        }
+                        const reasonColor = reasonColors[c.kuendigungsgrund] || 'var(--za-fg-3)'
+                        return (
+                          <tr key={i}>
+                            <td>
+                              <div className="t-co">
+                                <span className="t-co-mark">{name.charAt(0)}</span>
+                                <span className="t-co-name">{name}</span>
+                              </div>
+                            </td>
+                            <td><span style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{c.produkt}</span></td>
+                            <td><span style={{ fontSize: '12px', fontWeight: 600, color: reasonColor, padding: '2px 8px', borderRadius: '4px', background: `${reasonColor}15` }}>{c.kuendigungsgrund || 'Unbekannt'}</span></td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{c.vertragssumme > 0 ? fmtEuro(c.vertragssumme) : '\u2013'}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              {/* Churn Risk Panel */}
-              <div className="za-panel fade-up" style={{ animationDelay: '540ms', marginBottom: '16px' }}>
+              {/* Upsell Champions */}
+              <div className="za-panel fade-up" style={{ animationDelay: '780ms', marginBottom: '16px', borderTop: '2px solid var(--za-gold)' }}>
                 <div className="panel-head">
                   <div>
-                    <span className="panel-eyebrow" style={{ color: 'var(--za-danger)' }}>Churn Risk</span>
-                    <div className="panel-title">{data.customerAnalytics.inactiveCustomers} Kunden &gt;90 Tage inaktiv</div>
+                    <span className="panel-eyebrow" style={{ color: 'var(--za-gold-2)' }}>Upsell Champions</span>
+                    <div className="panel-title">{data.airtableMetrics.upsellCount} Upsells</div>
                   </div>
                 </div>
-                {data.customerAnalytics.customers.filter(c => {
-                  const ninetyDaysAgoDate = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
-                  return c.latestDeal < ninetyDaysAgoDate
-                }).length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--za-fg-3)', fontSize: '12px' }}>
-                    Keine inaktiven Kunden &mdash; alle Kunden sind aktiv
-                  </div>
-                )}
-                {data.customerAnalytics.customers.filter(c => {
-                  const ninetyDaysAgoDate = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
-                  return c.latestDeal < ninetyDaysAgoDate
-                }).map((customer, i) => {
-                  const daysSince = Math.round((Date.now() - new Date(customer.latestDeal).getTime()) / 86400000)
+                {data.airtableMetrics.upsellList.map((c, i) => {
+                  const name = c.dealName.replace(/^CL-\d+\s*[-–]\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
                   return (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--za-border)', borderLeft: '3px solid var(--za-danger)', paddingLeft: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span className="t-co-mark">{customer.name.charAt(0)}</span>
-                        <div>
-                          <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{customer.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Letzter Deal: {fmtDate(customer.latestDeal)} &middot; {fmtEuro(customer.totalRevenue)} Umsatz</div>
+                    <div key={i} className="za-panel" style={{ margin: '8px 0', padding: '12px 16px', background: 'rgba(197,160,89,0.04)', border: '1px solid rgba(197,160,89,0.12)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="t-co-mark" style={{ background: 'linear-gradient(135deg, var(--za-gold), var(--za-gold-2))' }}>{name.charAt(0)}</span>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{name}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--za-fg-3)' }}>{c.produkt}</div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 700, color: 'var(--za-gold-2)' }}>{fmtEuro(c.vertragssumme)}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Upsell am {fmtDate(c.upsellDatum)}</div>
                         </div>
                       </div>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--za-danger)' }}>{daysSince} Tage</span>
                     </div>
                   )
                 })}

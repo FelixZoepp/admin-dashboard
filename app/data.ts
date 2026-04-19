@@ -1,3 +1,5 @@
+import { getAirtableMetrics, AirtableMetrics } from './airtable-data'
+
 const CLOSE_API_BASE = 'https://api.close.com/api/v1'
 
 // Pipeline status IDs
@@ -581,6 +583,8 @@ export async function fetchCloseData() {
       weekStartISO,
       monthStartISO: monthStart,
       yearStartISO,
+
+      airtableMetrics: getAirtableMetrics(),
 
       lastUpdated: new Date().toISOString(),
     }
