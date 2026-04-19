@@ -216,6 +216,11 @@
         .metric-name { font-size: 13px; color: var(--text-primary); }
         .metric-val { font-size: 14px; font-weight: 700; color: var(--text-primary); }
 
+        /* Lead Funnel */
+        .lead-funnel-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); }
+        .lead-funnel-item:last-child { border-bottom: none; }
+        .lead-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+
         /* Empty State */
         .empty-state { text-align: center; padding: 30px 20px; color: var(--text-muted); }
         .empty-icon { font-size: 36px; margin-bottom: 10px; }
@@ -244,8 +249,8 @@
     <div class="header-top">
         <div class="header-title">Content Leads — Admin</div>
         <div class="header-meta">
-            <div id="weekLabel">KW 14</div>
-            <div id="dateLabel">06.04.2026</div>
+            <div id="weekLabel">KW 16</div>
+            <div id="dateLabel">19.04.2026</div>
         </div>
     </div>
     <nav class="tabs" id="tabs">
@@ -259,73 +264,137 @@
 
 <!-- ===== SALES ===== -->
 <div class="tab-content active" id="tab-sales">
-    <div class="section-title">Kennzahlen KW 14</div>
+    <div class="section-title">Kennzahlen KW 16</div>
     <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Anwahlen</div><div class="kpi-value">547</div><div class="kpi-sub"><span class="down">&#9660; -35%</span> vs. VW</div></div>
-        <div class="kpi-card"><div class="kpi-label">CC-Protokolle</div><div class="kpi-value">473</div><div class="kpi-sub">CC-Quote: <span class="up">86%</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">Settings</div><div class="kpi-value">13</div><div class="kpi-sub">Quali-Quote: <span class="up">3%</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">Won Deals</div><div class="kpi-value">1</div><div class="kpi-sub"><span class="up">&euro;3.590</span> Wert</div></div>
-        <div class="kpi-card"><div class="kpi-label">Pipeline</div><div class="kpi-value">88</div><div class="kpi-sub"><span class="up">&euro;145.230</span> Wert</div></div>
-        <div class="kpi-card"><div class="kpi-label">Closing Rate</div><div class="kpi-value">8%</div><div class="kpi-sub"><span class="neutral">&#9650; +2%</span> vs. VW</div></div>
+        <div class="kpi-card"><div class="kpi-label">Anwahlen</div><div class="kpi-value">53</div><div class="kpi-sub"><span class="down">&#9660; -90%</span> vs. VW (2)</div></div>
+        <div class="kpi-card"><div class="kpi-label">Won Deals</div><div class="kpi-value">2</div><div class="kpi-sub"><span class="up">&euro;4.475</span> Wert</div></div>
+        <div class="kpi-card"><div class="kpi-label">Pipeline</div><div class="kpi-value">59</div><div class="kpi-sub"><span class="up">&euro;65.500</span> Wert</div></div>
+        <div class="kpi-card"><div class="kpi-label">Closing Rate</div><div class="kpi-value">25%</div><div class="kpi-sub">35 Won / 139 Closed</div></div>
+        <div class="kpi-card"><div class="kpi-label">Avg Deal</div><div class="kpi-value">&euro;5.534</div><div class="kpi-sub">&#216; Won Deal Size</div></div>
+        <div class="kpi-card"><div class="kpi-label">Leads gesamt</div><div class="kpi-value">7.609</div><div class="kpi-sub">davon 6.873 im Leadpool</div></div>
     </div>
 
-    <div class="section-title">Sales Funnel</div>
+    <div class="section-title">Lead Status Verteilung</div>
     <div class="card">
-        <div class="funnel-stage"><div class="funnel-label">Anwahlen</div><div class="funnel-bar" style="width:100%; background:linear-gradient(90deg,#4f8cff,#6ba3ff);">547</div><div class="funnel-pct">100%</div></div>
-        <div class="funnel-stage"><div class="funnel-label">CC</div><div class="funnel-bar" style="width:86%; background:linear-gradient(90deg,#5a94ff,#75abff);">473</div><div class="funnel-pct">86%</div></div>
-        <div class="funnel-stage"><div class="funnel-label">Settings</div><div class="funnel-bar" style="width:8%; min-width:40px; background:linear-gradient(90deg,#65a0ff,#85b9ff);">13</div><div class="funnel-pct">2,4%</div></div>
-        <div class="funnel-stage"><div class="funnel-label">Closing</div><div class="funnel-bar" style="width:4%; min-width:30px; background:linear-gradient(90deg,#34d399,#51e0b8);">0</div><div class="funnel-pct">0%</div></div>
-        <div class="funnel-stage"><div class="funnel-label">Won</div><div class="funnel-bar" style="width:4%; min-width:30px; background:linear-gradient(90deg,#fbbf24,#fcd34d);">1</div><div class="funnel-pct">0,2%</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--accent-blue);"></span>Leadpool</div><div class="status-val">6.873</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--accent-yellow);"></span>Interessiert</div><div class="status-val">64</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--accent-orange);"></span>High Prio</div><div class="status-val">4</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--accent-purple);"></span>Setting</div><div class="status-val">61</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--accent-green);"></span>Closing</div><div class="status-val">42</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--accent-green);"></span>Kunde</div><div class="status-val">25</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--accent-red);"></span>Kein Interesse</div><div class="status-val">74</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--accent-red);"></span>Disqualifiziert</div><div class="status-val">102</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--text-muted);"></span>Schwer erreichbar</div><div class="status-val">124</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--text-muted);"></span>Bad Data</div><div class="status-val">144</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--text-muted);"></span>Unqualifiziert</div><div class="status-val">95</div></div>
+        <div class="lead-funnel-item"><div><span class="lead-status-dot" style="background:var(--accent-purple);"></span>Nurture</div><div class="status-val">1</div></div>
     </div>
-
-    <div class="section-title">Opener Performance</div>
-    <div class="card"><div class="table-wrap"><table>
-        <thead><tr><th>Name</th><th>Anw.</th><th>CC</th><th>CC%</th><th>Sett.</th><th>Q%</th></tr></thead>
-        <tbody>
-            <tr><td>Felix Zoepp</td><td>2</td><td>10</td><td class="highlight">500%</td><td class="highlight">13</td><td class="highlight">130%</td></tr>
-            <tr><td>John Santillan</td><td class="highlight">545</td><td class="highlight">463</td><td>85%</td><td>0</td><td>0%</td></tr>
-        </tbody>
-    </table></div></div>
 
     <div class="section-title">Wochentrend — Anwahlen</div>
     <div class="card"><div class="chart-bars">
-        <div class="chart-col"><div class="chart-bar-val">720</div><div class="chart-bar" style="height:85%;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW7</div></div>
-        <div class="chart-col"><div class="chart-bar-val">780</div><div class="chart-bar" style="height:92%;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW8</div></div>
-        <div class="chart-col"><div class="chart-bar-val">750</div><div class="chart-bar" style="height:88%;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW9</div></div>
-        <div class="chart-col"><div class="chart-bar-val">650</div><div class="chart-bar" style="height:76%;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW10</div></div>
-        <div class="chart-col"><div class="chart-bar-val">700</div><div class="chart-bar" style="height:82%;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW11</div></div>
+        <div class="chart-col"><div class="chart-bar-val">6</div><div class="chart-bar" style="height:1%;min-height:4px;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW9</div></div>
+        <div class="chart-col"><div class="chart-bar-val">21</div><div class="chart-bar" style="height:2%;min-height:6px;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW10</div></div>
+        <div class="chart-col"><div class="chart-bar-val">3</div><div class="chart-bar" style="height:1%;min-height:4px;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW11</div></div>
+        <div class="chart-col"><div class="chart-bar-val">43</div><div class="chart-bar" style="height:5%;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW12</div></div>
         <div class="chart-col"><div class="chart-bar-val">850</div><div class="chart-bar" style="height:100%;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW13</div></div>
-        <div class="chart-col"><div class="chart-bar-val">547</div><div class="chart-bar" style="height:64%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">KW14</div></div>
+        <div class="chart-col"><div class="chart-bar-val">544</div><div class="chart-bar" style="height:64%;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW14</div></div>
+        <div class="chart-col"><div class="chart-bar-val">2</div><div class="chart-bar" style="height:1%;min-height:4px;background:linear-gradient(180deg,#4f8cff,#5a94ff);"></div><div class="chart-bar-lbl">KW15</div></div>
+        <div class="chart-col"><div class="chart-bar-val">53</div><div class="chart-bar" style="height:6%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">KW16</div></div>
     </div></div>
 
-    <div class="section-title">Won Deals — April</div>
+    <div class="section-title">Won Deals — April 2026</div>
+    <div class="deal-card">
+        <div class="deal-header"><div class="deal-name">Hendrik Hoffmann</div><div class="deal-badge badge-won">Won</div></div>
+        <div class="deal-value">&euro;13.000</div>
+        <div class="deal-meta"><span>07.04.2026</span><span>Felix Zoepp</span></div>
+    </div>
+    <div class="deal-card">
+        <div class="deal-header"><div class="deal-name">B&amp;C Direct Sales GmbH</div><div class="deal-badge badge-won">Won</div></div>
+        <div class="deal-value">&euro;6.000</div>
+        <div class="deal-meta"><span>07.04.2026</span><span>Felix Zoepp</span></div>
+    </div>
     <div class="deal-card">
         <div class="deal-header"><div class="deal-name">Michael Walter</div><div class="deal-badge badge-won">Won</div></div>
         <div class="deal-value">&euro;3.590</div>
         <div class="deal-meta"><span>01.04.2026</span><span>Felix Zoepp</span></div>
     </div>
+    <div class="deal-card">
+        <div class="deal-header"><div class="deal-name">Dr. Roland Goschke</div><div class="deal-badge badge-won">Won</div></div>
+        <div class="deal-value">&euro;2.975</div>
+        <div class="deal-meta"><span>16.04.2026</span><span>Felix Zoepp</span></div>
+    </div>
+    <div class="deal-card">
+        <div class="deal-header"><div class="deal-name">Olcay Bektas Profina</div><div class="deal-badge badge-won">Won</div></div>
+        <div class="deal-value">&euro;1.500</div>
+        <div class="deal-meta"><span>15.04.2026</span><span>Felix Zoepp</span></div>
+    </div>
 
     <div class="section-title">Active Pipeline</div>
     <div class="card">
-        <div class="status-item"><div><div class="status-val">12 Deals</div><div class="status-sub">Setting — Terminiert</div></div><div class="status-val" style="color:var(--accent-blue);">&euro;45.200</div></div>
-        <div class="status-item"><div><div class="status-val">15 Deals</div><div class="status-sub">Setting — Follow Up</div></div><div class="status-val" style="color:var(--accent-blue);">&euro;52.300</div></div>
-        <div class="status-item"><div><div class="status-val">8 Deals</div><div class="status-sub">Closing — Terminiert</div></div><div class="status-val" style="color:var(--accent-green);">&euro;28.500</div></div>
-        <div class="status-item"><div><div class="status-val">5 Deals</div><div class="status-sub">Closing — Follow Up</div></div><div class="status-val" style="color:var(--accent-green);">&euro;15.400</div></div>
-        <div class="status-item"><div><div class="status-val">38 Deals</div><div class="status-sub">Angebot verschickt</div></div><div class="status-val" style="color:var(--accent-yellow);">&euro;120.730</div></div>
-        <div class="status-item"><div><div class="status-val">3 Deals</div><div class="status-sub">No Show</div></div><div class="status-val" style="color:var(--accent-red);">&euro;8.900</div></div>
+        <div class="status-item"><div><div class="status-val">8 Deals</div><div class="status-sub">Closing — Terminiert</div></div><div class="status-val" style="color:var(--accent-green);">&euro;36.500</div></div>
+        <div class="status-item"><div><div class="status-val">3 Deals</div><div class="status-sub">Angebot verschickt</div></div><div class="status-val" style="color:var(--accent-yellow);">&euro;15.800</div></div>
+        <div class="status-item"><div><div class="status-val">2 Deals</div><div class="status-sub">CC2 — Terminiert</div></div><div class="status-val" style="color:var(--accent-blue);">&euro;13.200</div></div>
+        <div class="status-item"><div><div class="status-val">12 Deals</div><div class="status-sub">Closing — Follow Up</div></div><div class="status-val" style="color:var(--text-muted);">&euro;0</div></div>
+        <div class="status-item"><div><div class="status-val">23 Deals</div><div class="status-sub">Setting — Follow Up</div></div><div class="status-val" style="color:var(--text-muted);">&euro;0</div></div>
+        <div class="status-item"><div><div class="status-val">5 Deals</div><div class="status-sub">Setting — Terminiert</div></div><div class="status-val" style="color:var(--text-muted);">&euro;0</div></div>
+        <div class="status-item"><div><div class="status-val">5 Deals</div><div class="status-sub">Setting — No Show</div></div><div class="status-val" style="color:var(--accent-red);">&euro;0</div></div>
+        <div class="status-item"><div><div class="status-val">1 Deal</div><div class="status-sub">Closing — No Show</div></div><div class="status-val" style="color:var(--accent-red);">&euro;0</div></div>
     </div>
+
+    <div class="section-title">Pipeline Deals mit Wert</div>
+    <div class="card"><div class="table-wrap"><table>
+        <thead><tr><th>Lead</th><th>Status</th><th>Wert</th></tr></thead>
+        <tbody>
+            <tr><td>Dynamic Directsales GmbH</td><td>Angebot verschickt</td><td class="highlight">&euro;7.500</td></tr>
+            <tr><td>Despos GmbH</td><td>Closing - Terminiert</td><td class="highlight">&euro;7.500</td></tr>
+            <tr><td>Range Solutions</td><td>CC2 - Terminiert</td><td class="highlight">&euro;7.200</td></tr>
+            <tr><td>Cihan Oeztuerk</td><td>CC2 - Terminiert</td><td class="highlight">&euro;6.000</td></tr>
+            <tr><td>Roland</td><td>Angebot verschickt</td><td class="highlight">&euro;6.000</td></tr>
+            <tr><td>Michael</td><td>Closing - Terminiert</td><td class="highlight">&euro;6.000</td></tr>
+            <tr><td>Michael Nowasz</td><td>Closing - Terminiert</td><td class="highlight">&euro;6.000</td></tr>
+            <tr><td>Deutscher Medien Verlag</td><td>Closing - Terminiert</td><td class="highlight">&euro;6.000</td></tr>
+            <tr><td>Thorsten Niggemann</td><td>Closing - Terminiert</td><td class="highlight">&euro;6.000</td></tr>
+            <tr><td>iklaro</td><td>Closing - Terminiert</td><td class="highlight">&euro;5.000</td></tr>
+            <tr><td>D.A. Direktvertrieb</td><td>Angebot verschickt</td><td class="highlight">&euro;2.300</td></tr>
+        </tbody>
+    </table></div></div>
 
     <div class="section-title">Month-to-Date</div>
     <div class="card">
-        <div class="kpi-label">Umsatz April (bis 05.04)</div>
-        <div class="kpi-value" style="margin:8px 0;">&euro;3.590</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:24%;"></div></div>
-        <div class="kpi-sub">Target: &euro;15.000 | 24% erreicht</div>
+        <div class="kpi-label">Umsatz April (bis 19.04)</div>
+        <div class="kpi-value" style="margin:8px 0;">&euro;27.065</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:60%;"></div></div>
+        <div class="kpi-sub">Target: &euro;45.000 | 60% erreicht</div>
         <div style="margin-top:16px;">
-            <div class="kpi-label">Prognose Monatsende</div>
-            <div class="kpi-value" style="margin:8px 0; color:var(--accent-blue);">&euro;51.290</div>
-            <div class="kpi-sub">Basierend auf linearer Extrapolation</div>
+            <div class="kpi-label">Forecast Monatsende</div>
+            <div class="kpi-value" style="margin:8px 0; color:var(--accent-blue);">&euro;42.734</div>
+            <div class="kpi-sub">Lineare Extrapolation (19/30 Tage)</div>
         </div>
+        <div style="margin-top:16px;">
+            <div class="kpi-label">Forecast inkl. Pipeline</div>
+            <div class="kpi-value" style="margin:8px 0; color:var(--accent-green);">&euro;43.571</div>
+            <div class="kpi-sub">+ Pipeline (&euro;65.500 x 25% Win Rate)</div>
+        </div>
+    </div>
+
+    <div class="section-title">Historische Performance</div>
+    <div class="card">
+        <div class="card-title">Won Revenue pro Monat</div>
+        <div class="metric-row"><div class="metric-name">April 2026 (MTD)</div><div class="metric-val" style="color:var(--accent-green);">&euro;27.065</div></div>
+        <div class="metric-row"><div class="metric-name">M&auml;rz 2026</div><div class="metric-val">&euro;45.380</div></div>
+        <div class="metric-row"><div class="metric-name">Februar 2026</div><div class="metric-val">&euro;14.350</div></div>
+        <div class="metric-row"><div class="metric-name">Januar 2026</div><div class="metric-val">&euro;25.630</div></div>
+        <div class="metric-row"><div class="metric-name">Dezember 2025</div><div class="metric-val">&euro;16.900</div></div>
+        <div class="metric-row"><div class="metric-name">November 2025</div><div class="metric-val">&euro;11.500</div></div>
+        <div class="metric-row"><div class="metric-name">Oktober 2025</div><div class="metric-val">&euro;36.334</div></div>
+    </div>
+
+    <div class="section-title">Gesamtstatistik</div>
+    <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Won (gesamt)</div><div class="kpi-value" style="color:var(--accent-green);">35</div><div class="kpi-sub">&euro;193.679 Umsatz</div></div>
+        <div class="kpi-card"><div class="kpi-label">Lost (gesamt)</div><div class="kpi-value" style="color:var(--accent-red);">104</div><div class="kpi-sub">&euro;57.206 entgangen</div></div>
+        <div class="kpi-card"><div class="kpi-label">Kunden</div><div class="kpi-value">25</div><div class="kpi-sub">Active Customers</div></div>
+        <div class="kpi-card"><div class="kpi-label">Calls (8W)</div><div class="kpi-value">1.522</div><div class="kpi-sub">Letzte 8 Wochen</div></div>
     </div>
 </div>
 
@@ -350,11 +419,11 @@
 
     <div class="section-title">Wochen-Trend</div>
     <div class="card"><div class="chart-bars">
-        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#a78bfa,#c4b5fd);"></div><div class="chart-bar-lbl">KW10</div></div>
-        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#a78bfa,#c4b5fd);"></div><div class="chart-bar-lbl">KW11</div></div>
         <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#a78bfa,#c4b5fd);"></div><div class="chart-bar-lbl">KW12</div></div>
         <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#a78bfa,#c4b5fd);"></div><div class="chart-bar-lbl">KW13</div></div>
-        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">KW14</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#a78bfa,#c4b5fd);"></div><div class="chart-bar-lbl">KW14</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#a78bfa,#c4b5fd);"></div><div class="chart-bar-lbl">KW15</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">KW16</div></div>
     </div></div>
 
     <div class="section-title">Kategorien</div>
@@ -423,21 +492,33 @@
 <div class="tab-content" id="tab-finanzen">
     <div class="section-title">Umsatz&uuml;bersicht</div>
     <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Umsatz MTD</div><div class="kpi-value" style="color:var(--accent-green);">&euro;3.590</div><div class="kpi-sub">April 2026</div></div>
+        <div class="kpi-card"><div class="kpi-label">Umsatz MTD</div><div class="kpi-value" style="color:var(--accent-green);">&euro;27.065</div><div class="kpi-sub">April 2026</div></div>
+        <div class="kpi-card"><div class="kpi-label">Umsatz gesamt</div><div class="kpi-value">&euro;193.679</div><div class="kpi-sub">35 Won Deals</div></div>
         <div class="kpi-card"><div class="kpi-label">Offene RG</div><div class="kpi-value">&mdash;</div><div class="kpi-sub">Easybill</div></div>
         <div class="kpi-card"><div class="kpi-label">Kontostand</div><div class="kpi-value">&mdash;</div><div class="kpi-sub">Qonto</div></div>
-        <div class="kpi-card"><div class="kpi-label">MRR</div><div class="kpi-value">&mdash;</div><div class="kpi-sub">Recurring Revenue</div></div>
     </div>
 
-    <div class="section-title">Monatsverlauf</div>
+    <div class="section-title">Monatsverlauf — Won Revenue</div>
     <div class="card"><div class="chart-bars">
-        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Nov</div></div>
-        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Dez</div></div>
-        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Jan</div></div>
-        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Feb</div></div>
-        <div class="chart-col"><div class="chart-bar-val">&mdash;</div><div class="chart-bar" style="height:10%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Mrz</div></div>
-        <div class="chart-col"><div class="chart-bar-val">&euro;3.590</div><div class="chart-bar" style="height:25%;background:linear-gradient(180deg,#fbbf24,#fcd34d);"></div><div class="chart-bar-lbl">Apr</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&euro;7k</div><div class="chart-bar" style="height:15%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Aug</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&euro;6k</div><div class="chart-bar" style="height:14%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Sep</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&euro;36k</div><div class="chart-bar" style="height:80%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Okt</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&euro;12k</div><div class="chart-bar" style="height:25%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Nov</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&euro;17k</div><div class="chart-bar" style="height:37%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Dez</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&euro;26k</div><div class="chart-bar" style="height:57%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Jan</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&euro;14k</div><div class="chart-bar" style="height:32%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Feb</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&euro;45k</div><div class="chart-bar" style="height:100%;background:linear-gradient(180deg,#34d399,#51e0b8);"></div><div class="chart-bar-lbl">Mrz</div></div>
+        <div class="chart-col"><div class="chart-bar-val">&euro;27k</div><div class="chart-bar" style="height:60%;background:linear-gradient(180deg,#fbbf24,#fcd34d);"></div><div class="chart-bar-lbl">Apr</div></div>
     </div></div>
+
+    <div class="section-title">Forecast</div>
+    <div class="card">
+        <div class="metric-row"><div class="metric-name">April MTD (19 Tage)</div><div class="metric-val" style="color:var(--accent-green);">&euro;27.065</div></div>
+        <div class="metric-row"><div class="metric-name">Forecast April (linear)</div><div class="metric-val" style="color:var(--accent-blue);">&euro;42.734</div></div>
+        <div class="metric-row"><div class="metric-name">Forecast + Pipeline</div><div class="metric-val" style="color:var(--accent-green);">&euro;43.571</div></div>
+        <div class="metric-row"><div class="metric-name">Pipeline Value (aktiv)</div><div class="metric-val">&euro;65.500</div></div>
+        <div class="metric-row"><div class="metric-name">Avg. Monat (letzten 3)</div><div class="metric-val">&euro;28.453</div></div>
+    </div>
 
     <div class="section-title">Easybill</div>
     <div class="card"><div class="empty-state"><div class="empty-icon">&#128196;</div><div class="empty-text">Easybill-Daten werden bald angebunden</div><div class="empty-sub">Rechnungen, Zahlungsstatus, Mahnwesen</div></div></div>
@@ -456,6 +537,13 @@
         <div class="kpi-card"><div class="kpi-label">Boards</div><div class="kpi-value">&mdash;</div><div class="kpi-sub">Aktive Boards</div></div>
     </div>
 
+    <div class="section-title">Sales Team — Close CRM</div>
+    <div class="card">
+        <div class="card-title">Team Members</div>
+        <div class="metric-row"><div class="metric-name">Felix Zoepp (Closer)</div><div class="metric-val">felix@content-leads.de</div></div>
+        <div class="metric-row"><div class="metric-name">John Santillan (Opener)</div><div class="metric-val">opener1@content-leads.de</div></div>
+    </div>
+
     <div class="section-title">Boards &amp; Projekte</div>
     <div class="card"><div class="empty-state"><div class="empty-icon">&#128203;</div><div class="empty-text">Monday.com Boards werden beim n&auml;chsten Update geladen</div><div class="empty-sub">Board-Status, Fortschritt, Team-Zuteilung</div></div></div>
 
@@ -464,7 +552,7 @@
 </div>
 
 <!-- Footer -->
-<div class="footer">Content Leads Admin Dashboard &mdash; Automatisch aktualisiert<br><span id="lastUpdate">Letzte Aktualisierung: 06.04.2026</span></div>
+<div class="footer">Content Leads Admin Dashboard — Daten aus Close CRM<br><span id="lastUpdate">Letzte Aktualisierung: 19.04.2026 | Quelle: Close CRM API</span></div>
 
 <script>
     // Tab Navigation
