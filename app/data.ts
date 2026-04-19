@@ -287,6 +287,69 @@ export async function fetchCloseData() {
       }
     }
 
+    // === Conversion Funnel ===
+    const SETTING_IDS = [
+      'stat_SJMKmHyG1PUg5y6pcFZiEHKEIWVrFf7IDMpF1O31AgA',
+      'stat_09b2m2xI4kxcxHjgE3Xbb3n7rzE3ygpmBX4zIXR1I5f',
+      'stat_esHRwS41irQis8aYyfk55CRjyrV5bhEB6c03qWdU3So',
+    ]
+    const CLOSING_IDS = [
+      'stat_G4vinr4M5aNginkr1nNkxS7Mt2sEFFELsmOfrBMGCG4',
+      'stat_XTjldovdZz1SvfOfi8nzTCbm5o9mUAVDwZ6jdSZ1V3R',
+      'stat_WJks2iEcai6sgu3dokyOSKud5oWTIWKo3IQaDSO9aDZ',
+    ]
+    const ANGEBOT_ID = 'stat_yIC8eUAp0OBYggJ1qqasmM3iosOh9rnrsEXJEtzSBpe'
+    const CC2_ID = 'stat_jwxdfe98lRYRhNRE9lPxo0oJ8tJIcJ7lCIVUTnVRzY2'
+
+    const totalOpportunities = opportunities.length
+    const reachedSetting = totalOpportunities // all start here
+    // Everything that moved past Setting stage
+    const reachedClosing = opportunities.filter((o: any) =>
+      CLOSING_IDS.includes(o.status_id) ||
+      o.status_id === ANGEBOT_ID ||
+      o.status_id === CC2_ID ||
+      o.status_id === WON_STATUS_ID ||
+      o.status_id === LOST_STATUS_ID
+    ).length
+
+    const settingToClosingRate = reachedSetting > 0 ? Math.round((reachedClosing / reachedSetting) * 1000) / 10 : 0
+    const closingToWonRate = reachedClosing > 0 ? Math.round((wonDeals.length / reachedClosing) * 1000) / 10 : 0
+    const overallConversionRate = totalOpportunities > 0 ? Math.round((wonDeals.length / totalOpportunities) * 1000) / 10 : 0
+
+    const conversionFunnel = {
+      totalOpportunities,
+      reachedSetting,
+      reachedClosing,
+      wonCount: wonDeals.length,
+      lostCount: lostDeals.length,
+      settingToClosingRate,
+      closingToWonRate,
+      overallConversionRate,
+    }
+
+    // === Waterfall ===
+    const settingsPerClose = wonDeals.length > 0 ? Math.round((reachedSetting / wonDeals.length) * 10) / 10 : 0
+    const closingsPerClose = wonDeals.length > 0 ? Math.round((reachedClosing / wonDeals.length) * 10) / 10 : 0
+
+    // Average deal cycle: days from date_created to date_won for won deals
+    let avgDealCycle = 0
+    const wonWithDates = wonDeals.filter((o: any) => o.date_created && o.date_won)
+    if (wonWithDates.length > 0) {
+      const totalDays = wonWithDates.reduce((sum: number, o: any) => {
+        const created = new Date(o.date_created).getTime()
+        const won = new Date(o.date_won).getTime()
+        return sum + (won - created) / 86400000
+      }, 0)
+      avgDealCycle = Math.round(totalDays / wonWithDates.length)
+    }
+
+    const waterfall = {
+      settingsPerClose,
+      closingsPerClose,
+      totalOpps: totalOpportunities,
+      avgDealCycle,
+    }
+
     // Derived values
     const leadpoolCount = leadStatusCounts.find(s => s.label === 'Leadpool')?.count || 0
     const totalCalls8W = weeklyCallData.reduce((sum, w) => sum + w.calls, 0)
@@ -371,6 +434,9 @@ export async function fetchCloseData() {
       linearForecast,
       pipelineWeightedForecast,
       avg3Months,
+
+      conversionFunnel,
+      waterfall,
 
       lastUpdated: new Date().toISOString(),
     }

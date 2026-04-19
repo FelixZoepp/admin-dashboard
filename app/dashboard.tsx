@@ -75,6 +75,22 @@ interface DashboardData {
   linearForecast: number
   pipelineWeightedForecast: number
   avg3Months: number
+  conversionFunnel: {
+    totalOpportunities: number
+    reachedSetting: number
+    reachedClosing: number
+    wonCount: number
+    lostCount: number
+    settingToClosingRate: number
+    closingToWonRate: number
+    overallConversionRate: number
+  }
+  waterfall: {
+    settingsPerClose: number
+    closingsPerClose: number
+    totalOpps: number
+    avgDealCycle: number
+  }
   lastUpdated: string
   error?: string
 }
@@ -198,6 +214,38 @@ export default function Dashboard({ data }: { data: DashboardData }) {
       {/* ===== SALES TAB ===== */}
       {activeTab === 'sales' && (
         <div style={{ padding: '16px' }}>
+          {/* Export Buttons */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            {[
+              { label: 'Tagesreport', period: 'daily' },
+              { label: 'Wochenreport', period: 'weekly' },
+              { label: 'Monatsreport', period: 'monthly' },
+            ].map((btn) => (
+              <button
+                key={btn.period}
+                onClick={() => window.open(`/api/report?period=${btn.period}`, '_blank')}
+                style={{
+                  flex: 1,
+                  background: 'var(--color-bg-tertiary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '8px',
+                  padding: '10px 8px',
+                  color: 'var(--color-text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                  transition: 'background 0.2s ease',
+                }}
+              >
+                <span style={{ fontSize: '14px' }}>{'\u2193'}</span> {btn.label}
+              </button>
+            ))}
+          </div>
+
           <div className="section-title" style={{ fontSize: '16px', fontWeight: 600, margin: '4px 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
             Kennzahlen KW {data.currentWeek}
           </div>
@@ -216,6 +264,66 @@ export default function Dashboard({ data }: { data: DashboardData }) {
             <KpiCard label="Closing Rate" value={`${data.closingRate}%`} sub={`${data.wonTotal} Won / ${data.closedTotal} Closed`} />
             <KpiCard label="Avg Deal" value={fmtEuro(data.avgDealSize)} sub={'\u00D8 Won Deal Size'} />
             <KpiCard label="Leads gesamt" value={fmtNum(data.totalLeads)} sub={`davon ${fmtNum(data.leadpoolCount)} im Leadpool`} />
+          </div>
+
+          {/* Conversion Funnel */}
+          <SectionTitle>Conversion Funnel</SectionTitle>
+          <Card>
+            {(() => {
+              const funnel = data.conversionFunnel
+              const stages = [
+                { label: 'Alle Opps', count: funnel.totalOpportunities, pct: 100 },
+                { label: 'Setting', count: funnel.reachedSetting, pct: 100 },
+                { label: 'Closing', count: funnel.reachedClosing, pct: funnel.settingToClosingRate },
+                { label: 'Won', count: funnel.wonCount, pct: funnel.overallConversionRate },
+              ]
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {stages.map((s, i) => (
+                    <div key={i}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 600 }}>{s.label}</span>
+                        <span style={{ color: 'var(--color-text-muted)' }}>{fmtNum(s.count)} ({s.pct.toFixed(1)}%)</span>
+                      </div>
+                      <div style={{ width: '100%', height: '24px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%',
+                          borderRadius: '4px',
+                          transition: 'width 0.6s ease',
+                          width: animatedBars ? `${Math.max(s.pct, 1)}%` : '0%',
+                          background: i === 3
+                            ? 'linear-gradient(90deg, #34d399, #51e0b8)'
+                            : i === 2
+                              ? 'linear-gradient(90deg, #fbbf24, #fcd34d)'
+                              : 'linear-gradient(90deg, #4f8cff, #5a94ff)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          paddingLeft: '8px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#000',
+                        }}>
+                          {s.pct > 15 ? `${s.pct.toFixed(1)}%` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '8px', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                    <span>Setting {'\u2192'} Closing: <strong style={{ color: 'var(--color-accent-yellow)' }}>{funnel.settingToClosingRate.toFixed(1)}%</strong></span>
+                    <span>Closing {'\u2192'} Won: <strong style={{ color: 'var(--color-accent-green)' }}>{funnel.closingToWonRate.toFixed(1)}%</strong></span>
+                  </div>
+                </div>
+              )
+            })()}
+          </Card>
+
+          {/* Waterfall Statistics */}
+          <SectionTitle>Waterfall Kennzahlen</SectionTitle>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
+            <KpiCard label="Settings pro Close" value={String(data.waterfall.settingsPerClose)} sub="Settings f\u00FCr 1 Won Deal" />
+            <KpiCard label="Closings pro Close" value={String(data.waterfall.closingsPerClose)} sub="Closings f\u00FCr 1 Won Deal" />
+            <KpiCard label="Gesamt Conversion" value={`${data.conversionFunnel.overallConversionRate.toFixed(1)}%`} valueColor="var(--color-accent-green)" sub="Alle Opps zu Won" />
+            <KpiCard label={'\u00D8 Deal Cycle'} value={`${data.waterfall.avgDealCycle} Tage`} sub="Erstellung bis Won" />
           </div>
 
           <SectionTitle>Lead Status Verteilung</SectionTitle>
