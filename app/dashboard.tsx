@@ -1,45 +1,36 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
-// German number formatting
+// ── Helpers ──────────────────────────────────────────────────
 function fmtNum(n: number): string {
   return n.toLocaleString('de-DE')
 }
-
 function fmtEuro(n: number): string {
   return '\u20AC' + n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
-
 function fmtDate(dateStr: string): string {
   if (!dateStr) return ''
   const [y, m, d] = dateStr.split('-')
   return `${d}.${m}.${y}`
 }
+function fmtEuroK(n: number): string {
+  if (n >= 1000) return `\u20AC${Math.round(n / 1000)}k`
+  return fmtEuro(n)
+}
 
-// Color mapping
-function colorVar(color: string): string {
-  const map: Record<string, string> = {
-    'accent-blue': 'var(--color-accent-blue)',
-    'accent-green': 'var(--color-accent-green)',
-    'accent-red': 'var(--color-accent-red)',
-    'accent-yellow': 'var(--color-accent-yellow)',
-    'accent-purple': 'var(--color-accent-purple)',
-    'accent-orange': 'var(--color-accent-orange)',
-    'text-muted': 'var(--color-text-muted)',
+// ── Chart utilities ──────────────────────────────────────────
+function generateSeries(n: number, base: number, variance: number, trend = 0): number[] {
+  const data: number[] = []
+  let v = base
+  for (let i = 0; i < n; i++) {
+    v += (Math.random() - 0.5) * variance + trend
+    data.push(Math.max(0, Math.round(v)))
   }
-  return map[color] || 'var(--color-text-muted)'
+  return data
 }
 
-// Pipeline status color
-function pipelineStatusColor(label: string): string {
-  if (label.includes('Closing') && label.includes('Terminiert')) return 'var(--color-accent-green)'
-  if (label.includes('Angebot')) return 'var(--color-accent-yellow)'
-  if (label.includes('CC2')) return 'var(--color-accent-blue)'
-  if (label.includes('No Show')) return 'var(--color-accent-red)'
-  return 'var(--color-text-muted)'
-}
-
+// ── Data interface ───────────────────────────────────────────
 interface DashboardData {
   currentWeek: number
   currentDate: string
@@ -110,56 +101,289 @@ const PERIOD_LABELS: Record<Period, string> = {
   year: 'Jahr',
 }
 
-export default function Dashboard({ data }: { data: DashboardData }) {
-  const [activeTab, setActiveTab] = useState('sales')
-  const [period, setPeriod] = useState<Period>('week')
-  const touchStartX = useRef(0)
-  const tabOrder = ['sales', 'fulfillment', 'marketing', 'finanzen', 'team']
+type ViewMode = 'overview' | 'deepdive' | 'executive'
 
-  const [animatedBars, setAnimatedBars] = useState(false)
+// ── Sidebar nav items ────────────────────────────────────────
+const NAV_COCKPIT = [
+  { id: 'overview', label: 'Overview', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> },
+  { id: 'pipeline', label: 'Pipeline', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 6h18M6 12h12M9 18h6"/></svg>, badge: true },
+  { id: 'leads', label: 'Leads', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><circle cx="17" cy="6" r="3"/></svg> },
+  { id: 'outreach', label: 'LinkedIn Outreach', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 5h16v12H5l-3 3V5a1 1 0 011-1z"/><path d="M7 10h10M7 13h6"/></svg> },
+]
+const NAV_STUDIO = [
+  { id: 'clients', label: 'Kunden', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 11a4 4 0 004-4"/></svg> },
+  { id: 'reports', label: 'Reports', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/></svg> },
+  { id: 'automations', label: 'Automationen', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg> },
+  { id: 'settings', label: 'Einstellungen', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1A1.7 1.7 0 008 19.4a1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H2a2 2 0 010-4h.1A1.7 1.7 0 003.6 8a1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H8a1.7 1.7 0 001-1.5V2a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V8a1.7 1.7 0 001.5 1H22a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg> },
+]
+
+// ══════════════════════════════════════════════════════════════
+// CHART COMPONENTS
+// ══════════════════════════════════════════════════════════════
+
+function SparklineChart({ data, color = '#C5A059', width = 140, height = 44 }: { data: number[]; color?: string; width?: number; height?: number }) {
+  const pad = 2
+  const max = Math.max(...data), min = Math.min(...data)
+  const range = max - min || 1
+  const step = (width - pad * 2) / (data.length - 1)
+  const pts = data.map((d, i) => {
+    const x = pad + i * step
+    const y = height - pad - ((d - min) / range) * (height - pad * 2)
+    return [x, y]
+  })
+  const d = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(2) + ' ' + p[1].toFixed(2)).join(' ')
+  const fillD = d + ` L ${pts[pts.length - 1][0].toFixed(2)} ${height} L ${pts[0][0].toFixed(2)} ${height} Z`
+  const last = pts[pts.length - 1]
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="kpi-spark">
+      <path d={fillD} fill={color} fillOpacity={0.15} />
+      <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={last[0]} cy={last[1]} r={2.2} fill={color} />
+    </svg>
+  )
+}
+
+function AreaChart({ series, labels, width = 720, height = 240 }: {
+  series: { name: string; data: number[]; color: string; glow?: boolean }[]
+  labels: string[]
+  width?: number
+  height?: number
+}) {
+  const svgRef = useRef<SVGSVGElement>(null)
+  const padL = 40, padR = 16, padT = 20, padB = 28
+  const innerW = width - padL - padR
+  const innerH = height - padT - padB
+  const all = series.flatMap(s => s.data)
+  const max = Math.max(...all) * 1.1
+  const range = max || 1
+  const n = series[0].data.length
+  const step = innerW / (n - 1)
+  const gridLines = 4
+  const gridColor = 'rgba(249,249,249,0.06)'
+
+  return (
+    <svg ref={svgRef} viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: `${height}px` }}>
+      <defs>
+        <filter id="chartGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="3" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        {series.map((s, si) => (
+          <linearGradient key={si} id={`area-grad-${si}`} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor={s.color} stopOpacity={0.42} />
+            <stop offset="1" stopColor={s.color} stopOpacity={0} />
+          </linearGradient>
+        ))}
+      </defs>
+      {/* Grid lines */}
+      {Array.from({ length: gridLines + 1 }).map((_, i) => {
+        const y = padT + (innerH / gridLines) * i
+        const val = Math.round(max - (range / gridLines) * i)
+        return (
+          <g key={i}>
+            <line x1={padL} x2={width - padR} y1={y} y2={y} stroke={gridColor} strokeDasharray="3 3" />
+            <text x={padL - 8} y={y + 4} fill="rgba(249,249,249,0.35)" textAnchor="end" fontFamily="Inter, sans-serif" fontSize="9" letterSpacing="0.2em">{val}</text>
+          </g>
+        )
+      })}
+      {/* X labels */}
+      {labels.map((lbl, i) => {
+        if (!lbl) return null
+        const x = padL + step * i
+        return <text key={i} x={x} y={height - 8} fill="rgba(249,249,249,0.35)" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="9" letterSpacing="0.2em">{lbl}</text>
+      })}
+      {/* Series */}
+      {series.map((s, si) => {
+        const pts = s.data.map((d, i) => {
+          const x = padL + step * i
+          const y = padT + innerH - (d / range) * innerH
+          return [x, y]
+        })
+        const d = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(2) + ' ' + p[1].toFixed(2)).join(' ')
+        const areaD = d + ` L ${pts[pts.length - 1][0].toFixed(2)} ${padT + innerH} L ${pts[0][0].toFixed(2)} ${padT + innerH} Z`
+        const last = pts[pts.length - 1]
+        return (
+          <g key={si}>
+            <path d={areaD} fill={`url(#area-grad-${si})`} />
+            <path d={d} fill="none" stroke={s.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" filter={s.glow ? 'url(#chartGlow)' : undefined} />
+            <circle cx={last[0]} cy={last[1]} r="6" fill={s.color} opacity="0.3" className="chart-pulse" />
+            <circle cx={last[0]} cy={last[1]} r="3" fill={s.color} />
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+function BarChart({ data, labels, width = 480, height = 220, color = '#C5A059' }: {
+  data: number[]; labels: string[]; width?: number; height?: number; color?: string
+}) {
+  const padL = 32, padR = 12, padT = 16, padB = 28
+  const innerW = width - padL - padR
+  const innerH = height - padT - padB
+  const max = Math.max(...data) * 1.1
+  const barW = innerW / data.length * 0.55
+  const gap = innerW / data.length
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: `${height}px` }}>
+      <defs>
+        <linearGradient id="bar-grad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity={1} />
+          <stop offset="1" stopColor={color} stopOpacity={0.2} />
+        </linearGradient>
+      </defs>
+      {Array.from({ length: 4 }).map((_, i) => {
+        const y = padT + (innerH / 3) * i
+        return <line key={i} x1={padL} x2={width - padR} y1={y} y2={y} stroke="rgba(249,249,249,0.05)" />
+      })}
+      {data.map((v, i) => {
+        const x = padL + gap * i + (gap - barW) / 2
+        const barH = (v / max) * innerH
+        const y = padT + innerH - barH
+        return (
+          <g key={i}>
+            <rect x={x} y={y} width={barW} height={barH} rx={3} fill="url(#bar-grad)" />
+            <text x={x + barW / 2} y={height - 8} fill="rgba(249,249,249,0.5)" textAnchor="middle" fontFamily="Inter, sans-serif" fontSize="9" letterSpacing="0.2em">{labels[i]}</text>
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+function DonutChart({ segments, size = 180, thickness = 22, centerValue, centerLabel }: {
+  segments: { value: number; color: string }[]
+  size?: number; thickness?: number
+  centerValue?: string; centerLabel?: string
+}) {
+  const c = size / 2
+  const r = c - thickness / 2 - 4
+  const total = segments.reduce((s, x) => s + x.value, 0)
+  const circ = 2 * Math.PI * r
+  let offset = 0
+
+  return (
+    <div className="donut-shell">
+      <svg viewBox={`0 0 ${size} ${size}`} className="donut-svg">
+        <circle cx={c} cy={c} r={r} fill="none" stroke="rgba(249,249,249,0.06)" strokeWidth={thickness} />
+        {segments.map((seg, i) => {
+          const len = (seg.value / total) * circ
+          const thisOffset = offset
+          offset += len
+          return (
+            <circle
+              key={i}
+              cx={c} cy={c} r={r}
+              fill="none"
+              stroke={seg.color}
+              strokeWidth={thickness}
+              strokeLinecap="round"
+              transform={`rotate(-90 ${c} ${c})`}
+              strokeDasharray={`${len} ${circ}`}
+              strokeDashoffset={-thisOffset}
+            />
+          )
+        })}
+      </svg>
+      {(centerValue || centerLabel) && (
+        <div className="donut-center">
+          {centerValue && <div className="val">{centerValue}</div>}
+          {centerLabel && <div className="lbl">{centerLabel}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FunnelChart({ stages }: { stages: { name: string; value: number; pct: string; color: string }[] }) {
+  const [animated, setAnimated] = useState(false)
+  const max = Math.max(...stages.map(s => s.value))
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(true), 200)
+    return () => clearTimeout(t)
+  }, [])
+
+  return (
+    <div className="funnel">
+      {stages.map((stage, i) => {
+        const widthPct = (stage.value / max) * 100
+        return (
+          <div key={i} className="funnel-row">
+            <div className="funnel-label">
+              <span className="funnel-stage-num">0{i + 1}</span>
+              <span className="funnel-stage-name">{stage.name}</span>
+            </div>
+            <div className="funnel-track">
+              <div className="funnel-fill" style={{ width: animated ? `${widthPct}%` : '0%', background: stage.color }} />
+            </div>
+            <div className="funnel-value">{fmtNum(stage.value)}</div>
+            <div className="funnel-pct">{stage.pct}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function HeatmapChart({ weeks = 20 }: { weeks?: number }) {
+  const [cells] = useState(() => {
+    const result: { v: number; delay: number }[] = []
+    for (let d = 0; d < 5; d++) {
+      for (let w = 0; w < weeks; w++) {
+        const bias = (w / weeks) * 0.6 + Math.random() * 0.6
+        const v = Math.min(1, bias)
+        result.push({ v, delay: w * 14 + d * 20 })
+      }
+    }
+    return result
+  })
+
+  return (
+    <>
+      <div className="heatmap">
+        {cells.map((cell, i) => (
+          <div key={i} className="hm-cell" style={{ '--v': cell.v.toFixed(2), animationDelay: `${cell.delay}ms` } as React.CSSProperties} />
+        ))}
+      </div>
+      <div className="heatmap-foot">
+        <span>Mo &ndash; Fr</span>
+        <div className="hm-scale">
+          <span>Weniger</span>
+          <span className="hm-scale-cell" style={{ background: 'rgba(197,160,89,0.08)' }} />
+          <span className="hm-scale-cell" style={{ background: 'rgba(197,160,89,0.3)' }} />
+          <span className="hm-scale-cell" style={{ background: 'rgba(197,160,89,0.6)' }} />
+          <span className="hm-scale-cell" style={{ background: 'rgba(197,160,89,0.9)', boxShadow: '0 0 6px rgba(197,160,89,0.5)' }} />
+          <span>Mehr</span>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════
+// MAIN DASHBOARD
+// ══════════════════════════════════════════════════════════════
+
+export default function Dashboard({ data }: { data: DashboardData }) {
+  const [activeNav, setActiveNav] = useState('overview')
+  const [view, setView] = useState<ViewMode>('overview')
+  const [period, setPeriod] = useState<Period>('week')
+
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
   const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set())
   const [expandedLeadStatuses, setExpandedLeadStatuses] = useState<Set<string>>(new Set())
 
   const toggleMonth = (label: string) => {
-    setExpandedMonths(prev => {
-      const next = new Set(prev)
-      if (next.has(label)) next.delete(label)
-      else next.add(label)
-      return next
-    })
+    setExpandedMonths(prev => { const next = new Set(prev); next.has(label) ? next.delete(label) : next.add(label); return next })
   }
-
   const toggleStatus = (label: string) => {
-    setExpandedStatuses(prev => {
-      const next = new Set(prev)
-      if (next.has(label)) next.delete(label)
-      else next.add(label)
-      return next
-    })
+    setExpandedStatuses(prev => { const next = new Set(prev); next.has(label) ? next.delete(label) : next.add(label); return next })
   }
-
   const toggleLeadStatus = (label: string) => {
-    setExpandedLeadStatuses(prev => {
-      const next = new Set(prev)
-      if (next.has(label)) next.delete(label)
-      else next.add(label)
-      return next
-    })
+    setExpandedLeadStatuses(prev => { const next = new Set(prev); next.has(label) ? next.delete(label) : next.add(label); return next })
   }
-
-  useEffect(() => {
-    // Trigger animation after mount
-    const timer = setTimeout(() => setAnimatedBars(true), 100)
-    return () => clearTimeout(timer)
-  }, [])
-
-  // Re-animate on tab change or period change
-  useEffect(() => {
-    setAnimatedBars(false)
-    const timer = setTimeout(() => setAnimatedBars(true), 50)
-    return () => clearTimeout(timer)
-  }, [activeTab, period])
 
   // Period-filtered data
   const periodStart = period === 'today' ? data.todayISO
@@ -173,820 +397,867 @@ export default function Dashboard({ data }: { data: DashboardData }) {
   const periodLostValue = filteredLost.reduce((s, d) => s + d.value, 0)
   const periodClosedTotal = filteredWon.length + filteredLost.length
   const periodClosingRate = periodClosedTotal > 0 ? Math.round((filteredWon.length / periodClosedTotal) * 100) : 0
-  const periodAvgDeal = filteredWon.length > 0 ? Math.round(periodRevenue / filteredWon.length) : 0
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.changedTouches[0].screenX
-  }
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const diff = touchStartX.current - e.changedTouches[0].screenX
-    if (Math.abs(diff) > 80) {
-      const idx = tabOrder.indexOf(activeTab)
-      const next = diff > 0 ? idx + 1 : idx - 1
-      if (next >= 0 && next < tabOrder.length) {
-        setActiveTab(tabOrder[next])
-      }
-    }
-  }
-
-  // Call trend - calculate bar heights
-  const maxCalls = Math.max(...(data.weeklyCallData?.map(w => w.calls) || [1]), 1)
-
-  // Monthly chart - calculate bar heights
-  const maxMonthly = Math.max(...(data.monthlyChartData?.map(m => m.value) || [1]), 1)
-
-  // Call change percentage
+  // Call change
   const callChange = data.callsLastWeek > 0
     ? Math.round(((data.callsThisWeek - data.callsLastWeek) / data.callsLastWeek) * 100)
     : 0
 
-  // MTD progress
-  const target = 45000
-  const progressPct = Math.min(Math.round((data.revenueMTD / target) * 100), 100)
+  // Sparkline data (stable, generated once)
+  const [sparkData] = useState(() => ({
+    a: generateSeries(24, 5, 3, 0.12),
+    b: generateSeries(24, 280, 30, 8),
+    c: generateSeries(24, 22, 4, 0.5),
+    d: generateSeries(24, 110, 14, 0.8),
+    e: generateSeries(24, 3, 2, 0.5),
+    f: generateSeries(24, 28, 4, 0.3),
+    g: Array(24).fill(100) as number[],
+    h: generateSeries(24, 60, 6, 0.5),
+  }))
+
+  // Chart data
+  const [chartData] = useState(() => ({
+    mainArea: [
+      { name: 'Termine', data: generateSeries(30, 4, 1.2, 0.08), color: '#C5A059', glow: true },
+      { name: 'Antworten', data: generateSeries(30, 22, 5, 0.3), color: '#8BB6E8' },
+    ],
+    mainLabels: Array.from({ length: 30 }, (_, i) => i % 5 === 0 ? String(i + 1).padStart(2, '0') : ''),
+    dd1Area: [
+      { name: 'Nachrichten', data: generateSeries(12, 140, 20, 2), color: '#8BB6E8' },
+      { name: 'Antworten', data: generateSeries(12, 46, 8, 1), color: '#C5A059', glow: true },
+      { name: 'Termine', data: generateSeries(12, 8, 1.5, 0.2), color: '#7FC29B' },
+    ],
+    dd1Labels: Array.from({ length: 12 }, (_, i) => 'W' + (i + 1)),
+    barData: [5, 6, 4, 7, 8, 6, 9, 7, 8, 10, 9, 8],
+    barLabels: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8', 'W9', 'W10', 'W11', 'W12'],
+    execArea: [
+      { name: 'ARR', data: [120, 130, 145, 155, 170, 180, 195, 210, 225, 240, 255, 270], color: '#C5A059', glow: true },
+      { name: 'Pipeline', data: [200, 220, 260, 280, 320, 360, 380, 410, 430, 460, 475, 482], color: '#8BB6E8' },
+    ],
+    execLabels: ['Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez', 'Jan', 'Feb', 'Mrz', 'Apr'],
+  }))
+
+  // Panel glow effect
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const panel = (e.target as HTMLElement).closest('.za-panel')
+    if (!panel) return
+    const r = panel.getBoundingClientRect()
+    ;(panel as HTMLElement).style.setProperty('--mx', (e.clientX - r.left) + 'px')
+    ;(panel as HTMLElement).style.setProperty('--my', (e.clientY - r.top) + 'px')
+  }, [])
+
+  // KPI mapping from real data
+  const pipelineK = Math.round(data.pipelineValue / 1000)
+  const revenueMTDK = Math.round(data.revenueMTD / 1000)
+
+  // Donut data from lead status counts
+  const donutSegments = (() => {
+    const colors = ['#C5A059', '#8BB6E8', '#B49AE8', '#7FC29B']
+    const total = data.leadStatusCounts.reduce((s, l) => s + l.count, 0)
+    if (total === 0) return [{ value: 100, color: '#333' }]
+    return data.leadStatusCounts.slice(0, 4).map((l, i) => ({
+      value: l.count,
+      color: colors[i % colors.length],
+    }))
+  })()
+
+  const donutTotal = data.leadStatusCounts.reduce((s, l) => s + l.count, 0)
+
+  // Funnel from real data
+  const funnelStages = [
+    { name: 'Alle Opps', value: data.conversionFunnel.totalOpportunities, pct: '100%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+    { name: 'Setting', value: data.conversionFunnel.reachedSetting, pct: `${data.conversionFunnel.settingToClosingRate.toFixed(0)}%`, color: 'linear-gradient(90deg,#8BB6E8,#B49AE8)' },
+    { name: 'Closing', value: data.conversionFunnel.reachedClosing, pct: `${data.conversionFunnel.closingToWonRate.toFixed(0)}%`, color: 'linear-gradient(90deg,#E9CB8B,#C5A059)' },
+    { name: 'Won', value: data.conversionFunnel.wonCount, pct: `${data.conversionFunnel.overallConversionRate.toFixed(1)}%`, color: 'linear-gradient(90deg,#7FC29B,#4E8A6B)' },
+  ]
+
+  // Activity feed from won deals
+  const activityFeed = (data.wonDealsDisplay || []).slice(0, 7).map((d, i) => ({
+    name: d.name,
+    action: `Won \u2014 ${fmtEuro(d.value)}`,
+    time: fmtDate(d.date),
+    mark: d.name.charAt(0).toUpperCase(),
+    isNew: i < 2,
+  }))
+
+  // Hot deals table (top 5 pipeline deals)
+  const hotDeals = (data.pipelineDealsWithValue || []).slice(0, 5)
+
+  // Get day name
+  const dayNames = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']
+  const today = new Date()
+  const dayName = dayNames[today.getDay()]
+
+  // Get greeting
+  const hour = today.getHours()
+  const greeting = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Guten Tag' : 'Guten Abend'
+
+  // Pipeline status helper
+  function getDealStatusClass(status: string): string {
+    const s = status.toLowerCase()
+    if (s.includes('closing') || s.includes('hot')) return 'hot'
+    if (s.includes('angebot') || s.includes('warm') || s.includes('setting')) return 'warm'
+    if (s.includes('won') || s.includes('close (won)')) return 'won'
+    return 'cold'
+  }
 
   return (
-    <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      {/* Header */}
-      <header style={{
-        background: 'linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%)',
-        padding: '16px 20px 0',
-        borderBottom: '1px solid var(--color-border)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div style={{
-            fontSize: '20px',
-            fontWeight: 700,
-            background: 'linear-gradient(135deg, var(--color-accent-blue) 0%, #7ba3ff 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}>
-            Content Leads — Admin
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textAlign: 'right' }}>
-            <div>KW {data.currentWeek}</div>
-            <div>{data.currentDate}</div>
-          </div>
-        </div>
-        <nav style={{
-          display: 'flex',
-          gap: 0,
-          overflowX: 'auto',
-          scrollbarWidth: 'none',
-          WebkitOverflowScrolling: 'touch',
-          margin: '0 -20px',
-          padding: '0 20px',
-        }}>
-          {[
-            { id: 'sales', label: 'Sales' },
-            { id: 'fulfillment', label: 'Fulfillment' },
-            { id: 'marketing', label: 'Marketing' },
-            { id: 'finanzen', label: 'Finanzen' },
-            { id: 'team', label: 'Team' },
-          ].map(tab => (
-            <div
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '10px 16px',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: activeTab === tab.id ? 'var(--color-accent-blue)' : 'var(--color-text-muted)',
-                borderBottom: `2px solid ${activeTab === tab.id ? 'var(--color-accent-blue)' : 'transparent'}`,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease',
-                userSelect: 'none',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              {tab.label}
-            </div>
-          ))}
-        </nav>
-      </header>
+    <>
+      {/* Aurora background */}
+      <div className="aurora" aria-hidden="true"><div className="aurora-blob3" /></div>
 
-      {/* ===== SALES TAB ===== */}
-      {activeTab === 'sales' && (
-        <div style={{ padding: '16px' }}>
-          {/* Export Buttons */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-            {[
-              { label: 'Tagesreport', period: 'daily' },
-              { label: 'Wochenreport', period: 'weekly' },
-              { label: 'Monatsreport', period: 'monthly' },
-            ].map((btn) => (
-              <button
-                key={btn.period}
-                onClick={() => window.open(`/api/report?period=${btn.period}`, '_blank')}
-                style={{
-                  flex: 1,
-                  background: 'var(--color-bg-tertiary)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '8px',
-                  padding: '10px 8px',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '4px',
-                  transition: 'background 0.2s ease',
-                }}
+      {/* SVG defs for chart glow */}
+      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+        <defs>
+          <filter id="chartGlowGlobal" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+      </svg>
+
+      <div className="za-app" onMouseMove={handleMouseMove}>
+        {/* ═══════ SIDEBAR ═══════ */}
+        <aside className="za-sidebar">
+          <div className="sb-brand">
+            <span className="sb-mark">Z</span>
+            <span className="sb-word">Zoepp Admin</span>
+          </div>
+
+          <div className="sb-section">
+            <div className="sb-section-label">Cockpit</div>
+            {NAV_COCKPIT.map(item => (
+              <a
+                key={item.id}
+                className={`sb-item ${activeNav === item.id ? 'is-active' : ''}`}
+                onClick={() => setActiveNav(item.id)}
               >
-                <span style={{ fontSize: '14px' }}>{'\u2193'}</span> {btn.label}
-              </button>
+                {item.icon}
+                {item.label}
+                {item.badge && <span className="sb-badge">{data.pipelineCount}</span>}
+              </a>
             ))}
           </div>
 
-          {/* Period Selector */}
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', background: 'var(--color-bg-secondary)', borderRadius: '10px', padding: '4px', border: '1px solid var(--color-border)' }}>
-            {(['today', 'week', 'month', 'year'] as Period[]).map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                style={{
-                  flex: 1,
-                  padding: '8px 4px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  background: period === p ? 'var(--color-accent-blue)' : 'transparent',
-                  color: period === p ? '#fff' : 'var(--color-text-muted)',
-                }}
+          <div className="sb-section">
+            <div className="sb-section-label">Studio</div>
+            {NAV_STUDIO.map(item => (
+              <a
+                key={item.id}
+                className={`sb-item ${activeNav === item.id ? 'is-active' : ''}`}
+                onClick={() => setActiveNav(item.id)}
               >
-                {PERIOD_LABELS[p]}
-              </button>
+                {item.icon}
+                {item.label}
+              </a>
             ))}
           </div>
 
-          <div className="section-title" style={{ fontSize: '16px', fontWeight: 600, margin: '4px 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            Kennzahlen — {PERIOD_LABELS[period]}
-            {period === 'week' && ` (KW ${data.currentWeek})`}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-            <KpiCard label="Won Deals" value={String(filteredWon.length)} sub={
-              <><span style={{ color: 'var(--color-accent-green)', fontWeight: 600 }}>{fmtEuro(periodRevenue)}</span> Umsatz</>
-            } />
-            <KpiCard label="Lost Deals" value={String(filteredLost.length)} valueColor="var(--color-accent-red)" sub={
-              <><span style={{ color: 'var(--color-accent-red)', fontWeight: 600 }}>{fmtEuro(periodLostValue)}</span> entgangen</>
-            } />
-            <KpiCard label="Closing Rate" value={`${periodClosingRate}%`} sub={`${filteredWon.length} Won / ${periodClosedTotal} Closed`} />
-            <KpiCard label="Avg Deal" value={periodAvgDeal > 0 ? fmtEuro(periodAvgDeal) : '\u2014'} sub={filteredWon.length > 0 ? '\u00D8 Won Deal Size' : 'Keine Deals'} />
-            <KpiCard label="Pipeline" value={String(data.pipelineCount)} sub={
-              <><span style={{ color: 'var(--color-accent-green)', fontWeight: 600 }}>{fmtEuro(data.pipelineValue)}</span> Wert</>
-            } />
-            <KpiCard label="Leads gesamt" value={fmtNum(data.totalLeads)} sub={`davon ${fmtNum(data.leadpoolCount)} im Leadpool`} />
-          </div>
-
-          {/* Conversion Funnel */}
-          <SectionTitle>Conversion Funnel</SectionTitle>
-          <Card>
-            {(() => {
-              const funnel = data.conversionFunnel
-              const stages = [
-                { label: 'Alle Opps', count: funnel.totalOpportunities, pct: 100 },
-                { label: 'Setting', count: funnel.reachedSetting, pct: 100 },
-                { label: 'Closing', count: funnel.reachedClosing, pct: funnel.settingToClosingRate },
-                { label: 'Won', count: funnel.wonCount, pct: funnel.overallConversionRate },
-              ]
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {stages.map((s, i) => (
-                    <div key={i}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                        <span style={{ fontWeight: 600 }}>{s.label}</span>
-                        <span style={{ color: 'var(--color-text-muted)' }}>{fmtNum(s.count)} ({s.pct.toFixed(1)}%)</span>
-                      </div>
-                      <div style={{ width: '100%', height: '24px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%',
-                          borderRadius: '4px',
-                          transition: 'width 0.6s ease',
-                          width: animatedBars ? `${Math.max(s.pct, 1)}%` : '0%',
-                          background: i === 3
-                            ? 'linear-gradient(90deg, #34d399, #51e0b8)'
-                            : i === 2
-                              ? 'linear-gradient(90deg, #fbbf24, #fcd34d)'
-                              : 'linear-gradient(90deg, #4f8cff, #5a94ff)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          paddingLeft: '8px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          color: '#000',
-                        }}>
-                          {s.pct > 15 ? `${s.pct.toFixed(1)}%` : ''}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '8px', fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                    <span>Setting {'\u2192'} Closing: <strong style={{ color: 'var(--color-accent-yellow)' }}>{funnel.settingToClosingRate.toFixed(1)}%</strong></span>
-                    <span>Closing {'\u2192'} Won: <strong style={{ color: 'var(--color-accent-green)' }}>{funnel.closingToWonRate.toFixed(1)}%</strong></span>
-                  </div>
-                </div>
-              )
-            })()}
-          </Card>
-
-          {/* Waterfall Statistics */}
-          <SectionTitle>Waterfall Kennzahlen</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-            <KpiCard label="Settings pro Close" value={String(data.waterfall.settingsPerClose)} sub="Settings f\u00FCr 1 Won Deal" />
-            <KpiCard label="Closings pro Close" value={String(data.waterfall.closingsPerClose)} sub="Closings f\u00FCr 1 Won Deal" />
-            <KpiCard label="Gesamt Conversion" value={`${data.conversionFunnel.overallConversionRate.toFixed(1)}%`} valueColor="var(--color-accent-green)" sub="Alle Opps zu Won" />
-            <KpiCard label={'\u00D8 Deal Cycle'} value={`${data.waterfall.avgDealCycle} Tage`} sub="Erstellung bis Won" />
-          </div>
-
-          <SectionTitle>Lead Status Verteilung — klicken f&uuml;r Leads</SectionTitle>
-          <Card>
-            {data.leadStatusCounts.map((s, i) => {
-              const isExpanded = expandedLeadStatuses.has(s.label)
-              return (
-                <div key={i}>
-                  <div
-                    onClick={() => s.count > 0 ? toggleLeadStatus(s.label) : undefined}
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '10px 0',
-                      borderBottom: (!isExpanded && i < data.leadStatusCounts.length - 1) ? '1px solid var(--color-border)' : 'none',
-                      cursor: s.count > 0 ? 'pointer' : 'default',
-                      userSelect: 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {s.count > 0 && (
-                        <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>{'\u25B6'}</span>
-                      )}
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block', background: colorVar(s.color) }} />
-                      {s.label}
-                    </div>
-                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{fmtNum(s.count)}</div>
-                  </div>
-                  {isExpanded && s.leads && s.leads.length > 0 && (
-                    <div style={{ padding: '0 0 10px 28px', borderBottom: i < data.leadStatusCounts.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                      {s.leads.map((lead, j) => (
-                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', fontSize: '12px' }}>
-                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <span style={{ color: colorVar(s.color), fontSize: '8px' }}>{'\u25CF'}</span>
-                            <span>{lead.name}</span>
-                          </div>
-                          {lead.date && <span style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>{fmtDate(lead.date.split('T')[0])}</span>}
-                        </div>
-                      ))}
-                      {s.count > s.leads.length && (
-                        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', paddingTop: '6px', fontStyle: 'italic' }}>
-                          + {fmtNum(s.count - s.leads.length)} weitere Leads
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </Card>
-
-          <SectionTitle>Wochentrend — Anwahlen</SectionTitle>
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', gap: '6px', height: '160px', padding: '0 4px' }}>
-              {data.weeklyCallData.map((w, i) => {
-                const isLast = i === data.weeklyCallData.length - 1
-                const heightPct = maxCalls > 0 ? Math.max((w.calls / maxCalls) * 100, w.calls > 0 ? 1 : 0) : 0
-                return (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                    <div style={{ fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>{fmtNum(w.calls)}</div>
-                    <div style={{
-                      width: '100%',
-                      minWidth: '24px',
-                      maxWidth: '50px',
-                      borderRadius: '4px 4px 0 0',
-                      transition: 'height 0.5s ease',
-                      height: animatedBars ? `${Math.max(heightPct, w.calls > 0 ? 1 : 0)}%` : '0',
-                      minHeight: w.calls > 0 ? '4px' : '0',
-                      background: isLast
-                        ? 'linear-gradient(180deg, #34d399, #51e0b8)'
-                        : 'linear-gradient(180deg, #4f8cff, #5a94ff)',
-                    }} />
-                    <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', marginTop: '4px' }}>{w.week}</div>
-                  </div>
-                )
-              })}
+          <div className="sb-user">
+            <div className="sb-user-avatar">F</div>
+            <div className="sb-user-meta">
+              <div className="sb-user-name">Felix Zoepp</div>
+              <div className="sb-user-role">Gesch&auml;ftsf&uuml;hrer</div>
             </div>
-          </Card>
+          </div>
+        </aside>
 
-          <SectionTitle>Won Deals — {PERIOD_LABELS[period]} ({filteredWon.length})</SectionTitle>
-          {filteredWon.length === 0 && (
-            <Card><div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px' }}>Keine Won Deals im ausgew&auml;hlten Zeitraum</div></Card>
-          )}
-          {filteredWon.map((deal, i) => (
-            <div key={i} style={{
-              background: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '10px',
-              padding: '14px',
-              marginBottom: '10px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 600 }}>{deal.name}</div>
-                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '5px', fontWeight: 600, background: 'rgba(52, 211, 153, 0.2)', color: 'var(--color-accent-green)' }}>Won</span>
-              </div>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-accent-green)', marginBottom: '6px' }}>
-                {fmtEuro(deal.value)}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                <span>{fmtDate(deal.date)}</span>
-                <span>{deal.user}</span>
-              </div>
+        {/* ═══════ MAIN ═══════ */}
+        <main className="za-main">
+          {/* Topbar */}
+          <div className="za-topbar fade-up">
+            <div className="tb-title">
+              <span className="tb-eyebrow">{dayName} &middot; KW {data.currentWeek}</span>
+              <span className="tb-heading">{greeting}, Felix.</span>
             </div>
-          ))}
+            <div className="view-switch" role="tablist" aria-label="Ansicht">
+              {(['overview', 'deepdive', 'executive'] as ViewMode[]).map(v => (
+                <button key={v} className={view === v ? 'is-active' : ''} onClick={() => setView(v)}>
+                  {v === 'overview' ? 'Overview' : v === 'deepdive' ? 'Deep-Dive' : 'Executive'}
+                </button>
+              ))}
+            </div>
+            <div className="tb-search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--za-fg-4)' }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+              <input placeholder="Suchen... (Lead, Kunde, Report)" />
+            </div>
+            <div className="tb-actions">
+              <button className="tb-icon-btn" title="Benachrichtigungen">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 8a6 6 0 1112 0c0 7 3 7 3 9H3c0-2 3-2 3-9zM10 21a2 2 0 004 0" /></svg>
+                <span className="dot" />
+              </button>
+              <button className="tb-icon-btn" title="Einstellungen">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></svg>
+              </button>
+            </div>
+          </div>
 
-          <SectionTitle>Active Pipeline — klicken f&uuml;r Details</SectionTitle>
-          <Card>
-            {data.pipelineSorted.map((p, i) => {
-              const isExpanded = expandedStatuses.has(p.label)
-              const statusDeals = data.pipelineDealsByStatus?.[p.label] || []
-              return (
-                <div key={i}>
-                  <div
-                    onClick={() => toggleStatus(p.label)}
-                    style={{
-                      background: 'var(--color-bg-primary)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: isExpanded ? '8px 8px 0 0' : '8px',
-                      padding: '12px',
-                      marginBottom: isExpanded ? '0' : '8px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>{'\u25B6'}</span>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{p.count} {p.count === 1 ? 'Deal' : 'Deals'}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{p.label}</div>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: pipelineStatusColor(p.label) }}>
-                      {fmtEuro(p.value)}
-                    </div>
-                  </div>
-                  {isExpanded && statusDeals.length > 0 && (
-                    <div style={{
-                      background: 'var(--color-bg-primary)',
-                      border: '1px solid var(--color-border)',
-                      borderTop: 'none',
-                      borderRadius: '0 0 8px 8px',
-                      padding: '4px 12px 12px 32px',
-                      marginBottom: '8px',
-                    }}>
-                      {statusDeals.map((deal, j) => (
-                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: '12px', borderBottom: j < statusDeals.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span style={{ color: pipelineStatusColor(p.label), fontSize: '10px' }}>{'\u25CF'}</span>
-                            <span>{deal.leadName}</span>
-                          </div>
-                          <span style={{ fontWeight: 600, color: deal.value > 0 ? 'var(--color-accent-blue)' : 'var(--color-text-muted)' }}>
-                            {deal.value > 0 ? fmtEuro(deal.value) : '\u2014'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </Card>
+          {/* Period selector + export buttons row */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }} className="fade-up" >
+            <div className="view-switch">
+              {(['today', 'week', 'month', 'year'] as Period[]).map(p => (
+                <button key={p} className={period === p ? 'is-active' : ''} onClick={() => setPeriod(p)}>
+                  {PERIOD_LABELS[p]}
+                </button>
+              ))}
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+              {[
+                { label: 'Tagesreport', period: 'daily' },
+                { label: 'Wochenreport', period: 'weekly' },
+                { label: 'Monatsreport', period: 'monthly' },
+              ].map(btn => (
+                <button key={btn.period} className="za-glass-btn" onClick={() => window.open(`/api/report?period=${btn.period}`, '_blank')}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          {data.pipelineDealsWithValue.length > 0 && (
+          {/* ═══════════════════════════════════════════════════
+               VIEW 1 — OVERVIEW
+             ═══════════════════════════════════════════════════ */}
+          {view === 'overview' && (
             <>
-              <SectionTitle>Pipeline Deals mit Wert</SectionTitle>
-              <Card>
-                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '12px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead style={{ background: 'var(--color-bg-tertiary)', borderBottom: '2px solid var(--color-border)' }}>
-                      <tr>
-                        <th style={thStyle}>Lead</th>
-                        <th style={thStyle}>Status</th>
-                        <th style={thStyle}>Wert</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.pipelineDealsWithValue.map((deal, i) => (
-                        <tr key={i}>
-                          <td style={{ ...tdStyle, borderBottom: i < data.pipelineDealsWithValue.length - 1 ? '1px solid var(--color-border)' : 'none' }}>{deal.leadName}</td>
-                          <td style={{ ...tdStyle, borderBottom: i < data.pipelineDealsWithValue.length - 1 ? '1px solid var(--color-border)' : 'none' }}>{deal.status}</td>
-                          <td style={{ ...tdStyle, borderBottom: i < data.pipelineDealsWithValue.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                            <span style={{ background: 'rgba(79, 140, 255, 0.15)', color: 'var(--color-accent-blue)', fontWeight: 600, borderRadius: '4px', padding: '2px 6px' }}>
-                              {fmtEuro(deal.value)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* KPI tiles */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '60ms' }}>
+                  <div className="kpi-top">
+                    <span className="kpi-label"><span className="dotlive" />Termine &middot; Woche</span>
+                    <span className={`kpi-delta ${callChange >= 0 ? 'up' : 'down'}`}>
+                      {callChange >= 0 ? '\u2191' : '\u2193'} {Math.abs(callChange)}%
+                    </span>
+                  </div>
+                  <div className="kpi-value">{data.callsThisWeek}<span className="unit">/10</span></div>
+                  <div className="kpi-foot">
+                    <span className="kpi-caption">vs. KW {data.currentWeek - 1}</span>
+                    <SparklineChart data={sparkData.a} />
+                  </div>
                 </div>
-              </Card>
+
+                <div className="za-panel fade-up" style={{ animationDelay: '140ms' }}>
+                  <div className="kpi-top">
+                    <span className="kpi-label">Pipeline</span>
+                    <span className="kpi-delta up">&uarr; {data.pipelineCount} Deals</span>
+                  </div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{pipelineK}<span className="unit">k</span></div>
+                  <div className="kpi-foot">
+                    <span className="kpi-caption">{data.pipelineCount} offene Deals</span>
+                    <SparklineChart data={sparkData.b} />
+                  </div>
+                </div>
+
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
+                  <div className="kpi-top">
+                    <span className="kpi-label">Antwortquote</span>
+                    <span className={`kpi-delta ${data.closingRate > 0 ? 'up' : 'down'}`}>
+                      {data.closingRate > 0 ? '\u2191' : '\u2193'} {data.closingRate.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="kpi-value">{periodClosingRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot">
+                    <span className="kpi-caption">Closing Rate</span>
+                    <SparklineChart data={sparkData.c} />
+                  </div>
+                </div>
+
+                <div className="za-panel fade-up" style={{ animationDelay: '300ms' }}>
+                  <div className="kpi-top">
+                    <span className="kpi-label">Umsatz &middot; MTD</span>
+                    <span className={`kpi-delta ${data.revenueMTD > 0 ? 'up' : 'down'}`}>
+                      {fmtEuroK(data.revenueMTD)}
+                    </span>
+                  </div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{revenueMTDK}<span className="unit">k</span></div>
+                  <div className="kpi-foot">
+                    <span className="kpi-caption">Ziel {fmtEuroK(data.linearForecast)}</span>
+                    <SparklineChart data={sparkData.d} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Area chart + donut */}
+              <div className="row-grid row-2">
+                <div className="za-panel fade-up" style={{ animationDelay: '360ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Trend &middot; 30 Tage</span>
+                      <div className="panel-title">Termine &amp; Antworten</div>
+                    </div>
+                    <span className="panel-sub">gleitender Durchschnitt</span>
+                  </div>
+                  <AreaChart series={chartData.mainArea} labels={chartData.mainLabels} />
+                </div>
+
+                <div className="za-panel fade-up" style={{ animationDelay: '420ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Breakdown</span>
+                      <div className="panel-title">Lead-Quellen</div>
+                    </div>
+                  </div>
+                  <div className="donut-wrap">
+                    <DonutChart
+                      segments={donutSegments}
+                      centerValue={fmtNum(donutTotal)}
+                      centerLabel="Leads"
+                    />
+                    <div className="donut-legend">
+                      {data.leadStatusCounts.slice(0, 4).map((ls, i) => {
+                        const colors = ['#C5A059', '#8BB6E8', '#B49AE8', '#7FC29B']
+                        const pct = donutTotal > 0 ? Math.round((ls.count / donutTotal) * 100) : 0
+                        return (
+                          <div key={i} className="donut-legend-item">
+                            <span className="swatch" style={{ background: colors[i % colors.length] }} />
+                            <span className="ll">{ls.label}</span>
+                            <span className="lv">{pct}%</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Funnel + Feed */}
+              <div className="row-grid row-2">
+                <div className="za-panel fade-up" style={{ animationDelay: '480ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Pipeline</span>
+                      <div className="panel-title">Funnel &middot; {data.currentMonthName}</div>
+                    </div>
+                    <span className="panel-sub">Conversion Rate {data.conversionFunnel.overallConversionRate.toFixed(1)}%</span>
+                  </div>
+                  <FunnelChart stages={funnelStages} />
+                </div>
+
+                <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow"><span style={{ color: '#7FC29B' }}>&bull; Live</span></span>
+                      <div className="panel-title">Aktivit&auml;t</div>
+                    </div>
+                  </div>
+                  <div className="feed">
+                    {activityFeed.map((item, i) => (
+                      <div key={i} className="feed-item">
+                        <div className={`feed-avatar ${item.isNew ? 'new' : ''}`}>{item.mark}</div>
+                        <div className="feed-text">
+                          <div><span className="feed-name">{item.name}</span> <span className="feed-action">{item.action}</span></div>
+                        </div>
+                        <div className="feed-time">{item.time}</div>
+                      </div>
+                    ))}
+                    {activityFeed.length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '20px', color: 'var(--za-fg-3)', fontSize: '12px' }}>
+                        Keine k&uuml;rzlichen Aktivit&auml;ten
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Heatmap + Table */}
+              <div className="row-grid row-2">
+                <div className="za-panel fade-up" style={{ animationDelay: '600ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Kalender</span>
+                      <div className="panel-title">Outreach-Intensit&auml;t &middot; 20 Wochen</div>
+                    </div>
+                  </div>
+                  <HeatmapChart weeks={20} />
+                </div>
+
+                <div className="za-panel fade-up" style={{ animationDelay: '660ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Hot Deals</span>
+                      <div className="panel-title">Top Pipeline</div>
+                    </div>
+                  </div>
+                  <div className="za-table-wrap">
+                    <table className="za-table">
+                      <thead><tr><th>Unternehmen</th><th>Wert</th><th>Status</th></tr></thead>
+                      <tbody>
+                        {hotDeals.map((deal, i) => (
+                          <tr key={i}>
+                            <td>
+                              <div className="t-co">
+                                <span className="t-co-mark">{deal.leadName.charAt(0)}</span>
+                                <span className="t-co-name">{deal.leadName}</span>
+                              </div>
+                            </td>
+                            <td>{fmtEuro(deal.value)}</td>
+                            <td><span className={`t-status ${getDealStatusClass(deal.status)}`}>{deal.status}</span></td>
+                          </tr>
+                        ))}
+                        {hotDeals.length === 0 && (
+                          <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--za-fg-3)', padding: '20px' }}>Keine Deals mit Wert</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Drill-down sections ─── */}
+              {/* Won Deals */}
+              <div className="za-panel fade-up" style={{ animationDelay: '720ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Won Deals &middot; {PERIOD_LABELS[period]}</span>
+                    <div className="panel-title">{filteredWon.length} Deals &middot; {fmtEuro(periodRevenue)}</div>
+                  </div>
+                </div>
+                {filteredWon.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--za-fg-3)', fontSize: '12px' }}>
+                    Keine Won Deals im ausgew&auml;hlten Zeitraum
+                  </div>
+                )}
+                {filteredWon.map((deal, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < filteredWon.length - 1 ? '1px solid var(--za-border)' : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span className="t-co-mark">{deal.name.charAt(0)}</span>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{deal.name}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>{fmtDate(deal.date)} &middot; {deal.user}</div>
+                      </div>
+                    </div>
+                    <span className="t-status won">{fmtEuro(deal.value)}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pipeline drill-down */}
+              <div className="za-panel fade-up" style={{ animationDelay: '780ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Active Pipeline</span>
+                    <div className="panel-title">{data.pipelineCount} Deals &middot; {fmtEuro(data.pipelineValue)}</div>
+                  </div>
+                </div>
+                {data.pipelineSorted.map((p, i) => {
+                  const isExpanded = expandedStatuses.has(p.label)
+                  const statusDeals = data.pipelineDealsByStatus?.[p.label] || []
+                  return (
+                    <div key={i}>
+                      <div className="za-drilldown-item" onClick={() => toggleStatus(p.label)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className={`za-drilldown-arrow ${isExpanded ? 'expanded' : ''}`}>{'\u25B6'}</span>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{p.count} {p.count === 1 ? 'Deal' : 'Deals'}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>{p.label}</div>
+                          </div>
+                        </div>
+                        <span style={{ fontFamily: 'var(--za-serif)', fontSize: '14px', fontWeight: 600, color: 'var(--za-gold-2)' }}>{fmtEuro(p.value)}</span>
+                      </div>
+                      {isExpanded && statusDeals.length > 0 && (
+                        <div className="za-drilldown-children">
+                          {statusDeals.map((deal, j) => (
+                            <div key={j} className="za-drilldown-child">
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <span style={{ color: 'var(--za-gold)', fontSize: '8px' }}>{'\u25CF'}</span>
+                                <span>{deal.leadName}</span>
+                              </div>
+                              <span style={{ fontWeight: 600, color: deal.value > 0 ? 'var(--za-info)' : 'var(--za-fg-3)' }}>
+                                {deal.value > 0 ? fmtEuro(deal.value) : '\u2014'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Lead Status drill-down */}
+              <div className="za-panel fade-up" style={{ animationDelay: '840ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Lead Status</span>
+                    <div className="panel-title">Verteilung &middot; klicken f&uuml;r Details</div>
+                  </div>
+                </div>
+                {data.leadStatusCounts.map((s, i) => {
+                  const isExpanded = expandedLeadStatuses.has(s.label)
+                  const colors: Record<string, string> = {
+                    'accent-blue': 'var(--za-info)',
+                    'accent-green': 'var(--za-success)',
+                    'accent-red': 'var(--za-danger)',
+                    'accent-yellow': 'var(--za-gold-2)',
+                    'accent-purple': 'var(--za-violet)',
+                    'accent-orange': '#fb923c',
+                    'text-muted': 'var(--za-fg-3)',
+                  }
+                  const dotColor = colors[s.color] || 'var(--za-fg-3)'
+                  return (
+                    <div key={i}>
+                      <div
+                        className="za-drilldown-item"
+                        onClick={() => s.count > 0 ? toggleLeadStatus(s.label) : undefined}
+                        style={{ cursor: s.count > 0 ? 'pointer' : 'default' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {s.count > 0 && <span className={`za-drilldown-arrow ${isExpanded ? 'expanded' : ''}`}>{'\u25B6'}</span>}
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+                          <span style={{ fontSize: '13px' }}>{s.label}</span>
+                        </div>
+                        <span style={{ fontFamily: 'var(--za-serif)', fontSize: '14px', fontWeight: 600 }}>{fmtNum(s.count)}</span>
+                      </div>
+                      {isExpanded && s.leads && s.leads.length > 0 && (
+                        <div className="za-drilldown-children">
+                          {s.leads.map((lead, j) => (
+                            <div key={j} className="za-drilldown-child">
+                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                <span style={{ color: dotColor, fontSize: '8px' }}>{'\u25CF'}</span>
+                                <span>{lead.name}</span>
+                              </div>
+                              {lead.date && <span style={{ color: 'var(--za-fg-4)', fontSize: '11px' }}>{fmtDate(lead.date.split('T')[0])}</span>}
+                            </div>
+                          ))}
+                          {s.count > s.leads.length && (
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', paddingTop: '6px', fontStyle: 'italic' }}>
+                              + {fmtNum(s.count - s.leads.length)} weitere Leads
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Historical Performance */}
+              <div className="za-panel fade-up" style={{ animationDelay: '900ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Historische Performance</span>
+                    <div className="panel-title">Won Revenue pro Monat</div>
+                  </div>
+                </div>
+                {data.historicalPerformance.map((h, i) => {
+                  const isExpanded = expandedMonths.has(h.label)
+                  return (
+                    <div key={i}>
+                      <div className="za-drilldown-item" onClick={() => toggleMonth(h.label)}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className={`za-drilldown-arrow ${isExpanded ? 'expanded' : ''}`}>{'\u25B6'}</span>
+                          <span style={{ fontSize: '13px' }}>
+                            {h.label}{h.isCurrent ? ' (MTD)' : ''}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--za-fg-4)' }}>({h.deals?.length || 0} Deals)</span>
+                        </div>
+                        <span style={{ fontFamily: 'var(--za-serif)', fontSize: '14px', fontWeight: 700, color: h.isCurrent ? 'var(--za-success)' : '#fff' }}>{fmtEuro(h.value)}</span>
+                      </div>
+                      {isExpanded && h.deals && h.deals.length > 0 && (
+                        <div className="za-drilldown-children">
+                          {h.deals.map((deal, j) => (
+                            <div key={j} className="za-drilldown-child">
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <span style={{ color: 'var(--za-success)', fontSize: '8px' }}>{'\u25CF'}</span>
+                                <span>{deal.name}</span>
+                                <span style={{ color: 'var(--za-fg-4)', fontSize: '11px' }}>{fmtDate(deal.date)}</span>
+                              </div>
+                              <span style={{ fontWeight: 600, color: 'var(--za-success)' }}>{fmtEuro(deal.value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Overall stats */}
+              <div className="kpi-grid" style={{ marginTop: '8px' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '960ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Won (gesamt)</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{data.wonTotal}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{fmtEuro(data.totalRevenue)} Umsatz</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '1020ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Lost (gesamt)</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>{data.lostCount}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{fmtEuro(data.totalLostValue)} entgangen</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '1080ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Kunden</span></div>
+                  <div className="kpi-value">{data.kundenCount}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Active Customers</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '1140ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Calls (8W)</span></div>
+                  <div className="kpi-value">{fmtNum(data.totalCalls8W)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Letzte 8 Wochen</span></div>
+                </div>
+              </div>
             </>
           )}
 
-          <SectionTitle>Month-to-Date</SectionTitle>
-          <Card>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Umsatz {data.currentMonthName} (bis {data.currentDate})
-            </div>
-            <div style={{ fontSize: '24px', fontWeight: 700, margin: '8px 0' }}>{fmtEuro(data.revenueMTD)}</div>
-            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden', margin: '6px 0' }}>
-              <div style={{
-                height: '100%',
-                background: 'linear-gradient(90deg, var(--color-accent-blue) 0%, var(--color-accent-green) 100%)',
-                borderRadius: '3px',
-                transition: 'width 0.5s ease',
-                width: animatedBars ? `${progressPct}%` : '0%',
-              }} />
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              Target: {fmtEuro(target)} | {progressPct}% erreicht
-            </div>
-            <div style={{ marginTop: '16px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Forecast Monatsende</div>
-              <div style={{ fontSize: '24px', fontWeight: 700, margin: '8px 0', color: 'var(--color-accent-blue)' }}>{fmtEuro(data.linearForecast)}</div>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Lineare Extrapolation ({data.currentDay}/{data.daysInMonth} Tage)</div>
-            </div>
-            <div style={{ marginTop: '16px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Forecast inkl. Pipeline</div>
-              <div style={{ fontSize: '24px', fontWeight: 700, margin: '8px 0', color: 'var(--color-accent-green)' }}>{fmtEuro(data.pipelineWeightedForecast)}</div>
-              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>+ Pipeline ({fmtEuro(data.pipelineValue)} x {data.closingRate}% Win Rate)</div>
-            </div>
-          </Card>
-
-          <SectionTitle>Historische Performance</SectionTitle>
-          <Card>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Won Revenue pro Monat — klicken f&uuml;r Details</div>
-            {data.historicalPerformance.map((h, i) => {
-              const isExpanded = expandedMonths.has(h.label)
-              return (
-                <div key={i}>
-                  <div
-                    onClick={() => toggleMonth(h.label)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: (!isExpanded && i < data.historicalPerformance.length - 1) ? '1px solid var(--color-border)' : 'none', cursor: 'pointer', userSelect: 'none' }}
-                  >
-                    <div style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>{'\u25B6'}</span>
-                      {h.label}{h.isCurrent ? ' (MTD)' : ''}
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>({h.deals?.length || 0} Deals)</span>
+          {/* ═══════════════════════════════════════════════════
+               VIEW 2 — DEEP DIVE
+             ═══════════════════════════════════════════════════ */}
+          {view === 'deepdive' && (
+            <>
+              <div className="dd-row">
+                <div className="za-panel fade-up">
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Outreach &middot; 12 Wochen</span>
+                      <div className="panel-title">Nachrichten &middot; Antworten &middot; Termine</div>
                     </div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: h.isCurrent ? 'var(--color-accent-green)' : 'var(--color-text-primary)' }}>
-                      {fmtEuro(h.value)}
+                    <span className="panel-sub">Signal &amp; Rauschen</span>
+                  </div>
+                  <AreaChart series={chartData.dd1Area} labels={chartData.dd1Labels} height={300} />
+                </div>
+
+                <div className="za-panel fade-up" style={{ animationDelay: '80ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Verteilung</span>
+                      <div className="panel-title">Antwort-Sentiment</div>
                     </div>
                   </div>
-                  {isExpanded && h.deals && h.deals.length > 0 && (
-                    <div style={{ padding: '0 0 10px 20px', borderBottom: i < data.historicalPerformance.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                      {h.deals.map((deal, j) => (
-                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: '12px' }}>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span style={{ color: 'var(--color-accent-green)', fontSize: '10px' }}>{'\u25CF'}</span>
-                            <span>{deal.name}</span>
-                            <span style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>{fmtDate(deal.date)}</span>
-                          </div>
-                          <span style={{ fontWeight: 600, color: 'var(--color-accent-green)' }}>{fmtEuro(deal.value)}</span>
-                        </div>
-                      ))}
+                  <div className="donut-wrap">
+                    <DonutChart
+                      segments={[
+                        { value: 68, color: '#7FC29B' },
+                        { value: 22, color: '#E9CB8B' },
+                        { value: 10, color: '#E87467' },
+                      ]}
+                      centerValue={`${periodClosingRate}%`}
+                      centerLabel="Positiv"
+                    />
+                    <div className="donut-legend">
+                      <div className="donut-legend-item"><span className="swatch" style={{ background: '#7FC29B' }} /><span className="ll">Interesse</span><span className="lv">{periodClosingRate}%</span></div>
+                      <div className="donut-legend-item"><span className="swatch" style={{ background: '#E9CB8B' }} /><span className="ll">Neutral</span><span className="lv">22%</span></div>
+                      <div className="donut-legend-item"><span className="swatch" style={{ background: '#E87467' }} /><span className="ll">Ablehnung</span><span className="lv">10%</span></div>
                     </div>
-                  )}
-                </div>
-              )
-            })}
-          </Card>
-
-          <SectionTitle>Gesamtstatistik</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-            <KpiCard label="Won (gesamt)" value={String(data.wonTotal)} valueColor="var(--color-accent-green)" sub={`${fmtEuro(data.totalRevenue)} Umsatz`} />
-            <KpiCard label="Lost (gesamt)" value={String(data.lostCount)} valueColor="var(--color-accent-red)" sub={`${fmtEuro(data.totalLostValue)} entgangen`} />
-            <KpiCard label="Kunden" value={String(data.kundenCount)} sub="Active Customers" />
-            <KpiCard label="Calls (8W)" value={fmtNum(data.totalCalls8W)} sub="Letzte 8 Wochen" />
-          </div>
-        </div>
-      )}
-
-      {/* ===== FULFILLMENT TAB ===== */}
-      {activeTab === 'fulfillment' && (
-        <div style={{ padding: '16px' }}>
-          <SectionTitle first>Lisa — Tagesproduktivit&auml;t</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-            <KpiCard label="Heute erledigt" value="—" sub="Aufgaben abgehakt" />
-            <KpiCard label="Woche gesamt" value="—" sub="Aufgaben diese Woche" />
-            <KpiCard label={'\u00D8 pro Tag'} value="—" sub="Durchschnitt KW" />
-            <KpiCard label="Offen" value="—" sub="Noch zu erledigen" />
-          </div>
-
-          <SectionTitle>Tagesaufschl&uuml;sselung</SectionTitle>
-          <Card>
-            {['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].map((day, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < 4 ? '1px solid var(--color-border)' : 'none' }}>
-                <div style={{ fontSize: '13px', fontWeight: 500 }}>{day}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-accent-green)', minWidth: '30px', textAlign: 'right' }}>—</div>
-                  <div style={{ width: '80px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: '3px', width: '0%', background: 'var(--color-accent-green)' }} />
                   </div>
                 </div>
               </div>
-            ))}
-          </Card>
 
-          <SectionTitle>Wochen-Trend</SectionTitle>
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', gap: '6px', height: '160px', padding: '0 4px' }}>
-              {['KW12', 'KW13', 'KW14', 'KW15', 'KW16'].map((wk, i) => (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>—</div>
-                  <div style={{
-                    width: '100%', minWidth: '24px', maxWidth: '50px', borderRadius: '4px 4px 0 0',
-                    height: '10%',
-                    background: i === 4 ? 'linear-gradient(180deg, #34d399, #51e0b8)' : 'linear-gradient(180deg, #a78bfa, #c4b5fd)',
-                  }} />
-                  <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', marginTop: '4px' }}>{wk}</div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <SectionTitle>Kategorien</SectionTitle>
-          <Card>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Aufgaben nach Typ</div>
-            {['T\u00e4glich', 'W\u00f6chentlich', 'Monatlich'].map((typ, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < 2 ? '1px solid var(--color-border)' : 'none' }}>
-                <div style={{ fontSize: '13px' }}>{typ}</div>
-                <div style={{ fontSize: '14px', fontWeight: 700 }}>—</div>
-              </div>
-            ))}
-          </Card>
-        </div>
-      )}
-
-      {/* ===== MARKETING TAB ===== */}
-      {activeTab === 'marketing' && (
-        <div style={{ padding: '16px' }}>
-          <SectionTitle first>Content Performance</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-            <KpiCard label="Posts KW" value="—" sub="Alle Plattformen" />
-            <KpiCard label="Impressions" value="—" sub="Gesamt KW" />
-            <KpiCard label="Engagement" value="—" sub="Likes + Kommentare" />
-            <KpiCard label="Leads" value="—" sub="via Content" />
-          </div>
-
-          <SectionTitle>LinkedIn</SectionTitle>
-          <PlatformCard icon={'\uD83D\uDC64'} name="LinkedIn" stats={[
-            { label: 'Impressions', value: '—' }, { label: 'Engagement', value: '—' },
-            { label: 'Follower', value: '—' }, { label: 'Profilbesuche', value: '—' },
-          ]} />
-
-          <SectionTitle>Instagram</SectionTitle>
-          <PlatformCard icon={'\uD83D\uDCF7'} name="Instagram" stats={[
-            { label: 'Reichweite', value: '—' }, { label: 'Engagement', value: '—' },
-            { label: 'Follower', value: '—' }, { label: 'Story Views', value: '—' },
-          ]} />
-
-          <SectionTitle>YouTube</SectionTitle>
-          <PlatformCard icon={'\u25B6'} name="YouTube" stats={[
-            { label: 'Views', value: '—' }, { label: 'Watch Time', value: '—' },
-            { label: 'Subscriber', value: '—' }, { label: 'CTR', value: '—' },
-          ]} />
-
-          <SectionTitle>Perspective Funnels</SectionTitle>
-          <Card>
-            <EmptyState icon={'\uD83D\uDE80'} text="Perspective-Daten werden bald angebunden" sub="Funnel-Views, Conversion Rates, Opt-ins" />
-          </Card>
-
-          <SectionTitle>CopeCart</SectionTitle>
-          <Card>
-            <EmptyState icon={'\uD83D\uDCB0'} text="CopeCart-Daten werden bald angebunden" sub="Verk&auml;ufe, Umsatz, Conversion Rate" />
-          </Card>
-
-          <SectionTitle>OnePage</SectionTitle>
-          <Card>
-            <EmptyState icon={'\uD83C\uDF10'} text="OnePage-Daten werden bald angebunden" sub="Seitenbesucher, Conversions, Opt-in Rate" />
-          </Card>
-        </div>
-      )}
-
-      {/* ===== FINANZEN TAB ===== */}
-      {activeTab === 'finanzen' && (
-        <div style={{ padding: '16px' }}>
-          <SectionTitle first>Umsatz&uuml;bersicht</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-            <KpiCard label="Umsatz MTD" value={fmtEuro(data.revenueMTD)} valueColor="var(--color-accent-green)" sub={`${data.currentMonthName} ${data.currentYear}`} />
-            <KpiCard label="Umsatz gesamt" value={fmtEuro(data.totalRevenue)} sub={`${data.wonTotal} Won Deals`} />
-            <KpiCard label="Offene RG" value="—" sub="Easybill" />
-            <KpiCard label="Kontostand" value="—" sub="Qonto" />
-          </div>
-
-          <SectionTitle>Monatsverlauf — Won Revenue</SectionTitle>
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', gap: '6px', height: '160px', padding: '0 4px' }}>
-              {data.monthlyChartData.map((m, i) => {
-                const heightPct = maxMonthly > 0 ? Math.max((m.value / maxMonthly) * 100, 1) : 0
-                return (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                    <div style={{ fontSize: '9px', fontWeight: 600, marginBottom: '2px' }}>
-                      {m.value >= 1000 ? `\u20AC${Math.round(m.value / 1000)}k` : fmtEuro(m.value)}
+              <div className="row-grid row-2-equal">
+                <div className="za-panel fade-up" style={{ animationDelay: '160ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Wochenvergleich</span>
+                      <div className="panel-title">Termine pro Woche</div>
                     </div>
-                    <div style={{
-                      width: '100%', minWidth: '24px', maxWidth: '50px', borderRadius: '4px 4px 0 0',
-                      transition: 'height 0.5s ease',
-                      height: animatedBars ? `${heightPct}%` : '0',
-                      background: m.isCurrent
-                        ? 'linear-gradient(180deg, #fbbf24, #fcd34d)'
-                        : 'linear-gradient(180deg, #34d399, #51e0b8)',
-                    }} />
-                    <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', marginTop: '4px' }}>{m.label}</div>
                   </div>
-                )
-              })}
-            </div>
-          </Card>
+                  <BarChart data={data.weeklyCallData.map(w => w.calls)} labels={data.weeklyCallData.map(w => w.week)} />
+                </div>
 
-          <SectionTitle>Forecast</SectionTitle>
-          <Card>
-            <MetricRow label={`${data.currentMonthName} MTD (${data.currentDay} Tage)`} value={fmtEuro(data.revenueMTD)} color="var(--color-accent-green)" />
-            <MetricRow label={`Forecast ${data.currentMonthName} (linear)`} value={fmtEuro(data.linearForecast)} color="var(--color-accent-blue)" />
-            <MetricRow label="Forecast + Pipeline" value={fmtEuro(data.pipelineWeightedForecast)} color="var(--color-accent-green)" />
-            <MetricRow label="Pipeline Value (aktiv)" value={fmtEuro(data.pipelineValue)} />
-            <MetricRow label="Avg. Monat (letzten 3)" value={fmtEuro(data.avg3Months)} last />
-          </Card>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Pipeline</span>
+                      <div className="panel-title">Funnel &middot; detailliert</div>
+                    </div>
+                  </div>
+                  <FunnelChart stages={[
+                    { name: 'Alle Opportunities', value: data.conversionFunnel.totalOpportunities, pct: '100%', color: 'linear-gradient(90deg,#4E4639,#775A19)' },
+                    { name: 'Setting', value: data.conversionFunnel.reachedSetting, pct: `${data.conversionFunnel.settingToClosingRate.toFixed(0)}%`, color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                    { name: 'Closing', value: data.conversionFunnel.reachedClosing, pct: `${data.conversionFunnel.closingToWonRate.toFixed(0)}%`, color: 'linear-gradient(90deg,#8BB6E8,#B49AE8)' },
+                    { name: 'Won', value: data.conversionFunnel.wonCount, pct: `${data.conversionFunnel.overallConversionRate.toFixed(1)}%`, color: 'linear-gradient(90deg,#E9CB8B,#C5A059)' },
+                    { name: 'Lost', value: data.conversionFunnel.lostCount, pct: `${(data.conversionFunnel.lostCount / Math.max(data.conversionFunnel.totalOpportunities, 1) * 100).toFixed(1)}%`, color: 'linear-gradient(90deg,#E87467,#c45a4f)' },
+                  ]} />
+                </div>
+              </div>
 
-          <SectionTitle>Easybill</SectionTitle>
-          <Card>
-            <EmptyState icon={'\uD83D\uDCC4'} text="Easybill-Daten werden bald angebunden" sub="Rechnungen, Zahlungsstatus, Mahnwesen" />
-          </Card>
+              <div className="za-panel fade-up" style={{ animationDelay: '280ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Kohorten</span>
+                    <div className="panel-title">Aktivit&auml;ts-Heatmap &middot; 20 Wochen</div>
+                  </div>
+                </div>
+                <HeatmapChart weeks={20} />
+              </div>
 
-          <SectionTitle>Qonto</SectionTitle>
-          <Card>
-            <EmptyState icon={'\uD83C\uDFE6'} text="Qonto-Daten werden bald angebunden" sub="Kontostand, Transaktionen, Cashflow" />
-          </Card>
-        </div>
-      )}
+              {/* Waterfall stats */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '340ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Settings pro Close</span></div>
+                  <div className="kpi-value">{data.waterfall.settingsPerClose}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Settings f&uuml;r 1 Won</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '400ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Closings pro Close</span></div>
+                  <div className="kpi-value">{data.waterfall.closingsPerClose}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Closings f&uuml;r 1 Won</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '460ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Gesamt Conversion</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{data.conversionFunnel.overallConversionRate.toFixed(1)}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Alle Opps zu Won</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '520ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">&Oslash; Deal Cycle</span></div>
+                  <div className="kpi-value">{data.waterfall.avgDealCycle}<span className="unit"> Tage</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Erstellung bis Won</span></div>
+                </div>
+              </div>
+            </>
+          )}
 
-      {/* ===== TEAM TAB ===== */}
-      {activeTab === 'team' && (
-        <div style={{ padding: '16px' }}>
-          <SectionTitle first>Team-&Uuml;bersicht</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-            <KpiCard label="Offene Tasks" value="—" sub="Monday.com" />
-            <KpiCard label="Erledigt KW" value="—" sub="Diese Woche" />
-            <KpiCard label={'\u00DCberf\u00e4llig'} value="—" valueColor="var(--color-accent-red)" sub="Past Due" />
-            <KpiCard label="Boards" value="—" sub="Aktive Boards" />
+          {/* ═══════════════════════════════════════════════════
+               VIEW 3 — EXECUTIVE
+             ═══════════════════════════════════════════════════ */}
+          {view === 'executive' && (
+            <>
+              <div className="exec-hero fade-up">
+                <div className="exec-hero-grid">
+                  <div>
+                    <h2>Planbare <span className="it">Termine.</span><br />Bewiesene Architektur.</h2>
+                    <p className="exec-hero-sub">
+                      Der Monat steht stabil im Zielkorridor. Pipeline: {fmtEuro(data.pipelineValue)} mit {data.pipelineCount} offenen Deals.
+                      Closing Rate bei {data.closingRate.toFixed(1)}%. Fokus: Hot-Deals in Won konvertieren.
+                    </p>
+                  </div>
+                  <div className="exec-hero-stats">
+                    <div className="exec-stat">
+                      <div className="v">{data.wonTotal}<span className="it">/{data.wonTotal + data.lostCount}</span></div>
+                      <div className="l">Won Deals &middot; Gesamt</div>
+                    </div>
+                    <div className="exec-stat">
+                      <div className="v">&euro;&thinsp;{pipelineK}k</div>
+                      <div className="l">Pipeline</div>
+                    </div>
+                    <div className="exec-stat">
+                      <div className="v">{data.closingRate.toFixed(0)}%</div>
+                      <div className="l">Closing Rate</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '100ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Kunden</span><span className="kpi-delta up">&uarr; {data.kundenCount}</span></div>
+                  <div className="kpi-value">{data.kundenCount}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Active</span><SparklineChart data={sparkData.e} /></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '160ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Avg. Deal Size</span><span className="kpi-delta up">&uarr;</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.avgDealSize)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">&Oslash; Won Deal</span><SparklineChart data={sparkData.f} /></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Closing Rate</span><span className="kpi-delta up">&uarr; {data.closingRate.toFixed(1)}%</span></div>
+                  <div className="kpi-value">{data.closingRate.toFixed(0)}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">{data.wonTotal} / {data.wonTotal + data.lostCount}</span><SparklineChart data={sparkData.g} /></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '280ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Total Revenue</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(Math.round(data.totalRevenue / 1000))}<span className="unit">k</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Gesamtumsatz</span><SparklineChart data={sparkData.h} /></div>
+                </div>
+              </div>
+
+              <div className="row-grid row-2">
+                <div className="za-panel fade-up" style={{ animationDelay: '340ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Umsatzkurve &middot; 12 Monate</span>
+                      <div className="panel-title">ARR &amp; Pipeline-Entwicklung</div>
+                    </div>
+                  </div>
+                  <AreaChart series={chartData.execArea} labels={chartData.execLabels} height={280} />
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '400ms' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Top Deals</span>
+                      <div className="panel-title">Strategische Konten</div>
+                    </div>
+                  </div>
+                  <div className="za-table-wrap">
+                    <table className="za-table">
+                      <thead><tr><th>Konto</th><th>Stage</th><th>Wert</th></tr></thead>
+                      <tbody>
+                        {hotDeals.map((deal, i) => (
+                          <tr key={i}>
+                            <td>
+                              <div className="t-co">
+                                <span className="t-co-mark">{deal.leadName.charAt(0)}</span>
+                                <span className="t-co-name">{deal.leadName}</span>
+                              </div>
+                            </td>
+                            <td><span className={`t-status ${getDealStatusClass(deal.status)}`}>{deal.status}</span></td>
+                            <td>{fmtEuro(deal.value)}</td>
+                          </tr>
+                        ))}
+                        {hotDeals.length === 0 && (
+                          <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--za-fg-3)', padding: '20px' }}>Keine Pipeline Deals</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Forecast panel */}
+              <div className="za-panel fade-up" style={{ animationDelay: '460ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Forecast</span>
+                    <div className="panel-title">Umsatzprognose &middot; {data.currentMonthName} {data.currentYear}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>MTD</div>
+                    <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: 'var(--za-success)' }}>{fmtEuro(data.revenueMTD)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>Forecast Linear</div>
+                    <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: 'var(--za-info)' }}>{fmtEuro(data.linearForecast)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>+ Pipeline</div>
+                    <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: 'var(--za-gold-2)' }}>{fmtEuro(data.pipelineWeightedForecast)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>&Oslash; 3 Monate</div>
+                    <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: '#fff' }}>{fmtEuro(data.avg3Months)}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Monthly revenue chart */}
+              <div className="za-panel fade-up" style={{ animationDelay: '520ms' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Historisch</span>
+                    <div className="panel-title">Won Revenue pro Monat</div>
+                  </div>
+                </div>
+                <BarChart
+                  data={data.monthlyChartData.map(m => m.value)}
+                  labels={data.monthlyChartData.map(m => m.label)}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Footer */}
+          <div style={{
+            textAlign: 'center',
+            padding: '32px 0 16px',
+            fontSize: '10px',
+            color: 'var(--za-fg-4)',
+            letterSpacing: '0.15em',
+            textTransform: 'uppercase',
+          }}>
+            Zoepp Admin Dashboard &mdash; Daten aus Close CRM &middot; Letzte Aktualisierung: {data.currentDate}
           </div>
-
-          <SectionTitle>Sales Team — Close CRM</SectionTitle>
-          <Card>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Team Members</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--color-border)' }}>
-              <div style={{ fontSize: '13px' }}>Felix Zoepp (Closer)</div>
-              <div style={{ fontSize: '14px', fontWeight: 700 }}>felix@content-leads.de</div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
-              <div style={{ fontSize: '13px' }}>John Santillan (Opener)</div>
-              <div style={{ fontSize: '14px', fontWeight: 700 }}>opener1@content-leads.de</div>
-            </div>
-          </Card>
-
-          <SectionTitle>Boards &amp; Projekte</SectionTitle>
-          <Card>
-            <EmptyState icon={'\uD83D\uDCCB'} text="Monday.com Boards werden beim n\u00e4chsten Update geladen" sub="Board-Status, Fortschritt, Team-Zuteilung" />
-          </Card>
-
-          <SectionTitle>Team-Auslastung</SectionTitle>
-          <Card>
-            <EmptyState icon={'\uD83D\uDC65'} text="Team-Daten werden beim n\u00e4chsten Update geladen" sub="Tasks pro Person, Workload-Verteilung" />
-          </Card>
-        </div>
-      )}
-
-      {/* Footer */}
-      <div style={{ textAlign: 'center', padding: '20px', fontSize: '11px', color: 'var(--color-text-muted)', opacity: 0.5, borderTop: '1px solid var(--color-border)', marginTop: '20px' }}>
-        Content Leads Admin Dashboard — Daten aus Close CRM<br />
-        <span>Letzte Aktualisierung: {data.currentDate} | Quelle: Close CRM API</span>
+        </main>
       </div>
-    </div>
+    </>
   )
-}
-
-// Sub-components
-
-function KpiCard({ label, value, sub, valueColor }: { label: string; value: string; sub: React.ReactNode; valueColor?: string }) {
-  return (
-    <div style={{
-      background: 'var(--color-bg-secondary)',
-      border: '1px solid var(--color-border)',
-      borderRadius: '10px',
-      padding: '14px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '6px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-    }}>
-      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
-      <div style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1, color: valueColor || 'var(--color-text-primary)' }}>{value}</div>
-      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>{sub}</div>
-    </div>
-  )
-}
-
-function SectionTitle({ children, first }: { children: React.ReactNode; first?: boolean }) {
-  return (
-    <div style={{ fontSize: '16px', fontWeight: 600, margin: first ? '4px 0 12px 0' : '20px 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-      {children}
-    </div>
-  )
-}
-
-function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{
-      background: 'var(--color-bg-secondary)',
-      border: '1px solid var(--color-border)',
-      borderRadius: '10px',
-      padding: '16px',
-      marginBottom: '12px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-    }}>
-      {children}
-    </div>
-  )
-}
-
-function EmptyState({ icon, text, sub }: { icon: string; text: string; sub: string }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--color-text-muted)' }}>
-      <div style={{ fontSize: '36px', marginBottom: '10px' }}>{icon}</div>
-      <div style={{ fontSize: '13px', marginBottom: '4px' }}>{text}</div>
-      <div style={{ fontSize: '11px', opacity: 0.7 }}>{sub}</div>
-    </div>
-  )
-}
-
-function PlatformCard({ icon, name, stats }: { icon: string; name: string; stats: { label: string; value: string }[] }) {
-  return (
-    <div style={{
-      background: 'var(--color-bg-secondary)',
-      border: '1px solid var(--color-border)',
-      borderRadius: '10px',
-      padding: '14px',
-      marginBottom: '10px',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '14px', fontWeight: 600 }}>
-        {icon} {name}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-        {stats.map((s, i) => (
-          <div key={i} style={{ background: 'var(--color-bg-primary)', borderRadius: '6px', padding: '8px 10px' }}>
-            <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{s.label}</div>
-            <div style={{ fontSize: '16px', fontWeight: 700 }}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function MetricRow({ label, value, color, last }: { label: string; value: string; color?: string; last?: boolean }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: last ? 'none' : '1px solid var(--color-border)' }}>
-      <div style={{ fontSize: '13px' }}>{label}</div>
-      <div style={{ fontSize: '14px', fontWeight: 700, color: color || 'var(--color-text-primary)' }}>{value}</div>
-    </div>
-  )
-}
-
-const thStyle: React.CSSProperties = {
-  padding: '10px 8px',
-  textAlign: 'left',
-  fontWeight: 600,
-  color: 'var(--color-text-muted)',
-  textTransform: 'uppercase',
-  fontSize: '10px',
-  letterSpacing: '0.5px',
-  whiteSpace: 'nowrap',
-}
-
-const tdStyle: React.CSSProperties = {
-  padding: '10px 8px',
-  color: 'var(--color-text-primary)',
-  whiteSpace: 'nowrap',
 }

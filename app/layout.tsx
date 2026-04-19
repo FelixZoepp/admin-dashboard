@@ -2,8 +2,8 @@ import './globals.css'
 import type { Metadata, Viewport } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Content Leads — Admin Dashboard',
-  description: 'Content Leads Admin Dashboard',
+  title: 'Zoepp Admin — Dashboard',
+  description: 'Zoepp Admin Dashboard — Liquid Glass',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
