@@ -67,7 +67,7 @@ interface DashboardData {
   wonDealsDisplay: { name: string; value: number; date: string; user: string }[]
   pipelineSorted: { count: number; value: number; label: string }[]
   pipelineDealsWithValue: { leadName: string; status: string; value: number }[]
-  leadStatusCounts: { label: string; count: number; color: string }[]
+  leadStatusCounts: { label: string; count: number; color: string; leads: { name: string; date: string }[] }[]
   weeklyCallData: { week: string; calls: number }[]
   monthlyChartData: { label: string; value: number; isCurrent: boolean }[]
   historicalPerformance: { label: string; value: number; isCurrent: boolean; deals: { name: string; value: number; date: string; user: string }[] }[]
@@ -119,6 +119,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
   const [animatedBars, setAnimatedBars] = useState(false)
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
   const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set())
+  const [expandedLeadStatuses, setExpandedLeadStatuses] = useState<Set<string>>(new Set())
 
   const toggleMonth = (label: string) => {
     setExpandedMonths(prev => {
@@ -131,6 +132,15 @@ export default function Dashboard({ data }: { data: DashboardData }) {
 
   const toggleStatus = (label: string) => {
     setExpandedStatuses(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
+      return next
+    })
+  }
+
+  const toggleLeadStatus = (label: string) => {
+    setExpandedLeadStatuses(prev => {
       const next = new Set(prev)
       if (next.has(label)) next.delete(label)
       else next.add(label)
@@ -399,17 +409,52 @@ export default function Dashboard({ data }: { data: DashboardData }) {
             <KpiCard label={'\u00D8 Deal Cycle'} value={`${data.waterfall.avgDealCycle} Tage`} sub="Erstellung bis Won" />
           </div>
 
-          <SectionTitle>Lead Status Verteilung</SectionTitle>
+          <SectionTitle>Lead Status Verteilung — klicken f&uuml;r Leads</SectionTitle>
           <Card>
-            {data.leadStatusCounts.map((s, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < data.leadStatusCounts.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                <div>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block', marginRight: '8px', background: colorVar(s.color) }} />
-                  {s.label}
+            {data.leadStatusCounts.map((s, i) => {
+              const isExpanded = expandedLeadStatuses.has(s.label)
+              return (
+                <div key={i}>
+                  <div
+                    onClick={() => s.count > 0 ? toggleLeadStatus(s.label) : undefined}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 0',
+                      borderBottom: (!isExpanded && i < data.leadStatusCounts.length - 1) ? '1px solid var(--color-border)' : 'none',
+                      cursor: s.count > 0 ? 'pointer' : 'default',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {s.count > 0 && (
+                        <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>{'\u25B6'}</span>
+                      )}
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block', background: colorVar(s.color) }} />
+                      {s.label}
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{fmtNum(s.count)}</div>
+                  </div>
+                  {isExpanded && s.leads && s.leads.length > 0 && (
+                    <div style={{ padding: '0 0 10px 28px', borderBottom: i < data.leadStatusCounts.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
+                      {s.leads.map((lead, j) => (
+                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <span style={{ color: colorVar(s.color), fontSize: '8px' }}>{'\u25CF'}</span>
+                            <span>{lead.name}</span>
+                          </div>
+                          {lead.date && <span style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>{fmtDate(lead.date.split('T')[0])}</span>}
+                        </div>
+                      ))}
+                      {s.count > s.leads.length && (
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', paddingTop: '6px', fontStyle: 'italic' }}>
+                          + {fmtNum(s.count - s.leads.length)} weitere Leads
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>{fmtNum(s.count)}</div>
-              </div>
-            ))}
+              )
+            })}
           </Card>
 
           <SectionTitle>Wochentrend — Anwahlen</SectionTitle>

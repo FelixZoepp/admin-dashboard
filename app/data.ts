@@ -248,13 +248,18 @@ export async function fetchCloseData() {
                 field: { field_name: 'status_id', object_type: 'lead' },
               }],
             },
-            results_limit: 0,
+            results_limit: 50,
             include_counts: true,
+            _fields: { lead: ['id', 'display_name', 'date_created'] },
           }),
         })
-        return { label: status.label, count: result.total_results || 0, color: status.color }
+        const leads = (result.data || []).map((l: any) => ({
+          name: l.display_name || 'Unbekannt',
+          date: l.date_created || '',
+        }))
+        return { label: status.label, count: result.total_results || 0, color: status.color, leads }
       } catch {
-        return { label: status.label, count: 0, color: status.color }
+        return { label: status.label, count: 0, color: status.color, leads: [] }
       }
     })
 
