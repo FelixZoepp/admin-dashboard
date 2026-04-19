@@ -13,59 +13,50 @@ export async function GET() {
   const headers = { Authorization: `Bearer ${key}` }
 
   try {
-    // Get table schema
-    const schemaRes = await fetch(`https://api.airtable.com/v0/meta/bases/${BASE_ID}/tables`, { headers })
-    const schema = await schemaRes.json()
+    // Try common table name variants directly
+    const tableNames = ['Kundenbasis', 'kundenbasis', 'Kunden', 'After Close', 'After close']
+    const results: Record<string, any> = {}
 
-    // Get table names
-    const tables = (schema.tables || []).map((t: any) => ({
-      id: t.id,
-      name: t.name,
-      fields: (t.fields || []).map((f: any) => ({ name: f.name, type: f.type })),
-    }))
-
-    // Find Kundenbasis table
-    const kundenTable = tables.find((t: any) => t.name.toLowerCase().includes('kundenbasis'))
-
-    let kundenRecords: any[] = []
-    if (kundenTable) {
-      // Fetch all records (paginated)
-      let offset: string | undefined
-      do {
-        const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(kundenTable.name)}${offset ? `?offset=${offset}` : ''}`
+    for (const name of tableNames) {
+      try {
+        const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(name)}?maxRecords=3`
         const res = await fetch(url, { headers })
         const data = await res.json()
-        kundenRecords.push(...(data.records || []))
-        offset = data.offset
-      } while (offset)
+        if (data.records) {
+          results[name] = {
+            found: true,
+            recordCount: data.records.length,
+            sampleFields: data.records[0] ? Object.keys(data.records[0].fields) : [],
+            sample: data.records[0]?.fields || {},
+          }
+        } else {
+          results[name] = { found: false, error: data.error }
+        }
+      } catch (e: any) {
+        results[name] = { found: false, error: e.message }
+      }
     }
 
-    // Find After Close table
-    const afterCloseTable = tables.find((t: any) => t.name.toLowerCase().includes('after close'))
-    let afterCloseRecords: any[] = []
-    if (afterCloseTable) {
+    // Now fetch full Kundenbasis data
+    const foundTable = Object.entries(results).find(([, v]) => v.found)?.[0]
+    let allRecords: any[] = []
+    if (foundTable) {
       let offset: string | undefined
       do {
-        const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(afterCloseTable.name)}${offset ? `?offset=${offset}` : ''}`
+        const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(foundTable)}${offset ? `?offset=${offset}` : ''}`
         const res = await fetch(url, { headers })
         const data = await res.json()
-        afterCloseRecords.push(...(data.records || []))
+        allRecords.push(...(data.records || []))
         offset = data.offset
       } while (offset)
     }
 
     return NextResponse.json({
-      tables: tables.map((t: any) => ({ name: t.name, fieldCount: t.fields.length, fields: t.fields })),
-      kundenbasis: {
-        tableName: kundenTable?.name,
-        recordCount: kundenRecords.length,
-        records: kundenRecords.map((r: any) => ({ id: r.id, fields: r.fields })),
-      },
-      afterClose: {
-        tableName: afterCloseTable?.name,
-        recordCount: afterCloseRecords.length,
-        records: afterCloseRecords.slice(0, 10).map((r: any) => ({ id: r.id, fields: r.fields })),
-      },
+      tableProbes: results,
+      foundTable,
+      totalRecords: allRecords.length,
+      allFields: allRecords[0] ? Object.keys(allRecords[0].fields) : [],
+      records: allRecords.map((r: any) => ({ id: r.id, fields: r.fields })),
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message })
