@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchCloseData } from '../../data'
 
+export const dynamic = 'force-dynamic'
+
 function fmtEuro(n: number): string {
   return '\u20AC' + n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }

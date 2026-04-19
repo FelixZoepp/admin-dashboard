@@ -39,7 +39,7 @@ const ACTIVE_PIPELINE_STATUS_IDS = Object.keys(PIPELINE_STATUSES).filter(
 
 function getAuthHeader(): string {
   const apiKey = process.env.CLOSE_API_KEY
-  if (!apiKey) throw new Error('CLOSE_API_KEY not set')
+  if (!apiKey) return ''
   return 'Basic ' + Buffer.from(apiKey + ':').toString('base64')
 }
 
@@ -114,6 +114,10 @@ const LEAD_DISPLAY_ORDER = [
 
 export async function fetchCloseData() {
   try {
+    if (!process.env.CLOSE_API_KEY) {
+      return { error: 'CLOSE_API_KEY not configured' }
+    }
+
     const now = new Date()
     const currentWeek = getISOWeekNumber(now)
     const currentYear = now.getFullYear()
