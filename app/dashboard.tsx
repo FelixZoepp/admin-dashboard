@@ -92,12 +92,27 @@ interface DashboardData {
     avgDealCycle: number
   }
   pipelineDealsByStatus: Record<string, { leadName: string; value: number; date: string }[]>
+  allWonDeals: { name: string; value: number; date: string; user: string }[]
+  allLostDeals: { name: string; value: number; date: string }[]
+  todayISO: string
+  weekStartISO: string
+  monthStartISO: string
+  yearStartISO: string
   lastUpdated: string
   error?: string
 }
 
+type Period = 'today' | 'week' | 'month' | 'year'
+const PERIOD_LABELS: Record<Period, string> = {
+  today: 'Heute',
+  week: 'Woche',
+  month: 'Monat',
+  year: 'Jahr',
+}
+
 export default function Dashboard({ data }: { data: DashboardData }) {
   const [activeTab, setActiveTab] = useState('sales')
+  const [period, setPeriod] = useState<Period>('week')
   const touchStartX = useRef(0)
   const tabOrder = ['sales', 'fulfillment', 'marketing', 'finanzen', 'team']
 
@@ -129,12 +144,26 @@ export default function Dashboard({ data }: { data: DashboardData }) {
     return () => clearTimeout(timer)
   }, [])
 
-  // Re-animate on tab change
+  // Re-animate on tab change or period change
   useEffect(() => {
     setAnimatedBars(false)
     const timer = setTimeout(() => setAnimatedBars(true), 50)
     return () => clearTimeout(timer)
-  }, [activeTab])
+  }, [activeTab, period])
+
+  // Period-filtered data
+  const periodStart = period === 'today' ? data.todayISO
+    : period === 'week' ? data.weekStartISO
+    : period === 'month' ? data.monthStartISO
+    : data.yearStartISO
+
+  const filteredWon = (data.allWonDeals || []).filter(d => d.date >= periodStart)
+  const filteredLost = (data.allLostDeals || []).filter(d => d.date >= periodStart)
+  const periodRevenue = filteredWon.reduce((s, d) => s + d.value, 0)
+  const periodLostValue = filteredLost.reduce((s, d) => s + d.value, 0)
+  const periodClosedTotal = filteredWon.length + filteredLost.length
+  const periodClosingRate = periodClosedTotal > 0 ? Math.round((filteredWon.length / periodClosedTotal) * 100) : 0
+  const periodAvgDeal = filteredWon.length > 0 ? Math.round(periodRevenue / filteredWon.length) : 0
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.changedTouches[0].screenX
@@ -267,23 +296,46 @@ export default function Dashboard({ data }: { data: DashboardData }) {
             ))}
           </div>
 
+          {/* Period Selector */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', background: 'var(--color-bg-secondary)', borderRadius: '10px', padding: '4px', border: '1px solid var(--color-border)' }}>
+            {(['today', 'week', 'month', 'year'] as Period[]).map(p => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                style={{
+                  flex: 1,
+                  padding: '8px 4px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  background: period === p ? 'var(--color-accent-blue)' : 'transparent',
+                  color: period === p ? '#fff' : 'var(--color-text-muted)',
+                }}
+              >
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
+          </div>
+
           <div className="section-title" style={{ fontSize: '16px', fontWeight: 600, margin: '4px 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            Kennzahlen KW {data.currentWeek}
+            Kennzahlen — {PERIOD_LABELS[period]}
+            {period === 'week' && ` (KW ${data.currentWeek})`}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '20px' }}>
-            <KpiCard label="Anwahlen" value={fmtNum(data.callsThisWeek)} sub={
-              <><span className={callChange >= 0 ? 'up' : 'down'} style={{ color: callChange >= 0 ? 'var(--color-accent-green)' : 'var(--color-accent-red)', fontWeight: 600 }}>
-                {callChange >= 0 ? '\u25B2' : '\u25BC'} {callChange >= 0 ? '+' : ''}{callChange}%
-              </span> vs. VW ({fmtNum(data.callsLastWeek)})</>
+            <KpiCard label="Won Deals" value={String(filteredWon.length)} sub={
+              <><span style={{ color: 'var(--color-accent-green)', fontWeight: 600 }}>{fmtEuro(periodRevenue)}</span> Umsatz</>
             } />
-            <KpiCard label="Won Deals" value={String(data.wonDealsCount)} sub={
-              <><span style={{ color: 'var(--color-accent-green)', fontWeight: 600 }}>{fmtEuro(data.wonDealsValue)}</span> Wert</>
+            <KpiCard label="Lost Deals" value={String(filteredLost.length)} valueColor="var(--color-accent-red)" sub={
+              <><span style={{ color: 'var(--color-accent-red)', fontWeight: 600 }}>{fmtEuro(periodLostValue)}</span> entgangen</>
             } />
+            <KpiCard label="Closing Rate" value={`${periodClosingRate}%`} sub={`${filteredWon.length} Won / ${periodClosedTotal} Closed`} />
+            <KpiCard label="Avg Deal" value={periodAvgDeal > 0 ? fmtEuro(periodAvgDeal) : '\u2014'} sub={filteredWon.length > 0 ? '\u00D8 Won Deal Size' : 'Keine Deals'} />
             <KpiCard label="Pipeline" value={String(data.pipelineCount)} sub={
               <><span style={{ color: 'var(--color-accent-green)', fontWeight: 600 }}>{fmtEuro(data.pipelineValue)}</span> Wert</>
             } />
-            <KpiCard label="Closing Rate" value={`${data.closingRate}%`} sub={`${data.wonTotal} Won / ${data.closedTotal} Closed`} />
-            <KpiCard label="Avg Deal" value={fmtEuro(data.avgDealSize)} sub={'\u00D8 Won Deal Size'} />
             <KpiCard label="Leads gesamt" value={fmtNum(data.totalLeads)} sub={`davon ${fmtNum(data.leadpoolCount)} im Leadpool`} />
           </div>
 
@@ -388,8 +440,11 @@ export default function Dashboard({ data }: { data: DashboardData }) {
             </div>
           </Card>
 
-          <SectionTitle>Won Deals — {data.currentMonthName} {data.currentYear}</SectionTitle>
-          {data.wonDealsDisplay.map((deal, i) => (
+          <SectionTitle>Won Deals — {PERIOD_LABELS[period]} ({filteredWon.length})</SectionTitle>
+          {filteredWon.length === 0 && (
+            <Card><div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-muted)', fontSize: '13px' }}>Keine Won Deals im ausgew&auml;hlten Zeitraum</div></Card>
+          )}
+          {filteredWon.map((deal, i) => (
             <div key={i} style={{
               background: 'var(--color-bg-secondary)',
               border: '1px solid var(--color-border)',

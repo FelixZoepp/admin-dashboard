@@ -359,13 +359,33 @@ export async function fetchCloseData() {
     const totalCalls8W = weeklyCallData.reduce((sum, w) => sum + w.calls, 0)
     const kundenCount = leadStatusCounts.find(s => s.label === 'Kunde')?.count || 0
 
-    // Won deals formatted
+    // Won deals formatted (current month only - for backwards compat)
     const wonDealsDisplay = wonThisMonth.map((o: any) => ({
       name: o.lead_name || 'Unbekannt',
       value: (o.value || 0) / 100,
       date: o.date_won || o.date_created || '',
       user: o.user_name || '',
     }))
+
+    // ALL won deals with dates (for period filtering on client)
+    const allWonDeals = wonDeals.map((o: any) => ({
+      name: o.lead_name || 'Unbekannt',
+      value: (o.value || 0) / 100,
+      date: o.date_won || o.date_created || '',
+      user: o.user_name || '',
+    })).sort((a: any, b: any) => b.date.localeCompare(a.date))
+
+    // ALL lost deals with dates
+    const allLostDeals = lostDeals.map((o: any) => ({
+      name: o.lead_name || 'Unbekannt',
+      value: (o.value || 0) / 100,
+      date: o.date_lost || o.date_created || '',
+    })).sort((a: any, b: any) => b.date.localeCompare(a.date))
+
+    // Today's date as ISO string for client filtering
+    const todayISO = formatDateISO(now)
+    const weekStartISO = formatDateISO(getISOWeekStart(currentYear, currentWeek))
+    const yearStartISO = `${currentYear}-01-01`
 
     // Month names
     const monthNames: Record<string, string> = {
@@ -470,6 +490,13 @@ export async function fetchCloseData() {
       conversionFunnel,
       waterfall,
       pipelineDealsByStatus,
+
+      allWonDeals,
+      allLostDeals,
+      todayISO,
+      weekStartISO,
+      monthStartISO: monthStart,
+      yearStartISO,
 
       lastUpdated: new Date().toISOString(),
     }
