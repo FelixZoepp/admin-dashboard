@@ -83,6 +83,29 @@ interface DashboardData {
     avgDealCycle: number
   }
   pipelineDealsByStatus: Record<string, { leadName: string; value: number; date: string }[]>
+  customerAnalytics: {
+    customers: {
+      name: string
+      deals: { value: number; date: string; valuePeriod: string }[]
+      totalRevenue: number
+      firstDeal: string
+      latestDeal: string
+      dealCount: number
+    }[]
+    totalCustomers: number
+    upsellCustomers: number
+    singleDealCustomers: number
+    upsellRate: number
+    avgCLV: number
+    revenueConcentration: number
+    top3Revenue: number
+    inactiveCustomers: number
+    activeCustomers: number
+    churnRate: number
+    avgTimeBetweenDeals: number
+    upsellRevenue: number
+    upsellRevenueShare: number
+  }
   allWonDeals: { name: string; value: number; date: string; user: string }[]
   allLostDeals: { name: string; value: number; date: string }[]
   todayISO: string
@@ -107,6 +130,7 @@ const NAV_DASHBOARD = [
   { id: 'fulfillment', label: 'Fulfillment', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg> },
   { id: 'marketing', label: 'Marketing', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg> },
   { id: 'finanzen', label: 'Finanzen', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.5 2.5 0 00-2.5-1h-1a2 2 0 000 4h2a2 2 0 010 4h-1a2.5 2.5 0 01-2.5-1M12 5.5v1M12 17.5v1"/></svg> },
+  { id: 'kunden', label: 'Kunden', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg> },
   { id: 'team', label: 'Team', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> },
 ]
 
@@ -1119,6 +1143,191 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                     subtitle="Integration in Vorbereitung. Kontostand und Transaktionen werden hier angezeigt."
                   />
                 </div>
+              </div>
+            </>
+          )}
+
+          {/* ═══════════════════════════════════════════════════
+               TAB: KUNDEN
+             ═══════════════════════════════════════════════════ */}
+          {activeNav === 'kunden' && (
+            <>
+              {/* KPI Grid */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '60ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Kunden</span></div>
+                  <div className="kpi-value">{data.customerAnalytics.totalCustomers}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{data.customerAnalytics.activeCustomers} aktiv / {data.customerAnalytics.inactiveCustomers} inaktiv (90 Tage)</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '140ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Upsell Rate</span></div>
+                  <div className="kpi-value">{data.customerAnalytics.upsellRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">{data.customerAnalytics.upsellCustomers} von {data.customerAnalytics.totalCustomers} Kunden kauften erneut</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">&Oslash; CLV</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.customerAnalytics.avgCLV)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Customer Lifetime Value</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '300ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Churn Risk</span></div>
+                  <div className="kpi-value" style={{ color: data.customerAnalytics.churnRate > 30 ? 'var(--za-danger)' : undefined }}>{data.customerAnalytics.churnRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">{data.customerAnalytics.inactiveCustomers} Kunden &gt;90 Tage inaktiv</span></div>
+                </div>
+              </div>
+
+              {/* Revenue Split Panel */}
+              <div className="za-panel fade-up" style={{ animationDelay: '360ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Revenue</span>
+                    <div className="panel-title">Umsatz-Aufteilung</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--za-border)' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--za-fg-2)' }}>Upsell-Umsatz</span>
+                    <span style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 600, color: 'var(--za-gold-2)' }}>{fmtEuro(data.customerAnalytics.upsellRevenue)} ({data.customerAnalytics.upsellRevenueShare}%)</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--za-border)' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--za-fg-2)' }}>Top 3 Konzentration</span>
+                    <span style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 600, color: data.customerAnalytics.revenueConcentration > 50 ? 'var(--za-danger)' : 'var(--za-fg-1)' }}>{data.customerAnalytics.revenueConcentration}% des Gesamtumsatzes</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--za-fg-2)' }}>&Oslash; Tage bis Upsell</span>
+                    <span style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 600, color: 'var(--za-fg-1)' }}>{data.customerAnalytics.avgTimeBetweenDeals} Tage</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Table */}
+              <div className="za-panel fade-up" style={{ animationDelay: '420ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Alle Kunden</span>
+                    <div className="panel-title">{data.customerAnalytics.totalCustomers} Kunden &middot; {fmtEuro(data.totalRevenue)}</div>
+                  </div>
+                </div>
+                <div className="za-table-wrap">
+                  <table className="za-table">
+                    <thead>
+                      <tr>
+                        <th>Kunde</th>
+                        <th>Deals</th>
+                        <th>Umsatz</th>
+                        <th>Erster Deal</th>
+                        <th>Letzter Deal</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.customerAnalytics.customers.map((customer, i) => {
+                        const ninetyDaysAgoDate = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
+                        const isActive = customer.latestDeal >= ninetyDaysAgoDate
+                        const isUpsell = customer.dealCount > 1
+                        return (
+                          <tr key={i}>
+                            <td>
+                              <div className="t-co">
+                                <span className="t-co-mark">{customer.name.charAt(0)}</span>
+                                <span className="t-co-name">{customer.name}</span>
+                              </div>
+                            </td>
+                            <td>{customer.dealCount}</td>
+                            <td>{fmtEuro(customer.totalRevenue)}</td>
+                            <td>{fmtDate(customer.firstDeal)}</td>
+                            <td>{fmtDate(customer.latestDeal)}</td>
+                            <td>
+                              {isUpsell && <span className="t-status" style={{ background: 'rgba(197,160,89,0.15)', color: 'var(--za-gold-2)', marginRight: '4px' }}>Upsell</span>}
+                              {isActive
+                                ? <span className="t-status won">Aktiv</span>
+                                : <span className="t-status" style={{ background: 'rgba(232,116,103,0.15)', color: 'var(--za-danger)' }}>Inaktiv</span>
+                              }
+                            </td>
+                          </tr>
+                        )
+                      })}
+                      {data.customerAnalytics.customers.length === 0 && (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--za-fg-3)', padding: '20px' }}>Keine Kunden vorhanden</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Upsell Champions Panel */}
+              <div className="za-panel fade-up" style={{ animationDelay: '480ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Upsell Champions</span>
+                    <div className="panel-title">{data.customerAnalytics.upsellCustomers} Kunden mit mehreren Deals</div>
+                  </div>
+                </div>
+                {data.customerAnalytics.customers.filter(c => c.dealCount > 1).length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--za-fg-3)', fontSize: '12px' }}>
+                    Keine Upsell-Kunden vorhanden
+                  </div>
+                )}
+                {data.customerAnalytics.customers.filter(c => c.dealCount > 1).map((customer, i) => (
+                  <div key={i} className="za-panel" style={{ margin: '8px 0', padding: '12px 16px', background: 'rgba(197,160,89,0.04)', border: '1px solid rgba(197,160,89,0.12)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span className="t-co-mark" style={{ background: 'linear-gradient(135deg, var(--za-gold), var(--za-gold-2))' }}>{customer.name.charAt(0)}</span>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{customer.name}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>{customer.dealCount} Deals</div>
+                        </div>
+                      </div>
+                      <span style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 700, color: 'var(--za-gold-2)' }}>{fmtEuro(customer.totalRevenue)}</span>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--za-border)', paddingTop: '8px' }}>
+                      {customer.deals
+                        .sort((a, b) => b.date.localeCompare(a.date))
+                        .map((deal, j) => (
+                          <div key={j} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '12px' }}>
+                            <span style={{ color: 'var(--za-fg-3)' }}>{fmtDate(deal.date)}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--za-success)' }}>{fmtEuro(deal.value)}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Churn Risk Panel */}
+              <div className="za-panel fade-up" style={{ animationDelay: '540ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow" style={{ color: 'var(--za-danger)' }}>Churn Risk</span>
+                    <div className="panel-title">{data.customerAnalytics.inactiveCustomers} Kunden &gt;90 Tage inaktiv</div>
+                  </div>
+                </div>
+                {data.customerAnalytics.customers.filter(c => {
+                  const ninetyDaysAgoDate = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
+                  return c.latestDeal < ninetyDaysAgoDate
+                }).length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '20px', color: 'var(--za-fg-3)', fontSize: '12px' }}>
+                    Keine inaktiven Kunden &mdash; alle Kunden sind aktiv
+                  </div>
+                )}
+                {data.customerAnalytics.customers.filter(c => {
+                  const ninetyDaysAgoDate = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
+                  return c.latestDeal < ninetyDaysAgoDate
+                }).map((customer, i) => {
+                  const daysSince = Math.round((Date.now() - new Date(customer.latestDeal).getTime()) / 86400000)
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--za-border)', borderLeft: '3px solid var(--za-danger)', paddingLeft: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span className="t-co-mark">{customer.name.charAt(0)}</span>
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{customer.name}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Letzter Deal: {fmtDate(customer.latestDeal)} &middot; {fmtEuro(customer.totalRevenue)} Umsatz</div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--za-danger)' }}>{daysSince} Tage</span>
+                    </div>
+                  )
+                })}
               </div>
             </>
           )}

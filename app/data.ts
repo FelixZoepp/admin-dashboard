@@ -387,6 +387,68 @@ export async function fetchCloseData() {
       date: o.date_lost || o.date_created || '',
     })).sort((a: any, b: any) => b.date.localeCompare(a.date))
 
+    // === Customer Analytics ===
+
+    // Group won deals by lead_name to identify customers
+    const customerMap: Record<string, {
+      name: string;
+      deals: { value: number; date: string; valuePeriod: string }[];
+      totalRevenue: number;
+      firstDeal: string;
+      latestDeal: string;
+      dealCount: number
+    }> = {}
+
+    for (const deal of wonDeals) {
+      const name = deal.lead_name || 'Unbekannt'
+      if (!customerMap[name]) {
+        customerMap[name] = { name, deals: [], totalRevenue: 0, firstDeal: '', latestDeal: '', dealCount: 0 }
+      }
+      const entry = customerMap[name]
+      const val = (deal.value || 0) / 100
+      const date = deal.date_won || deal.date_created || ''
+      entry.deals.push({ value: val, date, valuePeriod: deal.value_period || 'one_time' })
+      entry.totalRevenue += val
+      entry.dealCount++
+      if (!entry.firstDeal || date < entry.firstDeal) entry.firstDeal = date
+      if (!entry.latestDeal || date > entry.latestDeal) entry.latestDeal = date
+    }
+
+    const customers = Object.values(customerMap).sort((a, b) => b.totalRevenue - a.totalRevenue)
+
+    // Upsell customers (more than 1 deal)
+    const upsellCustomers = customers.filter(c => c.dealCount > 1)
+    const singleDealCustomers = customers.filter(c => c.dealCount === 1)
+    const upsellRate = customers.length > 0 ? Math.round((upsellCustomers.length / customers.length) * 100) : 0
+
+    // Average CLV
+    const avgCLV = customers.length > 0 ? Math.round(customers.reduce((s, c) => s + c.totalRevenue, 0) / customers.length) : 0
+
+    // Revenue concentration (top 3 customers as % of total)
+    const top3Revenue = customers.slice(0, 3).reduce((s, c) => s + c.totalRevenue, 0)
+    const revenueConcentration = totalRevenue > 0 ? Math.round((top3Revenue / totalRevenue) * 100) : 0
+
+    // Inactive customers (no deal in last 90 days = potential churn)
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 86400000).toISOString().split('T')[0]
+    const inactiveCustomers = customers.filter(c => c.latestDeal < ninetyDaysAgo)
+    const activeCustomers = customers.filter(c => c.latestDeal >= ninetyDaysAgo)
+    const churnRate = customers.length > 0 ? Math.round((inactiveCustomers.length / customers.length) * 100) : 0
+
+    // Avg time between deals for upsell customers (in days)
+    let avgTimeBetweenDeals = 0
+    if (upsellCustomers.length > 0) {
+      const totalDays = upsellCustomers.reduce((sum, c) => {
+        const first = new Date(c.firstDeal).getTime()
+        const last = new Date(c.latestDeal).getTime()
+        return sum + (last - first) / 86400000
+      }, 0)
+      avgTimeBetweenDeals = Math.round(totalDays / upsellCustomers.length)
+    }
+
+    // Revenue from upsells vs first deals
+    const upsellRevenue = upsellCustomers.reduce((s, c) => s + c.totalRevenue, 0)
+    const upsellRevenueShare = totalRevenue > 0 ? Math.round((upsellRevenue / totalRevenue) * 100) : 0
+
     // Today's date as ISO string for client filtering
     const todayISO = formatDateISO(now)
     const weekStartISO = formatDateISO(getISOWeekStart(currentYear, currentWeek))
@@ -495,6 +557,23 @@ export async function fetchCloseData() {
       conversionFunnel,
       waterfall,
       pipelineDealsByStatus,
+
+      customerAnalytics: {
+        customers,
+        totalCustomers: customers.length,
+        upsellCustomers: upsellCustomers.length,
+        singleDealCustomers: singleDealCustomers.length,
+        upsellRate,
+        avgCLV,
+        revenueConcentration,
+        top3Revenue,
+        inactiveCustomers: inactiveCustomers.length,
+        activeCustomers: activeCustomers.length,
+        churnRate,
+        avgTimeBetweenDeals,
+        upsellRevenue,
+        upsellRevenueShare,
+      },
 
       allWonDeals,
       allLostDeals,
