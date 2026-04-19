@@ -52,7 +52,7 @@ async function closeApiFetch(endpoint: string, options?: RequestInit) {
       Authorization: getAuthHeader(),
       ...options?.headers,
     },
-    cache: 'no-store',
+    next: { revalidate: 300 },
   })
   if (!res.ok) {
     const text = await res.text()

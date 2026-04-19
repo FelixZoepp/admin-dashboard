@@ -1,7 +1,7 @@
 import Dashboard from './dashboard'
 import { fetchCloseData } from './data'
 
-export const revalidate = 300 // ISR: revalidate every 5 minutes
+export const dynamic = 'force-dynamic'
 
 export default async function Page() {
   const data = await fetchCloseData()
