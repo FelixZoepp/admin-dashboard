@@ -70,7 +70,7 @@ interface DashboardData {
   leadStatusCounts: { label: string; count: number; color: string }[]
   weeklyCallData: { week: string; calls: number }[]
   monthlyChartData: { label: string; value: number; isCurrent: boolean }[]
-  historicalPerformance: { label: string; value: number; isCurrent: boolean }[]
+  historicalPerformance: { label: string; value: number; isCurrent: boolean; deals: { name: string; value: number; date: string; user: string }[] }[]
   revenueMTD: number
   linearForecast: number
   pipelineWeightedForecast: number
@@ -91,6 +91,7 @@ interface DashboardData {
     totalOpps: number
     avgDealCycle: number
   }
+  pipelineDealsByStatus: Record<string, { leadName: string; value: number; date: string }[]>
   lastUpdated: string
   error?: string
 }
@@ -101,6 +102,26 @@ export default function Dashboard({ data }: { data: DashboardData }) {
   const tabOrder = ['sales', 'fulfillment', 'marketing', 'finanzen', 'team']
 
   const [animatedBars, setAnimatedBars] = useState(false)
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
+  const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set())
+
+  const toggleMonth = (label: string) => {
+    setExpandedMonths(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
+      return next
+    })
+  }
+
+  const toggleStatus = (label: string) => {
+    setExpandedStatuses(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
+      return next
+    })
+  }
 
   useEffect(() => {
     // Trigger animation after mount
@@ -391,28 +412,64 @@ export default function Dashboard({ data }: { data: DashboardData }) {
             </div>
           ))}
 
-          <SectionTitle>Active Pipeline</SectionTitle>
+          <SectionTitle>Active Pipeline — klicken f&uuml;r Details</SectionTitle>
           <Card>
-            {data.pipelineSorted.map((p, i) => (
-              <div key={i} style={{
-                background: 'var(--color-bg-primary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '8px',
-                padding: '12px',
-                marginBottom: '8px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{p.count} {p.count === 1 ? 'Deal' : 'Deals'}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{p.label}</div>
+            {data.pipelineSorted.map((p, i) => {
+              const isExpanded = expandedStatuses.has(p.label)
+              const statusDeals = data.pipelineDealsByStatus?.[p.label] || []
+              return (
+                <div key={i}>
+                  <div
+                    onClick={() => toggleStatus(p.label)}
+                    style={{
+                      background: 'var(--color-bg-primary)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: isExpanded ? '8px 8px 0 0' : '8px',
+                      padding: '12px',
+                      marginBottom: isExpanded ? '0' : '8px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>{'\u25B6'}</span>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{p.count} {p.count === 1 ? 'Deal' : 'Deals'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{p.label}</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: pipelineStatusColor(p.label) }}>
+                      {fmtEuro(p.value)}
+                    </div>
+                  </div>
+                  {isExpanded && statusDeals.length > 0 && (
+                    <div style={{
+                      background: 'var(--color-bg-primary)',
+                      border: '1px solid var(--color-border)',
+                      borderTop: 'none',
+                      borderRadius: '0 0 8px 8px',
+                      padding: '4px 12px 12px 32px',
+                      marginBottom: '8px',
+                    }}>
+                      {statusDeals.map((deal, j) => (
+                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: '12px', borderBottom: j < statusDeals.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ color: pipelineStatusColor(p.label), fontSize: '10px' }}>{'\u25CF'}</span>
+                            <span>{deal.leadName}</span>
+                          </div>
+                          <span style={{ fontWeight: 600, color: deal.value > 0 ? 'var(--color-accent-blue)' : 'var(--color-text-muted)' }}>
+                            {deal.value > 0 ? fmtEuro(deal.value) : '\u2014'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: pipelineStatusColor(p.label) }}>
-                  {fmtEuro(p.value)}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </Card>
 
           {data.pipelineDealsWithValue.length > 0 && (
@@ -479,15 +536,41 @@ export default function Dashboard({ data }: { data: DashboardData }) {
 
           <SectionTitle>Historische Performance</SectionTitle>
           <Card>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Won Revenue pro Monat</div>
-            {data.historicalPerformance.map((h, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < data.historicalPerformance.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                <div style={{ fontSize: '13px' }}>{h.label}{h.isCurrent ? ' (MTD)' : ''}</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: h.isCurrent ? 'var(--color-accent-green)' : 'var(--color-text-primary)' }}>
-                  {fmtEuro(h.value)}
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Won Revenue pro Monat — klicken f&uuml;r Details</div>
+            {data.historicalPerformance.map((h, i) => {
+              const isExpanded = expandedMonths.has(h.label)
+              return (
+                <div key={i}>
+                  <div
+                    onClick={() => toggleMonth(h.label)}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: (!isExpanded && i < data.historicalPerformance.length - 1) ? '1px solid var(--color-border)' : 'none', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    <div style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>{'\u25B6'}</span>
+                      {h.label}{h.isCurrent ? ' (MTD)' : ''}
+                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>({h.deals?.length || 0} Deals)</span>
+                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: h.isCurrent ? 'var(--color-accent-green)' : 'var(--color-text-primary)' }}>
+                      {fmtEuro(h.value)}
+                    </div>
+                  </div>
+                  {isExpanded && h.deals && h.deals.length > 0 && (
+                    <div style={{ padding: '0 0 10px 20px', borderBottom: i < data.historicalPerformance.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
+                      {h.deals.map((deal, j) => (
+                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--color-accent-green)', fontSize: '10px' }}>{'\u25CF'}</span>
+                            <span>{deal.name}</span>
+                            <span style={{ color: 'var(--color-text-muted)', fontSize: '11px' }}>{fmtDate(deal.date)}</span>
+                          </div>
+                          <span style={{ fontWeight: 600, color: 'var(--color-accent-green)' }}>{fmtEuro(deal.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </Card>
 
           <SectionTitle>Gesamtstatistik</SectionTitle>

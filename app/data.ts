@@ -391,12 +391,40 @@ export async function fetchCloseData() {
 
     const historicalPerformance = monthlySorted.slice(0, 7).map(([key, val]) => {
       const [y, m] = key.split('-')
+      const monthDeals = wonDeals
+        .filter((o: any) => o.date_won && o.date_won.startsWith(key))
+        .map((o: any) => ({
+          name: o.lead_name || 'Unbekannt',
+          value: (o.value || 0) / 100,
+          date: o.date_won || '',
+          user: o.user_name || '',
+        }))
+        .sort((a: any, b: any) => b.value - a.value)
       return {
         label: `${monthLong[m] || m} ${y}`,
         value: val,
         isCurrent: key === currentMonthKey,
+        deals: monthDeals,
       }
     })
+
+    // Pipeline deals grouped by status (for drill-down)
+    const pipelineDealsByStatus: Record<string, { leadName: string; value: number; date: string }[]> = {}
+    for (const deal of activeDeals) {
+      const label = PIPELINE_STATUSES[deal.status_id] || 'Unbekannt'
+      if (!pipelineDealsByStatus[label]) {
+        pipelineDealsByStatus[label] = []
+      }
+      pipelineDealsByStatus[label].push({
+        leadName: deal.lead_name || 'Unbekannt',
+        value: (deal.value || 0) / 100,
+        date: deal.date_created || '',
+      })
+    }
+    // Sort deals within each status by value desc
+    for (const key of Object.keys(pipelineDealsByStatus)) {
+      pipelineDealsByStatus[key].sort((a, b) => b.value - a.value)
+    }
 
     const formattedDate = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`
 
@@ -441,6 +469,7 @@ export async function fetchCloseData() {
 
       conversionFunnel,
       waterfall,
+      pipelineDealsByStatus,
 
       lastUpdated: new Date().toISOString(),
     }
