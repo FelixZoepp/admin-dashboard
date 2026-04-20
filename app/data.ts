@@ -298,6 +298,142 @@ export async function fetchCloseData() {
       }
     }
 
+    // === Custom Activity Counts (Sales Funnel) ===
+    const CUSTOM_ACTIVITY_TYPES = {
+      coldCall: 'actitype_1opHQI1ygoGZjsIG0z7SkR',    // Gesprächsprotokoll (Cold Call)
+      setting: 'actitype_4VVTPxLTlLNPNsMsc7tgxC',      // Gesprächsprotokoll (Setting)
+      closing: 'actitype_7QI2uISXKjTGXHK0AYmckm',      // Gesprächsprotokoll (Closing)
+      followUp: 'actitype_3EqH37y6lgLrS9vufk3MU4',     // Gesprächsprotokoll (Follow-Up)
+    }
+
+    const weekStartISO_full = getISOWeekStart(currentYear, currentWeek).toISOString()
+    const nowISO_full = now.toISOString()
+
+    async function fetchCustomActivityCount(typeId: string, dateGte: string): Promise<number> {
+      try {
+        const data = await closeApiFetch(
+          `/activity/custom/?custom_activity_type_id=${typeId}&date_created__gte=${dateGte}&_limit=1&_fields=id`
+        )
+        return data.total_results || 0
+      } catch {
+        return 0
+      }
+    }
+
+    // Fetch all activity counts in parallel: 4 types x 2 periods = 8 calls
+    const [
+      coldCallWeek, coldCallMonth,
+      settingActWeek, settingActMonth,
+      closingActWeek, closingActMonth,
+      followUpWeek, followUpMonth,
+    ] = await Promise.all([
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.coldCall, formatDateISO(getISOWeekStart(currentYear, currentWeek))),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.coldCall, monthStart),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.setting, formatDateISO(getISOWeekStart(currentYear, currentWeek))),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.setting, monthStart),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.closing, formatDateISO(getISOWeekStart(currentYear, currentWeek))),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.closing, monthStart),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.followUp, formatDateISO(getISOWeekStart(currentYear, currentWeek))),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.followUp, monthStart),
+    ])
+
+    // Get calls this week + month via activity report
+    const callsThisWeekVal = weeklyCallData.length > 0 ? weeklyCallData[weeklyCallData.length - 1]?.calls || 0 : 0
+
+    let callsThisMonth = 0
+    try {
+      const monthEnd = new Date(currentYear, currentMonth + 1, 1)
+      const monthActivity = await closeApiFetch('/report/activity/overview/', {
+        method: 'POST',
+        body: JSON.stringify({
+          date_start: monthStart,
+          date_end: formatDateISO(monthEnd),
+        }),
+      })
+      callsThisMonth = monthActivity?.aggregations?.calls_made || 0
+    } catch {
+      callsThisMonth = 0
+    }
+
+    // Won deals for week period
+    const weekStartISODate = formatDateISO(getISOWeekStart(currentYear, currentWeek))
+    const wonThisWeek = wonDeals.filter((o: any) => o.date_won && o.date_won >= weekStartISODate)
+    const wonRevenueWeek = wonThisWeek.reduce((sum: number, o: any) => sum + (o.value || 0), 0) / 100
+    const wonRevenueMonth = revenueMTD
+
+    // Pipeline snapshot counts
+    const pipelineSnapshot = {
+      settingTerminiert: 0,
+      settingNoShow: 0,
+      settingFollowUp: 0,
+      closingTerminiert: 0,
+      closingNoShow: 0,
+      closingFollowUp: 0,
+      angebotVerschickt: 0,
+      cc2Terminiert: 0,
+    }
+    const snapshotMapping: Record<string, keyof typeof pipelineSnapshot> = {
+      'stat_SJMKmHyG1PUg5y6pcFZiEHKEIWVrFf7IDMpF1O31AgA': 'settingTerminiert',
+      'stat_09b2m2xI4kxcxHjgE3Xbb3n7rzE3ygpmBX4zIXR1I5f': 'settingNoShow',
+      'stat_esHRwS41irQis8aYyfk55CRjyrV5bhEB6c03qWdU3So': 'settingFollowUp',
+      'stat_G4vinr4M5aNginkr1nNkxS7Mt2sEFFELsmOfrBMGCG4': 'closingTerminiert',
+      'stat_XTjldovdZz1SvfOfi8nzTCbm5o9mUAVDwZ6jdSZ1V3R': 'closingNoShow',
+      'stat_WJks2iEcai6sgu3dokyOSKud5oWTIWKo3IQaDSO9aDZ': 'closingFollowUp',
+      'stat_yIC8eUAp0OBYggJ1qqasmM3iosOh9rnrsEXJEtzSBpe': 'angebotVerschickt',
+      'stat_jwxdfe98lRYRhNRE9lPxo0oJ8tJIcJ7lCIVUTnVRzY2': 'cc2Terminiert',
+    }
+    for (const deal of activeDeals) {
+      const key = snapshotMapping[deal.status_id]
+      if (key) pipelineSnapshot[key]++
+    }
+
+    // Settings gelegt = Opps currently in any Setting stage (booked from Cold Calls/Follow-Ups)
+    const totalSettingsGelegt = pipelineSnapshot.settingTerminiert + pipelineSnapshot.settingNoShow + pipelineSnapshot.settingFollowUp
+    // Closings gelegt = Opps currently in any Closing stage (booked from Settings)
+    const totalClosingsGelegt = pipelineSnapshot.closingTerminiert + pipelineSnapshot.closingNoShow + pipelineSnapshot.closingFollowUp + pipelineSnapshot.angebotVerschickt + pipelineSnapshot.cc2Terminiert
+
+    // Gespräche gesamt = Cold Calls + Follow-Ups (alle Kontakte mit Entscheidern)
+    const gespraecheWeek = coldCallWeek + followUpWeek
+    const gespraecheMonth = coldCallMonth + followUpMonth
+
+    // Conversion rates (month-based, using real pipeline data)
+    const quotenErreichquote = callsThisMonth > 0 ? Math.round((gespraecheMonth / callsThisMonth) * 1000) / 10 : 0
+    const quotenSettingQuote = gespraecheMonth > 0 ? Math.round((totalSettingsGelegt / gespraecheMonth) * 1000) / 10 : 0
+    const quotenClosingQuote = totalSettingsGelegt > 0 ? Math.round((totalClosingsGelegt / totalSettingsGelegt) * 1000) / 10 : 0
+    const quotenAbschlussQuote = totalClosingsGelegt > 0 ? Math.round((wonThisMonth.length / totalClosingsGelegt) * 1000) / 10 : 0
+    const quotenOverall = callsThisMonth > 0 ? Math.round((wonThisMonth.length / callsThisMonth) * 1000) / 10 : 0
+
+    const salesFunnel = {
+      week: {
+        anwahlen: callsThisWeekVal,
+        entscheiderErreicht: gespraecheWeek,
+        coldCalls: coldCallWeek,
+        followUps: followUpWeek,
+        settingsGelegt: totalSettingsGelegt, // from pipeline
+        closingsGelegt: totalClosingsGelegt, // from pipeline
+        wonDeals: wonThisWeek.length,
+        wonRevenue: wonRevenueWeek,
+      },
+      month: {
+        anwahlen: callsThisMonth,
+        entscheiderErreicht: gespraecheMonth,
+        coldCalls: coldCallMonth,
+        followUps: followUpMonth,
+        settingsGelegt: totalSettingsGelegt,
+        closingsGelegt: totalClosingsGelegt,
+        wonDeals: wonThisMonth.length,
+        wonRevenue: wonRevenueMonth,
+      },
+      quoten: {
+        erreichquote: quotenErreichquote,
+        settingQuote: quotenSettingQuote,
+        closingQuote: quotenClosingQuote,
+        abschlussQuote: quotenAbschlussQuote,
+        overallAnwahlenToWon: quotenOverall,
+      },
+      pipeline: pipelineSnapshot,
+    }
+
     // === Conversion Funnel ===
     const SETTING_IDS = [
       'stat_SJMKmHyG1PUg5y6pcFZiEHKEIWVrFf7IDMpF1O31AgA',
@@ -556,6 +692,7 @@ export async function fetchCloseData() {
       pipelineWeightedForecast,
       avg3Months,
 
+      salesFunnel,
       conversionFunnel,
       waterfall,
       pipelineDealsByStatus,

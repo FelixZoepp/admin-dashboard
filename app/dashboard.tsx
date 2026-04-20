@@ -182,6 +182,45 @@ interface DashboardData {
       notizen: string
     }[]
   }
+  salesFunnel: {
+    week: {
+      anwahlen: number
+      entscheiderErreicht: number
+      coldCalls: number
+      followUps: number
+      settingsGelegt: number
+      closingsGelegt: number
+      wonDeals: number
+      wonRevenue: number
+    }
+    month: {
+      anwahlen: number
+      entscheiderErreicht: number
+      coldCalls: number
+      followUps: number
+      settingsGelegt: number
+      closingsGelegt: number
+      wonDeals: number
+      wonRevenue: number
+    }
+    quoten: {
+      erreichquote: number
+      settingQuote: number
+      closingQuote: number
+      abschlussQuote: number
+      overallAnwahlenToWon: number
+    }
+    pipeline: {
+      settingTerminiert: number
+      settingNoShow: number
+      settingFollowUp: number
+      closingTerminiert: number
+      closingNoShow: number
+      closingFollowUp: number
+      angebotVerschickt: number
+      cc2Terminiert: number
+    }
+  }
   allWonDeals: { name: string; value: number; date: string; user: string }[]
   allLostDeals: { name: string; value: number; date: string }[]
   todayISO: string
@@ -733,36 +772,188 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
-              {/* Conversion Funnel */}
-              <div className="za-panel fade-up" style={{ animationDelay: '480ms', marginBottom: '16px' }}>
+              {/* ═══ SALES FUNNEL — HERO ═══ */}
+              {(() => {
+                const funnelData = (period === 'week' || period === 'today') ? data.salesFunnel.week : data.salesFunnel.month
+                const periodNote = period === 'today' ? ' (Wochendaten)' : period === 'year' ? ' (Monatsdaten)' : ''
+                const quoten = data.salesFunnel.quoten
+
+                const stages = [
+                  { label: 'Anwahlen', value: funnelData.anwahlen, rate: null, rateLabel: '' },
+                  { label: 'Entscheider erreicht', value: funnelData.entscheiderErreicht, rate: quoten.erreichquote, rateLabel: 'Erreichquote', sub: `(${funnelData.coldCalls} Cold Calls + ${funnelData.followUps} Follow-Ups)` },
+                  { label: 'Settings gelegt', value: funnelData.settingsGelegt, rate: quoten.settingQuote, rateLabel: 'Setting-Quote' },
+                  { label: 'Beratungsgespr\u00e4che (Closings)', value: funnelData.closingsGelegt, rate: quoten.closingQuote, rateLabel: 'Closing-Quote' },
+                  { label: 'Abschl\u00fcsse (Won)', value: funnelData.wonDeals, rate: quoten.abschlussQuote, rateLabel: 'Abschlussquote', revenue: funnelData.wonRevenue },
+                ]
+                const maxVal = Math.max(...stages.map(s => s.value), 1)
+
+                return (
+                  <div className="za-panel fade-up" style={{ animationDelay: '480ms', marginBottom: '16px', borderTop: '2px solid var(--za-gold)', padding: '24px' }}>
+                    <div className="panel-head" style={{ marginBottom: '20px' }}>
+                      <div>
+                        <span className="panel-eyebrow" style={{ color: 'var(--za-gold-2)' }}>Sales Funnel</span>
+                        <div className="panel-title" style={{ fontSize: '18px' }}>
+                          Sales Funnel &mdash; {PERIOD_LABELS[period]}{periodNote}
+                        </div>
+                      </div>
+                      <span className="panel-sub" style={{ fontFamily: 'var(--za-serif)', fontSize: '14px', color: 'var(--za-gold-2)' }}>
+                        Gesamt: {quoten.overallAnwahlenToWon}% Conversion
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                      {stages.map((stage, i) => {
+                        const widthPct = Math.max((stage.value / maxVal) * 100, 2)
+                        const showRate = stage.rate !== null && stage.rate !== undefined && i > 0
+                        return (
+                          <div key={i}>
+                            {/* Conversion rate arrow between stages */}
+                            {showRate && (
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '4px 0 4px 160px',
+                                gap: '8px',
+                              }}>
+                                <span style={{ color: 'var(--za-gold)', fontSize: '14px', lineHeight: 1 }}>{'\u2193'}</span>
+                                <span style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  color: 'var(--za-gold-2)',
+                                  background: 'rgba(197,160,89,0.1)',
+                                  padding: '2px 10px',
+                                  borderRadius: '10px',
+                                  border: '1px solid rgba(197,160,89,0.2)',
+                                }}>
+                                  {stage.rate}% {stage.rateLabel}
+                                </span>
+                              </div>
+                            )}
+                            {!showRate && i > 0 && (
+                              <div style={{ padding: '3px 0' }} />
+                            )}
+
+                            {/* Stage row */}
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: '160px 1fr 70px 80px',
+                              alignItems: 'center',
+                              gap: '12px',
+                            }}>
+                              <div style={{
+                                textAlign: 'right',
+                                paddingRight: '4px',
+                              }}>
+                                <div style={{
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  color: i === stages.length - 1 ? 'var(--za-success)' : 'var(--za-fg-2)',
+                                }}>
+                                  {stage.label}
+                                </div>
+                                {(stage as any).sub && (
+                                  <div style={{ fontSize: '9px', color: 'var(--za-fg-4)', marginTop: '1px' }}>{(stage as any).sub}</div>
+                                )}
+                              </div>
+                              <div style={{
+                                height: '28px',
+                                background: 'rgba(249,249,249,0.04)',
+                                borderRadius: '6px',
+                                overflow: 'hidden',
+                                position: 'relative',
+                              }}>
+                                <div style={{
+                                  width: `${widthPct}%`,
+                                  height: '100%',
+                                  background: i === stages.length - 1
+                                    ? 'linear-gradient(90deg, #4E8A6B, #7FC29B)'
+                                    : 'linear-gradient(90deg, #775A19, #C5A059, #E9CB8B)',
+                                  borderRadius: '6px',
+                                  transition: 'width 0.8s ease',
+                                  boxShadow: i === stages.length - 1
+                                    ? '0 0 12px rgba(127,194,155,0.3)'
+                                    : '0 0 12px rgba(197,160,89,0.2)',
+                                }} />
+                              </div>
+                              <div style={{
+                                fontFamily: 'var(--za-serif)',
+                                fontSize: '16px',
+                                fontWeight: 700,
+                                color: i === stages.length - 1 ? 'var(--za-success)' : '#fff',
+                                textAlign: 'right',
+                              }}>
+                                {fmtNum(stage.value)}
+                              </div>
+                              <div style={{
+                                fontSize: '11px',
+                                color: 'var(--za-fg-4)',
+                                textAlign: 'right',
+                              }}>
+                                {i === 0 ? '100%' : stage.revenue !== undefined ? fmtEuro(stage.revenue) : `${maxVal > 0 ? ((stage.value / maxVal) * 100).toFixed(0) : 0}%`}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Pipeline Snapshot */}
+              <div className="za-panel fade-up" style={{ animationDelay: '520ms', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
-                    <span className="panel-eyebrow">Pipeline</span>
-                    <div className="panel-title">Conversion Funnel &middot; {data.currentMonthName}</div>
+                    <span className="panel-eyebrow">Pipeline Snapshot</span>
+                    <div className="panel-title">Aktuelle Verteilung</div>
                   </div>
-                  <span className="panel-sub">Conversion Rate {data.conversionFunnel.overallConversionRate.toFixed(1)}%</span>
                 </div>
-                <FunnelChart stages={funnelStages} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                  {[
+                    { label: 'Setting Terminiert', value: data.salesFunnel.pipeline.settingTerminiert, color: 'var(--za-info)' },
+                    { label: 'Setting No Show', value: data.salesFunnel.pipeline.settingNoShow, color: 'var(--za-danger)' },
+                    { label: 'Setting Follow Up', value: data.salesFunnel.pipeline.settingFollowUp, color: 'var(--za-gold-2)' },
+                    { label: 'Closing Terminiert', value: data.salesFunnel.pipeline.closingTerminiert, color: 'var(--za-violet)' },
+                    { label: 'Closing No Show', value: data.salesFunnel.pipeline.closingNoShow, color: 'var(--za-danger)' },
+                    { label: 'Closing Follow Up', value: data.salesFunnel.pipeline.closingFollowUp, color: 'var(--za-gold-2)' },
+                    { label: 'Angebot verschickt', value: data.salesFunnel.pipeline.angebotVerschickt, color: 'var(--za-success)' },
+                    { label: 'CC2 Terminiert', value: data.salesFunnel.pipeline.cc2Terminiert, color: 'var(--za-info)' },
+                  ].map((item, i) => (
+                    <div key={i} style={{
+                      padding: '12px',
+                      background: 'rgba(249,249,249,0.03)',
+                      borderRadius: '8px',
+                      borderLeft: `3px solid ${item.color}`,
+                    }}>
+                      <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
+                        {item.label}
+                      </div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '20px', fontWeight: 700, color: '#fff' }}>
+                        {item.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Waterfall KPIs */}
               <div className="kpi-grid">
-                <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '560ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Settings pro Close</span></div>
                   <div className="kpi-value">{data.waterfall.settingsPerClose}</div>
                   <div className="kpi-foot"><span className="kpi-caption">Settings f&uuml;r 1 Won</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '580ms' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '600ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Closings pro Close</span></div>
                   <div className="kpi-value">{data.waterfall.closingsPerClose}</div>
                   <div className="kpi-foot"><span className="kpi-caption">Closings f&uuml;r 1 Won</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '620ms' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '640ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Gesamt Conversion</span></div>
                   <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{data.conversionFunnel.overallConversionRate.toFixed(1)}<span className="unit">%</span></div>
                   <div className="kpi-foot"><span className="kpi-caption">Alle Opps zu Won</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '660ms' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '680ms' }}>
                   <div className="kpi-top"><span className="kpi-label">&Oslash; Deal Cycle</span></div>
                   <div className="kpi-value">{data.waterfall.avgDealCycle}<span className="unit"> Tage</span></div>
                   <div className="kpi-foot"><span className="kpi-caption">Erstellung bis Won</span></div>
