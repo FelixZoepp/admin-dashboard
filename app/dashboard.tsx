@@ -1332,35 +1332,122 @@ export default function Dashboard({ data }: { data: DashboardData }) {
              ═══════════════════════════════════════════════════ */}
           {activeNav === 'fulfillment' && (
             <>
+              {/* KPI Grid — Monday.com Snapshot (hardcoded, will be automated via API later) */}
               <div className="kpi-grid">
                 <div className="za-panel fade-up" style={{ animationDelay: '60ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Heute erledigt</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Aufgaben</span></div>
+                  <div className="kpi-top"><span className="kpi-label">Tasks gesamt</span></div>
+                  <div className="kpi-value">64</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Lisa: 38, Nils: 26</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '140ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Woche gesamt</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Aufgaben</span></div>
+                  <div className="kpi-top"><span className="kpi-label">Erledigt</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success, #4ade80)' }}>5</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Lisa: 1, Nils: 4</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">&Oslash; pro Tag</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Durchschnitt</span></div>
+                  <div className="kpi-top"><span className="kpi-label">In Arbeit</span></div>
+                  <div className="kpi-value">24</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Bearbeitung + Warte auf Ausf&uuml;hrung</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '300ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Offen</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Ausstehend</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-warning, #fb923c)' }}>35</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Noch nicht begonnen</span></div>
                 </div>
               </div>
 
-              <div className="za-panel fade-up" style={{ animationDelay: '360ms' }}>
-                <EmptyState
-                  icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>}
-                  title="Fulfillment-Daten werden bald angebunden"
-                  subtitle="Tagesproduktivit&auml;t, Aufgaben, Wochenziele"
-                />
+              {/* Team Overview — Lisa vs Nils */}
+              <div className="za-panel fade-up" style={{ animationDelay: '360ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Monday.com Boards</span>
+                    <div className="panel-title">Team&uuml;bersicht</div>
+                  </div>
+                </div>
+                <div className="za-table-wrap">
+                  <table className="za-table">
+                    <thead><tr><th></th><th>Lisa</th><th>Nils</th></tr></thead>
+                    <tbody>
+                      <tr><td style={{ fontWeight: 600 }}>Tasks gesamt</td><td>38</td><td>26</td></tr>
+                      <tr><td style={{ fontWeight: 600 }}>Erledigt</td><td>1 <span style={{ color: 'var(--za-warning, #fb923c)', fontSize: '11px' }}>(3%)</span></td><td>4 <span style={{ color: 'var(--za-success, #4ade80)', fontSize: '11px' }}>(15%)</span></td></tr>
+                      <tr><td style={{ fontWeight: 600 }}>In Bearbeitung</td><td>3</td><td>0</td></tr>
+                      <tr><td style={{ fontWeight: 600 }}>Wartend</td><td>5</td><td>16</td></tr>
+                      <tr><td style={{ fontWeight: 600 }}>Neu/Offen</td><td>29</td><td>6</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Lisa's Tasks */}
+              <div className="za-panel fade-up" style={{ animationDelay: '420ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Board 5093790899</span>
+                    <div className="panel-title">Lisa &mdash; Tasks</div>
+                  </div>
+                </div>
+                {[
+                  { group: 'T\u00e4glich', tasks: ['Felix LinkedIn', 'Lisa LinkedIn', 'Michael Walter LinkedIn', 'Felix Reels', 'Nils Check-In pr\u00fcfen'] },
+                  { group: 'W\u00f6chentlich', tasks: ['Wochen-Reviews', 'Content-Vorlauf', 'Finanzen'] },
+                  { group: 'Monatlich', tasks: ['USt-Voranmeldung', 'Monatsabschluss', 'SEPA'] },
+                ].map((cat, i) => (
+                  <div key={i} style={{ padding: '0 16px 12px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--za-fg-2)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cat.group}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {cat.tasks.map((t, j) => (
+                        <span key={j} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--za-fg-3)', border: '1px solid var(--za-border)' }}>{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Nils' Tasks */}
+              <div className="za-panel fade-up" style={{ animationDelay: '480ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Board 1980813409</span>
+                    <div className="panel-title">Nils &mdash; Tasks</div>
+                  </div>
+                </div>
+                {[
+                  { group: 'T\u00e4glich', tasks: ['Check-In', 'Clockodo', 'Reels schneiden', 'LinkedIn Posts', 'Check-Out'] },
+                  { group: 'Projekte', tasks: ['Testimonial Karussell', 'Funnel D2D', 'Fallstudien PDF', 'Phantom Buster'] },
+                  { group: 'Kunden', tasks: ['Hendrik', 'Felix Zoepp', 'Michael Kr\u00fcger', 'Sales Promotion', 'ManyReasons'] },
+                ].map((cat, i) => (
+                  <div key={i} style={{ padding: '0 16px 12px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--za-fg-2)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{cat.group}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {cat.tasks.map((t, j) => (
+                        <span key={j} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--za-fg-3)', border: '1px solid var(--za-border)' }}>{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Insights */}
+              <div className="za-panel fade-up" style={{ animationDelay: '540ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Analyse</span>
+                    <div className="panel-title">Insights &amp; Empfehlungen</div>
+                  </div>
+                </div>
+                <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--za-warning, #fb923c)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span>{'\u26A0\uFE0F'}</span><span>Lisa: 76% der Tasks noch nicht begonnen (29/38 auf &laquo;Neu&raquo;)</span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--za-warning, #fb923c)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span>{'\u26A0\uFE0F'}</span><span>Nils: 62% der Tasks warten auf Ausf&uuml;hrung (16/26)</span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--za-info, #60a5fa)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span>{'\uD83D\uDCA1'}</span><span>Empfehlung: Tasks t&auml;gliches Abhaken einf&uuml;hren f&uuml;r Produktivit&auml;ts-Tracking</span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--za-fg-3)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span>{'\uD83D\uDCCA'}</span><span>Board zuletzt aktualisiert: Lisa 14.04, Nils 19.04</span>
+                  </div>
+                </div>
               </div>
             </>
           )}
