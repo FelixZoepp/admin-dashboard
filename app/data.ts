@@ -1,4 +1,5 @@
 import { getAirtableMetrics, AirtableMetrics } from './airtable-data'
+import { fetchCalendlyData, CalendlyMetrics } from './calendly-data'
 
 const CLOSE_API_BASE = 'https://api.close.com/api/v1'
 
@@ -722,6 +723,8 @@ export async function fetchCloseData() {
       yearStartISO,
 
       airtableMetrics: getAirtableMetrics(),
+
+      calendlyMetrics: await fetchCalendlyData(),
 
       lastUpdated: new Date().toISOString(),
     }

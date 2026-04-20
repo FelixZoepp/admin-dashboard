@@ -182,6 +182,18 @@ interface DashboardData {
       notizen: string
     }[]
   }
+  calendlyMetrics: {
+    weekEvents: { name: string; startTime: string; endTime: string; category: 'setting' | 'closing' | 'onboarding' | 'other'; location: string }[]
+    monthEvents: { name: string; startTime: string; endTime: string; category: 'setting' | 'closing' | 'onboarding' | 'other'; location: string }[]
+    weekSettings: number
+    weekClosings: number
+    weekOnboardings: number
+    weekOther: number
+    monthSettings: number
+    monthClosings: number
+    monthOnboardings: number
+    monthOther: number
+  }
   salesFunnel: {
     week: {
       anwahlen: number
@@ -781,8 +793,8 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 const stages = [
                   { label: 'Anwahlen', value: funnelData.anwahlen, rate: null, rateLabel: '' },
                   { label: 'Entscheider erreicht', value: funnelData.entscheiderErreicht, rate: quoten.erreichquote, rateLabel: 'Erreichquote', sub: `(${funnelData.coldCalls} Cold Calls + ${funnelData.followUps} Follow-Ups)` },
-                  { label: 'Settings gelegt', value: funnelData.settingsGelegt, rate: quoten.settingQuote, rateLabel: 'Setting-Quote' },
-                  { label: 'Beratungsgespr\u00e4che (Closings)', value: funnelData.closingsGelegt, rate: quoten.closingQuote, rateLabel: 'Closing-Quote' },
+                  { label: 'Settings gelegt', value: funnelData.settingsGelegt, rate: quoten.settingQuote, rateLabel: 'Setting-Quote', sub: `(${data.calendlyMetrics.weekSettings} Calendly Settings diese Woche)` },
+                  { label: 'Beratungsgespr\u00e4che (Closings)', value: funnelData.closingsGelegt, rate: quoten.closingQuote, rateLabel: 'Closing-Quote', sub: `(${data.calendlyMetrics.weekClosings} Calendly Closings diese Woche)` },
                   { label: 'Abschl\u00fcsse (Won)', value: funnelData.wonDeals, rate: quoten.abschlussQuote, rateLabel: 'Abschlussquote', revenue: funnelData.wonRevenue },
                 ]
                 const maxVal = Math.max(...stages.map(s => s.value), 1)
@@ -899,6 +911,89 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   </div>
                 )
               })()}
+
+              {/* ═══ CALENDLY TERMINE ═══ */}
+              {data.calendlyMetrics.weekEvents.length > 0 && (
+                <div className="za-panel fade-up" style={{ animationDelay: '500ms', marginBottom: '16px', borderTop: '2px solid var(--za-info)', padding: '24px' }}>
+                  <div className="panel-head" style={{ marginBottom: '16px' }}>
+                    <div>
+                      <span className="panel-eyebrow" style={{ color: 'var(--za-info)' }}>Calendly</span>
+                      <div className="panel-title" style={{ fontSize: '18px' }}>
+                        Termine diese Woche &mdash; Calendly
+                      </div>
+                    </div>
+                    <span className="panel-sub" style={{ fontFamily: 'var(--za-serif)', fontSize: '13px', color: 'var(--za-fg-3)' }}>
+                      {data.calendlyMetrics.weekSettings} Settings | {data.calendlyMetrics.weekClosings} Closings | {data.calendlyMetrics.weekOnboardings} Onboardings diese Woche
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {data.calendlyMetrics.weekEvents.map((evt, i) => {
+                      const dt = new Date(evt.startTime)
+                      const dayNames = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
+                      const dayName = dayNames[dt.getDay()]
+                      const dd = String(dt.getDate()).padStart(2, '0')
+                      const mm = String(dt.getMonth() + 1).padStart(2, '0')
+                      const hh = String(dt.getHours()).padStart(2, '0')
+                      const min = String(dt.getMinutes()).padStart(2, '0')
+                      const timeStr = `${dayName} ${dd}.${mm} \u00b7 ${hh}:${min}`
+
+                      const badgeColors: Record<string, { bg: string; fg: string }> = {
+                        setting: { bg: 'rgba(59,130,246,0.15)', fg: 'var(--za-info)' },
+                        closing: { bg: 'rgba(197,160,89,0.15)', fg: 'var(--za-gold-2)' },
+                        onboarding: { bg: 'rgba(78,138,107,0.15)', fg: 'var(--za-success)' },
+                        other: { bg: 'rgba(249,249,249,0.06)', fg: 'var(--za-fg-4)' },
+                      }
+                      const badge = badgeColors[evt.category] || badgeColors.other
+                      const categoryLabel = evt.category === 'setting' ? 'Setting' : evt.category === 'closing' ? 'Closing' : evt.category === 'onboarding' ? 'Onboarding' : 'Sonstige'
+
+                      const locationIcon = evt.location.includes('Zoom') || evt.location.includes('zoom')
+                        ? '\ud83d\udcf9'
+                        : evt.location.includes('Call') || evt.location.includes('call') || evt.location.includes('Outbound')
+                          ? '\ud83d\udcde'
+                          : evt.location.includes('Vor Ort')
+                            ? '\ud83d\udccd'
+                            : '\ud83d\udcc5'
+
+                      return (
+                        <div key={i} style={{
+                          display: 'grid',
+                          gridTemplateColumns: '130px 1fr auto auto',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '10px 12px',
+                          background: 'rgba(249,249,249,0.03)',
+                          borderRadius: '8px',
+                          borderLeft: `3px solid ${badge.fg}`,
+                        }}>
+                          <div style={{ fontSize: '12px', color: 'var(--za-fg-3)', fontFamily: 'var(--za-mono, monospace)', whiteSpace: 'nowrap' }}>
+                            {timeStr}
+                          </div>
+                          <div style={{ fontSize: '13px', color: 'var(--za-fg-2)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {evt.name}
+                          </div>
+                          <div style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em',
+                            padding: '3px 10px',
+                            borderRadius: '10px',
+                            background: badge.bg,
+                            color: badge.fg,
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {categoryLabel}
+                          </div>
+                          <div style={{ fontSize: '14px', textAlign: 'center', width: '24px' }} title={evt.location}>
+                            {locationIcon}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Pipeline Snapshot */}
               <div className="za-panel fade-up" style={{ animationDelay: '520ms', marginBottom: '16px' }}>
