@@ -1,10 +1,34 @@
 {
   "delivery_config": {
     "team": [
-      {"name": "Felix Zoepp", "role": "CEO/Sales/Strategie", "hourly_rate_internal": 31, "monthly_hours": 160, "monthly_cost": 5000},
-      {"name": "Lisa", "role": "Operations/Fulfillment", "hourly_rate_internal": 16, "monthly_hours": 160, "monthly_cost": 2500},
-      {"name": "Marcel", "role": "Content Oversight (10h/Woche)", "hourly_rate_internal": 31, "monthly_hours": 40, "monthly_cost": 1250},
-      {"name": "Nils", "role": "Content/Editing (Fulltime)", "hourly_rate_internal": 16, "monthly_hours": 160, "monthly_cost": 2500}
+      {
+        "name": "Felix Zoepp",
+        "role": "CEO/Sales/Strategie",
+        "hourly_rate_internal": 34.4,
+        "monthly_hours": 160,
+        "monthly_cost": 5500
+      },
+      {
+        "name": "Lisa",
+        "role": "Operations/Fulfillment",
+        "hourly_rate_internal": 26.9,
+        "monthly_hours": 160,
+        "monthly_cost": 4300
+      },
+      {
+        "name": "Marcel",
+        "role": "Content Oversight (10h/Woche)",
+        "hourly_rate_internal": 18.8,
+        "monthly_hours": 40,
+        "monthly_cost": 750
+      },
+      {
+        "name": "Nils",
+        "role": "Content/Editing (Fulltime)",
+        "hourly_rate_internal": 30,
+        "monthly_hours": 160,
+        "monthly_cost": 4800
+      }
     ],
     "shared_costs": {
       "gruppencoaching_felix_hours_per_month": 8,
@@ -18,24 +42,312 @@
     }
   },
   "customers": [
-    {"cl_id":"CL-011","firma":"Knochenstark","paket":"DFY LinkedIn","rate_monat":1250,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":3,"marcel_hours":0.5,"lisa_hours":0,"tasks":"Nils: 12 Posts/Mo (3h). Marcel: Review 6 Posts (30min).","delivery_cost":63.5,"margin_euro":1186.5,"margin_percent":94.9}},
-    {"cl_id":"CL-013","firma":"Sebastian Hartwig","paket":"Coaching 90-Tage","rate_monat":1000,"status":"Aktiv","delivery":{"felix_hours":1.3,"nils_hours":2,"marcel_hours":0.3,"lisa_hours":0,"tasks":"Felix: 2x30min 1:1/Mo + Gruppencoaching (1.3h). Nils: 8 Posts/Mo (2h). Marcel: Review (20min).","delivery_cost":81.6,"margin_euro":918.4,"margin_percent":91.8}},
-    {"cl_id":"CL-015","firma":"Awe Enterprise","paket":"Agentur Skalierung","rate_monat":2500,"status":"Aktiv","delivery":{"felix_hours":2,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Felix: 1x30min Call/Woche (2h/Mo).","delivery_cost":62,"margin_euro":2438,"margin_percent":97.5}},
-    {"cl_id":"CL-016","firma":"LeanSteer Consulting","paket":"Coaching 90-Tage","rate_monat":875,"status":"Aktiv","delivery":{"felix_hours":1.3,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Felix: Gruppencoaching anteilig (1.3h).","delivery_cost":40.3,"margin_euro":834.7,"margin_percent":95.4}},
-    {"cl_id":"CL-019","firma":"Leon Ostermann","paket":"Coaching 90-Tage","rate_monat":1000,"status":"Aktiv","delivery":{"felix_hours":1.3,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Felix: Gruppencoaching anteilig (1.3h).","delivery_cost":40.3,"margin_euro":959.7,"margin_percent":96.0}},
-    {"cl_id":"CL-021","firma":"Resul Kerimi","paket":"Coaching 90-Tage","rate_monat":2000,"status":"Aktiv","delivery":{"felix_hours":1.3,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Felix: Gruppencoaching anteilig (1.3h).","delivery_cost":40.3,"margin_euro":1959.7,"margin_percent":98.0}},
-    {"cl_id":"CL-024","firma":"AIVIO KI Marketing","paket":"Coaching + DFY (Upsell)","rate_monat":3500,"status":"Aktiv","delivery":{"felix_hours":2,"nils_hours":6,"marcel_hours":0,"lisa_hours":0,"tasks":"Felix: 1x30min 1:1/Woche (2h/Mo). Nils: 10 Reels (4h) + 8 Posts (2h) = 6h.","delivery_cost":158,"margin_euro":3342,"margin_percent":95.5}},
-    {"cl_id":"CL-025","firma":"Hanse All Risk","paket":"Altkunde","rate_monat":1500,"status":"Aktiv","delivery":{"felix_hours":0.5,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Felix: Alle 3-4 Wochen 30min (0.5h/Mo).","delivery_cost":15.5,"margin_euro":1484.5,"margin_percent":99.0}},
-    {"cl_id":"CL-026","firma":"Sales Promotion","paket":"Altkunde 36 Mo","rate_monat":3500,"status":"Aktiv","delivery":{"felix_hours":10,"nils_hours":2,"marcel_hours":0,"lisa_hours":0,"tasks":"Felix: 1x30min Call/Woche (2h) + 2h Automation/Woche (8h) = 10h. Nils: 5 Reels (2h).","delivery_cost":342,"margin_euro":3158,"margin_percent":90.2}},
-    {"cl_id":"CL-027","firma":"Many Reasons","paket":"Social Media Management","rate_monat":2000,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":12.5,"marcel_hours":0,"lisa_hours":0,"tasks":"Nils: 30 Reels/Mo (12.5h).","delivery_cost":200,"margin_euro":1800,"margin_percent":90.0}},
-    {"cl_id":"CL-028","firma":"Michael Krüger","paket":"SMM + Sales","rate_monat":3500,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":12,"marcel_hours":0,"lisa_hours":0,"tasks":"Nils: 20 Videos/Mo (8h) + 1 Videodreh (4h) = 12h.","delivery_cost":192,"margin_euro":3308,"margin_percent":94.5}},
-    {"cl_id":"CL-029","firma":"Hoffmann Solutions","paket":"Agentur Champions","rate_monat":3500,"status":"Aktiv","delivery":{"felix_hours":1,"nils_hours":4,"marcel_hours":0.5,"lisa_hours":0,"tasks":"Felix: sporadisch (1h). Nils: 12 Posts (3h) + Social Media (1h). Marcel: Review (30min).","delivery_cost":110.5,"margin_euro":3389.5,"margin_percent":96.8}},
-    {"cl_id":"CL-033","firma":"B&C Direct Sales","paket":"Recruiting Ads","rate_monat":1000,"status":"Onboarding","delivery":{"felix_hours":0,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Onboarding. Noch kein laufender Aufwand.","delivery_cost":0,"margin_euro":1000,"margin_percent":100}},
-    {"cl_id":"CL-035","firma":"ASS-KO solutions","paket":"PitchFirst Software","rate_monat":450,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Kein Aufwand. Nur Software-Abo.","delivery_cost":0,"margin_euro":450,"margin_percent":100}},
-    {"cl_id":"CL-037","firma":"Systemklar UG","paket":"Coaching + PitchFirst","rate_monat":1500,"status":"Aktiv","delivery":{"felix_hours":1.3,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Felix: Gruppencoaching anteilig (1.3h).","delivery_cost":40.3,"margin_euro":1459.7,"margin_percent":97.3}},
-    {"cl_id":"CL-038","firma":"Pro Augmentum","paket":"DFY Leadposts","rate_monat":1500,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Details noch nicht erfasst.","delivery_cost":0,"margin_euro":1500,"margin_percent":100}},
-    {"cl_id":"CL-030","firma":"CGMS Köln","paket":"Altkunde","rate_monat":3750,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Läuft durch. Kein laufender Aufwand.","delivery_cost":0,"margin_euro":3750,"margin_percent":100}},
-    {"cl_id":"CL-036","firma":"Teo Hentzschel","paket":"DFY LinkedIn","rate_monat":1000,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":2,"marcel_hours":0.5,"lisa_hours":0,"tasks":"Nils: 8 Leadposts/Mo à 15min (2h). Marcel: Review + Feedbackschleife (30min).","delivery_cost":47.5,"margin_euro":952.5,"margin_percent":95.3}}
+    {
+      "cl_id": "CL-011",
+      "firma": "Knochenstark",
+      "paket": "DFY LinkedIn",
+      "rate_monat": 1250,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 3,
+        "marcel_hours": 0.5,
+        "lisa_hours": 0,
+        "tasks": "Nils: 12 Posts/Mo (3h). Marcel: Review 6 Posts (30min).",
+        "delivery_cost": 99.4,
+        "margin_euro": 1150.6,
+        "margin_percent": 92.0
+      }
+    },
+    {
+      "cl_id": "CL-013",
+      "firma": "Sebastian Hartwig",
+      "paket": "Coaching 90-Tage",
+      "rate_monat": 1000,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 1.3,
+        "nils_hours": 2,
+        "marcel_hours": 0.3,
+        "lisa_hours": 0,
+        "tasks": "Felix: 2x30min 1:1/Mo + Gruppencoaching (1.3h). Nils: 8 Posts/Mo (2h). Marcel: Review (20min).",
+        "delivery_cost": 110.4,
+        "margin_euro": 889.6,
+        "margin_percent": 89.0
+      }
+    },
+    {
+      "cl_id": "CL-015",
+      "firma": "Awe Enterprise",
+      "paket": "Agentur Skalierung",
+      "rate_monat": 2500,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 2,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Felix: 1x30min Call/Woche (2h/Mo).",
+        "delivery_cost": 68.8,
+        "margin_euro": 2431.2,
+        "margin_percent": 97.2
+      }
+    },
+    {
+      "cl_id": "CL-016",
+      "firma": "LeanSteer Consulting",
+      "paket": "Coaching 90-Tage",
+      "rate_monat": 875,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 1.3,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Felix: Gruppencoaching anteilig (1.3h).",
+        "delivery_cost": 44.7,
+        "margin_euro": 830.3,
+        "margin_percent": 94.9
+      }
+    },
+    {
+      "cl_id": "CL-019",
+      "firma": "Leon Ostermann",
+      "paket": "Coaching 90-Tage",
+      "rate_monat": 1000,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 1.3,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Felix: Gruppencoaching anteilig (1.3h).",
+        "delivery_cost": 44.7,
+        "margin_euro": 955.3,
+        "margin_percent": 95.5
+      }
+    },
+    {
+      "cl_id": "CL-021",
+      "firma": "Resul Kerimi",
+      "paket": "Coaching 90-Tage",
+      "rate_monat": 2000,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 1.3,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Felix: Gruppencoaching anteilig (1.3h).",
+        "delivery_cost": 44.7,
+        "margin_euro": 1955.3,
+        "margin_percent": 97.8
+      }
+    },
+    {
+      "cl_id": "CL-024",
+      "firma": "AIVIO KI Marketing",
+      "paket": "Coaching + DFY (Upsell)",
+      "rate_monat": 3500,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 2,
+        "nils_hours": 6,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Felix: 1x30min 1:1/Woche (2h/Mo). Nils: 10 Reels (4h) + 8 Posts (2h) = 6h.",
+        "delivery_cost": 248.8,
+        "margin_euro": 3251.2,
+        "margin_percent": 92.9
+      }
+    },
+    {
+      "cl_id": "CL-025",
+      "firma": "Hanse All Risk",
+      "paket": "Altkunde",
+      "rate_monat": 1500,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 0.5,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Felix: Alle 3-4 Wochen 30min (0.5h/Mo).",
+        "delivery_cost": 17.2,
+        "margin_euro": 1482.8,
+        "margin_percent": 98.9
+      }
+    },
+    {
+      "cl_id": "CL-026",
+      "firma": "Sales Promotion",
+      "paket": "Altkunde 36 Mo",
+      "rate_monat": 3500,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 10,
+        "nils_hours": 2,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Felix: 1x30min Call/Woche (2h) + 2h Automation/Woche (8h) = 10h. Nils: 5 Reels (2h).",
+        "delivery_cost": 404.0,
+        "margin_euro": 3096.0,
+        "margin_percent": 88.5
+      }
+    },
+    {
+      "cl_id": "CL-027",
+      "firma": "Many Reasons",
+      "paket": "Social Media Management",
+      "rate_monat": 2000,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 12.5,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Nils: 30 Reels/Mo (12.5h).",
+        "delivery_cost": 375.0,
+        "margin_euro": 1625.0,
+        "margin_percent": 81.2
+      }
+    },
+    {
+      "cl_id": "CL-028",
+      "firma": "Michael Krüger",
+      "paket": "SMM + Sales",
+      "rate_monat": 3500,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 12,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Nils: 20 Videos/Mo (8h) + 1 Videodreh (4h) = 12h.",
+        "delivery_cost": 360.0,
+        "margin_euro": 3140.0,
+        "margin_percent": 89.7
+      }
+    },
+    {
+      "cl_id": "CL-029",
+      "firma": "Hoffmann Solutions",
+      "paket": "Agentur Champions",
+      "rate_monat": 3500,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 1,
+        "nils_hours": 4,
+        "marcel_hours": 0.5,
+        "lisa_hours": 0,
+        "tasks": "Felix: sporadisch (1h). Nils: 12 Posts (3h) + Social Media (1h). Marcel: Review (30min).",
+        "delivery_cost": 163.8,
+        "margin_euro": 3336.2,
+        "margin_percent": 95.3
+      }
+    },
+    {
+      "cl_id": "CL-033",
+      "firma": "B&C Direct Sales",
+      "paket": "Recruiting Ads",
+      "rate_monat": 1000,
+      "status": "Onboarding",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Onboarding. Noch kein laufender Aufwand.",
+        "delivery_cost": 0.0,
+        "margin_euro": 1000.0,
+        "margin_percent": 100.0
+      }
+    },
+    {
+      "cl_id": "CL-035",
+      "firma": "ASS-KO solutions",
+      "paket": "PitchFirst Software",
+      "rate_monat": 450,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Kein Aufwand. Nur Software-Abo.",
+        "delivery_cost": 0.0,
+        "margin_euro": 450.0,
+        "margin_percent": 100.0
+      }
+    },
+    {
+      "cl_id": "CL-037",
+      "firma": "Systemklar UG",
+      "paket": "Coaching + PitchFirst",
+      "rate_monat": 1500,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 1.3,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Felix: Gruppencoaching anteilig (1.3h).",
+        "delivery_cost": 44.7,
+        "margin_euro": 1455.3,
+        "margin_percent": 97.0
+      }
+    },
+    {
+      "cl_id": "CL-038",
+      "firma": "Pro Augmentum",
+      "paket": "DFY Leadposts",
+      "rate_monat": 1500,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Details noch nicht erfasst.",
+        "delivery_cost": 0.0,
+        "margin_euro": 1500.0,
+        "margin_percent": 100.0
+      }
+    },
+    {
+      "cl_id": "CL-030",
+      "firma": "CGMS Köln",
+      "paket": "Altkunde",
+      "rate_monat": 3750,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Läuft durch. Kein laufender Aufwand.",
+        "delivery_cost": 0.0,
+        "margin_euro": 3750.0,
+        "margin_percent": 100.0
+      }
+    },
+    {
+      "cl_id": "CL-036",
+      "firma": "Teo Hentzschel",
+      "paket": "DFY LinkedIn",
+      "rate_monat": 1000,
+      "status": "Aktiv",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 2,
+        "marcel_hours": 0.5,
+        "lisa_hours": 0,
+        "tasks": "Nils: 8 Leadposts/Mo à 15min (2h). Marcel: Review + Feedbackschleife (30min).",
+        "delivery_cost": 69.4,
+        "margin_euro": 930.6,
+        "margin_percent": 93.1
+      }
+    }
   ],
   "summary": {
     "total_active_mrr": 35325,
@@ -43,8 +355,8 @@
     "total_delivery_hours_nils": 43.5,
     "total_delivery_hours_marcel": 1.8,
     "total_delivery_hours_lisa": 0,
-    "total_delivery_cost": 1433.8,
-    "total_margin": 33891.2,
-    "avg_margin_percent": 96.0
+    "total_delivery_cost": 2095.6,
+    "total_margin": 33229.4,
+    "avg_margin_percent": 94.1
   }
 }
