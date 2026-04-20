@@ -268,6 +268,7 @@ const NAV_DASHBOARD = [
   { id: 'marketing', label: 'Marketing', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg> },
   { id: 'finanzen', label: 'Finanzen', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.5 2.5 0 00-2.5-1h-1a2 2 0 000 4h2a2 2 0 010 4h-1a2.5 2.5 0 01-2.5-1M12 5.5v1M12 17.5v1"/></svg> },
   { id: 'kunden', label: 'Kunden', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg> },
+  { id: 'recruiting', label: 'Recruiting', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><path d="M12 12v4"/><path d="M10 14h4"/></svg> },
   { id: 'team', label: 'Team', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> },
 ]
 
@@ -1717,6 +1718,130 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                     </div>
                   )
                 })}
+              </div>
+            </>
+          )}
+
+          {/* ═══════════════════════════════════════════════════
+               TAB: RECRUITING
+             ═══════════════════════════════════════════════════ */}
+          {activeNav === 'recruiting' && (
+            <>
+              {/* KPI Row 1 */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Bewerbungen</span></div>
+                  <div className="kpi-value">305</div>
+                  <div className="kpi-foot"><span className="kpi-caption">294 Indeed + 11 Instagram</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Cost per VG</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>61,98</div>
+                  <div className="kpi-foot"><span className="kpi-caption">26 VG terminiert</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">No Show Quote</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>50<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">13 von 26 erschienen</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '300ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Eingestellt</span></div>
+                  <div className="kpi-value">0</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Cost per Hire: &mdash;</span></div>
+                </div>
+              </div>
+
+              {/* KPI Row 2 */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '360ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Gesamtausgaben</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>1.611</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Indeed + Instagram</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '420ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Cost/Bewerbung</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>5,28</div>
+                  <div className="kpi-foot"><span className="kpi-caption">305 Bewerbungen</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '480ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">VG &rarr; Probewoche</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>84,6<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">11 von 13 erschienenen</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Probewoche Quote</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>9,1<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">1 von 11 durchgezogen</span></div>
+                </div>
+              </div>
+
+              {/* Recruiting Funnel */}
+              <div className="za-panel fade-up" style={{ animationDelay: '600ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Recruiting</span>
+                    <div className="panel-title">Bewerbungs-Funnel</div>
+                  </div>
+                </div>
+                <FunnelChart stages={[
+                  { name: 'Bewerbungen', value: 305, pct: '100%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'VG terminiert', value: 26, pct: '8,5%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'VG erschienen', value: 13, pct: '50%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'Probewoche term.', value: 11, pct: '84,6%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'Probewoche ersch.', value: 2, pct: '18,2%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'Durchgezogen', value: 1, pct: '50%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'Eingestellt', value: 0, pct: '0%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                ]} />
+              </div>
+
+              {/* Channel Comparison */}
+              <div className="za-panel fade-up" style={{ animationDelay: '680ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Kanal-Vergleich</span>
+                    <div className="panel-title">Indeed vs Instagram</div>
+                  </div>
+                </div>
+                <div className="za-table-wrap">
+                  <table className="za-table">
+                    <thead><tr><th>Metrik</th><th>Indeed</th><th>Instagram</th></tr></thead>
+                    <tbody>
+                      <tr><td>Ausgaben</td><td style={{ color: 'var(--za-success)' }}>&euro;1.335</td><td>&euro;276</td></tr>
+                      <tr><td>Bewerbungen</td><td style={{ color: 'var(--za-success)' }}>294</td><td>11</td></tr>
+                      <tr><td>Cost/Bewerbung</td><td style={{ color: 'var(--za-success)' }}>&euro;4,54</td><td>&euro;25,09</td></tr>
+                      <tr><td>VG terminiert</td><td style={{ color: 'var(--za-success)' }}>22</td><td>4</td></tr>
+                      <tr><td>VG erschienen</td><td style={{ color: 'var(--za-success)' }}>12</td><td>1</td></tr>
+                      <tr><td>No Show %</td><td style={{ color: 'var(--za-success)' }}>45%</td><td style={{ color: 'var(--za-danger)' }}>75%</td></tr>
+                      <tr><td>Cost/VG erschienen</td><td style={{ color: 'var(--za-success)' }}>&euro;111,28</td><td>&euro;276</td></tr>
+                      <tr><td>Probewoche</td><td style={{ color: 'var(--za-success)' }}>2</td><td>0</td></tr>
+                      <tr><td>Eingestellt</td><td>0</td><td>0</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Insights */}
+              <div className="za-panel fade-up" style={{ animationDelay: '760ms' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Analyse</span>
+                    <div className="panel-title">Key Insights</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ padding: '12px 16px', borderLeft: '3px solid #f59e0b', background: 'rgba(245,158,11,0.06)', borderRadius: '6px', fontSize: '13px', color: 'var(--za-fg-2)' }}>
+                    &#9888;&#65039; 50% No-Show-Quote bei VGs &mdash; Best&auml;tigungs-Flow optimieren
+                  </div>
+                  <div style={{ padding: '12px 16px', borderLeft: '3px solid #f59e0b', background: 'rgba(245,158,11,0.06)', borderRadius: '6px', fontSize: '13px', color: 'var(--za-fg-2)' }}>
+                    &#9888;&#65039; 81,8% No-Show bei Probewochen &mdash; Verbindlichkeit erh&ouml;hen
+                  </div>
+                  <div style={{ padding: '12px 16px', borderLeft: '3px solid #3b82f6', background: 'rgba(59,130,246,0.06)', borderRadius: '6px', fontSize: '13px', color: 'var(--za-fg-2)' }}>
+                    &#128202; Indeed: &euro;111/VG vs Instagram: &euro;276/VG &mdash; Indeed 2,5x effizienter
+                  </div>
+                  <div style={{ padding: '12px 16px', borderLeft: '3px solid #22c55e', background: 'rgba(34,197,94,0.06)', borderRadius: '6px', fontSize: '13px', color: 'var(--za-fg-2)' }}>
+                    &#127919; N&auml;chster Hire ben&ouml;tigt ~&euro;3.200 bei aktueller Conversion
+                  </div>
+                </div>
               </div>
             </>
           )}
