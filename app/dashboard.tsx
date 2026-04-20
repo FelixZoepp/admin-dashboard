@@ -274,6 +274,37 @@ interface DashboardData {
   weekStartISO: string
   monthStartISO: string
   yearStartISO: string
+  deliveryMetrics: {
+    team: { name: string; role: string; hourlyRate: number; monthlyHours: number; monthlyCost: number }[]
+    customers: {
+      clId: string
+      firma: string
+      paket: string
+      rateMonat: number
+      status: string
+      delivery: {
+        felixHours: number
+        nilsHours: number
+        marcelHours: number
+        lisaHours: number
+        tasks: string
+        deliveryCost: number
+        marginEuro: number
+        marginPercent: number
+      }
+    }[]
+    totalMRR: number
+    totalDeliveryCost: number
+    totalMargin: number
+    avgMarginPercent: number
+    totalHoursFelx: number
+    totalHoursNils: number
+    totalHoursMarcel: number
+    totalHoursLisa: number
+    totalTeamCost: number
+    netProfit: number
+    netProfitPercent: number
+  }
   lastUpdated: string
   error?: string
 }
@@ -1676,92 +1707,310 @@ export default function Dashboard({ data }: { data: DashboardData }) {
           {/* ═══════════════════════════════════════════════════
                TAB: FINANZEN
              ═══════════════════════════════════════════════════ */}
-          {activeNav === 'finanzen' && (
+          {activeNav === 'finanzen' && (() => {
+            const dm = data.deliveryMetrics
+            const deliveryCostPct = dm.totalMRR > 0 ? (dm.totalDeliveryCost / dm.totalMRR * 100).toFixed(1) : '0'
+            const netProfitPct = dm.totalMRR > 0 ? (dm.netProfit / dm.totalMRR * 100).toFixed(1) : '0'
+            const overheadPct = dm.totalMRR > 0 ? (dm.totalTeamCost / dm.totalMRR * 100).toFixed(1) : '0'
+            const customersSorted = [...dm.customers].sort((a, b) => b.delivery.marginEuro - a.delivery.marginEuro)
+            const top5 = customersSorted.slice(0, 5)
+
+            // Team utilization data with Nils actual cost override
+            const teamUtil = [
+              { name: 'Felix', role: 'CEO/Sales', hours: dm.totalHoursFelx, maxHours: 160, cost: 5000 },
+              { name: 'Nils', role: 'Content', hours: dm.totalHoursNils, maxHours: 160, cost: 4800 },
+              { name: 'Marcel', role: 'Oversight', hours: dm.totalHoursMarcel, maxHours: 40, cost: 1250 },
+              { name: 'Lisa', role: 'Operations', hours: dm.totalHoursLisa, maxHours: 160, cost: 2500 },
+            ]
+
+            return (
             <>
+              {/* P&L Hero KPIs */}
               <div className="kpi-grid">
-                <div className="za-panel fade-up" style={{ animationDelay: '60ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Umsatz MTD</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{fmtEuro(data.revenueMTD)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">{data.currentMonthName} {data.currentYear}</span><SparklineChart data={sparkData.d} color="#7FC29B" /></div>
+                <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">MRR</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.totalMRR)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{dm.customers.length} aktive Kunden</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '140ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Umsatz gesamt</span></div>
-                  <div className="kpi-value">{fmtEuro(data.totalRevenue)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Close CRM</span><SparklineChart data={sparkData.h} /></div>
+                <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Delivery Cost</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(Math.round(dm.totalDeliveryCost))}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{deliveryCostPct}% vom MRR</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Offene RG</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Easybill</span></div>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Team Overhead</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.totalTeamCost)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Felix + Lisa + Marcel + Nils</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '300ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Kontostand</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Qonto</span></div>
+                <div className="za-panel fade-up" style={{ animationDelay: '300ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Net Profit</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.netProfit)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{netProfitPct}% Nettomarge</span></div>
                 </div>
               </div>
 
-              {/* Monthly revenue chart */}
+              {/* Revenue vs Cost Bar */}
               <div className="za-panel fade-up" style={{ animationDelay: '360ms', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
-                    <span className="panel-eyebrow">Historisch</span>
-                    <div className="panel-title">Won Revenue pro Monat</div>
+                    <span className="panel-eyebrow">P&amp;L Aufschl&uuml;sselung</span>
+                    <div className="panel-title">Revenue vs. Kosten &middot; &euro;{fmtNum(dm.totalMRR)} MRR</div>
                   </div>
                 </div>
-                <BarChart
-                  data={data.monthlyChartData.map(m => m.value)}
-                  labels={data.monthlyChartData.map(m => m.label)}
-                />
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', height: '40px', borderRadius: '8px', overflow: 'hidden', background: 'rgba(249,249,249,0.04)' }}>
+                    <div style={{ width: `${(dm.netProfit / dm.totalMRR) * 100}%`, background: 'linear-gradient(90deg, #22c55e, #16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', minWidth: '60px' }}>
+                      {(dm.netProfit / dm.totalMRR * 100).toFixed(1)}%
+                    </div>
+                    <div style={{ width: `${(dm.totalTeamCost / dm.totalMRR) * 100}%`, background: 'linear-gradient(90deg, #f59e0b, #d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', minWidth: '60px' }}>
+                      {overheadPct}%
+                    </div>
+                    <div style={{ width: `${(dm.totalDeliveryCost / dm.totalMRR) * 100}%`, background: 'linear-gradient(90deg, #ef4444, #dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', minWidth: '40px' }}>
+                      {deliveryCostPct}%
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '10px', fontSize: '12px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#22c55e', display: 'inline-block' }} />Net Profit &euro;{fmtNum(dm.netProfit)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} />Team Overhead &euro;{fmtNum(dm.totalTeamCost)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#ef4444', display: 'inline-block' }} />Delivery Cost &euro;{fmtNum(Math.round(dm.totalDeliveryCost))}</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Forecast panel */}
+              {/* Customer Profitability Table */}
               <div className="za-panel fade-up" style={{ animationDelay: '420ms', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
-                    <span className="panel-eyebrow">Forecast</span>
-                    <div className="panel-title">Umsatzprognose &middot; {data.currentMonthName} {data.currentYear}</div>
+                    <span className="panel-eyebrow">Customer Profitability</span>
+                    <div className="panel-title">Deckungsbeitrag pro Kunde</div>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-                  <div>
-                    <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>MTD</div>
-                    <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: 'var(--za-success)' }}>{fmtEuro(data.revenueMTD)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>Forecast Linear</div>
-                    <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: 'var(--za-info)' }}>{fmtEuro(data.linearForecast)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>+ Pipeline</div>
-                    <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: 'var(--za-gold-2)' }}>{fmtEuro(data.pipelineWeightedForecast)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>&Oslash; 3 Monate</div>
-                    <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: '#fff' }}>{fmtEuro(data.avg3Months)}</div>
-                  </div>
+                <div className="za-table-wrap">
+                  <table className="za-table">
+                    <thead>
+                      <tr>
+                        <th>Kunde</th>
+                        <th>Paket</th>
+                        <th>Rate/Mo</th>
+                        <th>Delivery</th>
+                        <th>Margin</th>
+                        <th>Margin %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customersSorted.map((c, i) => {
+                        const mp = c.delivery.marginPercent
+                        const marginColor = mp >= 95 ? '#22c55e' : mp >= 90 ? '#eab308' : '#f97316'
+                        return (
+                          <tr key={i}>
+                            <td>
+                              <div className="t-co">
+                                <span className="t-co-mark">{c.firma.charAt(0)}</span>
+                                <span className="t-co-name">{c.firma}</span>
+                              </div>
+                            </td>
+                            <td><span style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{c.paket}</span></td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>&euro;{fmtNum(c.rateMonat)}</td>
+                            <td style={{ fontFamily: 'var(--za-serif)', color: 'var(--za-fg-2)' }}>&euro;{c.delivery.deliveryCost.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 700, color: marginColor }}>&euro;{fmtNum(Math.round(c.delivery.marginEuro))}</td>
+                            <td>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: marginColor, padding: '2px 8px', borderRadius: '4px', background: `${marginColor}15` }}>
+                                {c.delivery.marginPercent.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              {/* Empty states for Easybill and Qonto */}
-              <div className="row-grid row-2">
-                <div className="za-panel fade-up" style={{ animationDelay: '480ms' }}>
-                  <EmptyState
-                    icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/></svg>}
-                    title="Easybill &mdash; Rechnungsdaten"
-                    subtitle="Integration in Vorbereitung. Offene und bezahlte Rechnungen werden hier angezeigt."
+              {/* Team Auslastung Panel */}
+              <div className="za-panel fade-up" style={{ animationDelay: '480ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Team</span>
+                    <div className="panel-title">Auslastung &amp; Kosten</div>
+                  </div>
+                </div>
+                <div className="za-table-wrap">
+                  <table className="za-table">
+                    <thead>
+                      <tr>
+                        <th>Team</th>
+                        <th>Rolle</th>
+                        <th>Stunden/Mo</th>
+                        <th>Kosten/Mo</th>
+                        <th style={{ width: '200px' }}>Auslastung</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teamUtil.map((t, i) => {
+                        const pct = t.maxHours > 0 ? (t.hours / t.maxHours * 100) : 0
+                        const pctStr = pct.toFixed(1)
+                        return (
+                          <tr key={i}>
+                            <td><span style={{ fontWeight: 700 }}>{t.name}</span></td>
+                            <td><span style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{t.role}</span></td>
+                            <td style={{ fontFamily: 'var(--za-serif)' }}>{t.hours.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}h / {t.maxHours}h</td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>&euro;{fmtNum(t.cost)}</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ flex: 1, height: '8px', background: 'rgba(249,249,249,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${Math.min(pct, 100)}%`, height: '100%', background: pct > 80 ? '#f59e0b' : pct > 50 ? 'var(--za-info)' : 'var(--za-success)', borderRadius: '4px', transition: 'width 0.8s ease' }} />
+                                </div>
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)', minWidth: '42px', textAlign: 'right' }}>{pctStr}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Top Margin Customers */}
+              <div className="za-panel fade-up" style={{ animationDelay: '540ms', marginBottom: '16px', borderTop: '2px solid var(--za-gold)' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow" style={{ color: 'var(--za-gold-2)' }}>Top 5</span>
+                    <div className="panel-title">H&ouml;chste Marge (absolut)</div>
+                  </div>
+                </div>
+                {top5.map((c, i) => (
+                  <div key={i} className="za-panel" style={{ margin: '8px 0', padding: '12px 16px', background: 'rgba(197,160,89,0.04)', border: '1px solid rgba(197,160,89,0.12)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px', color: 'var(--za-gold-2)', background: 'rgba(197,160,89,0.12)' }}>{i + 1}</span>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{c.firma}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--za-fg-3)' }}>{c.paket}</div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 700, color: 'var(--za-gold-2)' }}>&euro;{fmtNum(Math.round(c.delivery.marginEuro))}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>{c.delivery.marginPercent.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% Marge</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Insights */}
+              <div className="za-panel fade-up" style={{ animationDelay: '600ms', marginBottom: '16px', borderLeft: '3px solid var(--za-gold)' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Insights</span>
+                    <div className="panel-title">Delivery &amp; Profitabilit&auml;t</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[
+                    { icon: '\uD83D\uDCB0', text: `${dm.avgMarginPercent}% \u00D8 Marge \u2014 extrem kapitaleffizient` },
+                    { icon: '\u26A0\uFE0F', text: 'Sales Promotion: h\u00F6chster Felix-Aufwand (10h) f\u00FCr \u20AC3.500 \u2014 Automatisierung pr\u00FCfen' },
+                    { icon: '\uD83D\uDCCA', text: `Nils\u2019 Kapazit\u00E4t: ${dm.totalHoursNils}h/160h genutzt = ${(160 - dm.totalHoursNils).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}h frei f\u00FCr neue Kunden` },
+                    { icon: '\uD83C\uDFAF', text: 'Jeder neue DFY-Kunde bringt ~\u20AC1.200 Netto bei ~3h Nils-Aufwand' },
+                  ].map((insight, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '10px', padding: '10px 14px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', fontSize: '13px', color: 'var(--za-fg-2)', lineHeight: 1.5 }}>
+                      <span style={{ fontSize: '16px', flexShrink: 0 }}>{insight.icon}</span>
+                      <span>{insight.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Existing Finanzen content: Revenue from Close CRM */}
+              <div style={{ borderTop: '1px solid rgba(249,249,249,0.06)', paddingTop: '24px', marginTop: '8px' }}>
+                <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '16px' }}>Close CRM Revenue</div>
+
+                <div className="kpi-grid">
+                  <div className="za-panel fade-up" style={{ animationDelay: '660ms' }}>
+                    <div className="kpi-top"><span className="kpi-label">Umsatz MTD</span></div>
+                    <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{fmtEuro(data.revenueMTD)}</div>
+                    <div className="kpi-foot"><span className="kpi-caption">{data.currentMonthName} {data.currentYear}</span><SparklineChart data={sparkData.d} color="#7FC29B" /></div>
+                  </div>
+                  <div className="za-panel fade-up" style={{ animationDelay: '720ms' }}>
+                    <div className="kpi-top"><span className="kpi-label">Umsatz gesamt</span></div>
+                    <div className="kpi-value">{fmtEuro(data.totalRevenue)}</div>
+                    <div className="kpi-foot"><span className="kpi-caption">Close CRM</span><SparklineChart data={sparkData.h} /></div>
+                  </div>
+                  <div className="za-panel fade-up" style={{ animationDelay: '780ms' }}>
+                    <div className="kpi-top"><span className="kpi-label">Offene RG</span></div>
+                    <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
+                    <div className="kpi-foot"><span className="kpi-caption">Easybill</span></div>
+                  </div>
+                  <div className="za-panel fade-up" style={{ animationDelay: '840ms' }}>
+                    <div className="kpi-top"><span className="kpi-label">Kontostand</span></div>
+                    <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
+                    <div className="kpi-foot"><span className="kpi-caption">Qonto</span></div>
+                  </div>
+                </div>
+
+                {/* Monthly revenue chart */}
+                <div className="za-panel fade-up" style={{ animationDelay: '900ms', marginBottom: '16px' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Historisch</span>
+                      <div className="panel-title">Won Revenue pro Monat</div>
+                    </div>
+                  </div>
+                  <BarChart
+                    data={data.monthlyChartData.map(m => m.value)}
+                    labels={data.monthlyChartData.map(m => m.label)}
                   />
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
-                  <EmptyState
-                    icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.5 2.5 0 00-2.5-1h-1a2 2 0 000 4h2a2 2 0 010 4h-1a2.5 2.5 0 01-2.5-1M12 5.5v1M12 17.5v1"/></svg>}
-                    title="Qonto &mdash; Bankdaten"
-                    subtitle="Integration in Vorbereitung. Kontostand und Transaktionen werden hier angezeigt."
-                  />
+
+                {/* Forecast panel */}
+                <div className="za-panel fade-up" style={{ animationDelay: '960ms', marginBottom: '16px' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Forecast</span>
+                      <div className="panel-title">Umsatzprognose &middot; {data.currentMonthName} {data.currentYear}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                    <div>
+                      <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>MTD</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: 'var(--za-success)' }}>{fmtEuro(data.revenueMTD)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>Forecast Linear</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: 'var(--za-info)' }}>{fmtEuro(data.linearForecast)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>+ Pipeline</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: 'var(--za-gold-2)' }}>{fmtEuro(data.pipelineWeightedForecast)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>&Oslash; 3 Monate</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '24px', color: '#fff' }}>{fmtEuro(data.avg3Months)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Empty states for Easybill and Qonto */}
+                <div className="row-grid row-2">
+                  <div className="za-panel fade-up" style={{ animationDelay: '1020ms' }}>
+                    <EmptyState
+                      icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/></svg>}
+                      title="Easybill &mdash; Rechnungsdaten"
+                      subtitle="Integration in Vorbereitung. Offene und bezahlte Rechnungen werden hier angezeigt."
+                    />
+                  </div>
+                  <div className="za-panel fade-up" style={{ animationDelay: '1080ms' }}>
+                    <EmptyState
+                      icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.5 2.5 0 00-2.5-1h-1a2 2 0 000 4h2a2 2 0 010 4h-1a2.5 2.5 0 01-2.5-1M12 5.5v1M12 17.5v1"/></svg>}
+                      title="Qonto &mdash; Bankdaten"
+                      subtitle="Integration in Vorbereitung. Kontostand und Transaktionen werden hier angezeigt."
+                    />
+                  </div>
                 </div>
               </div>
             </>
-          )}
+            )
+          })()}
 
           {/* ═══════════════════════════════════════════════════
                TAB: KUNDEN
