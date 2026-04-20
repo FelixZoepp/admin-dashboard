@@ -195,6 +195,16 @@ interface DashboardData {
     monthOther: number
   }
   salesFunnel: {
+    today: {
+      anwahlen: number
+      entscheiderErreicht: number
+      coldCalls: number
+      followUps: number
+      settingsGelegt: number
+      closingsGelegt: number
+      wonDeals: number
+      wonRevenue: number
+    }
     week: {
       anwahlen: number
       entscheiderErreicht: number
@@ -786,8 +796,8 @@ export default function Dashboard({ data }: { data: DashboardData }) {
 
               {/* ═══ SALES FUNNEL — HERO ═══ */}
               {(() => {
-                const funnelData = (period === 'week' || period === 'today') ? data.salesFunnel.week : data.salesFunnel.month
-                const periodNote = period === 'today' ? ' (Wochendaten)' : period === 'year' ? ' (Monatsdaten)' : ''
+                const funnelData = period === 'today' ? (data.salesFunnel as any).today || data.salesFunnel.week : period === 'week' ? data.salesFunnel.week : data.salesFunnel.month
+                const periodNote = period === 'year' ? ' (Monatsdaten)' : ''
                 const quoten = data.salesFunnel.quoten
 
                 const stages = [

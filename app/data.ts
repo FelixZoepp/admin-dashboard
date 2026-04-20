@@ -321,25 +321,50 @@ export async function fetchCloseData() {
       }
     }
 
-    // Fetch all activity counts in parallel: 4 types x 2 periods = 8 calls
+    // Fetch all activity counts in parallel: 4 types x 3 periods = 12 calls
+    const todayDateISO = formatDateISO(now)
+    const weekStartDate = formatDateISO(getISOWeekStart(currentYear, currentWeek))
     const [
-      coldCallWeek, coldCallMonth,
-      settingActWeek, settingActMonth,
-      closingActWeek, closingActMonth,
-      followUpWeek, followUpMonth,
+      coldCallToday, coldCallWeek, coldCallMonth,
+      settingActToday, settingActWeek, settingActMonth,
+      closingActToday, closingActWeek, closingActMonth,
+      followUpToday, followUpWeek, followUpMonth,
     ] = await Promise.all([
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.coldCall, formatDateISO(getISOWeekStart(currentYear, currentWeek))),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.coldCall, todayDateISO),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.coldCall, weekStartDate),
       fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.coldCall, monthStart),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.setting, formatDateISO(getISOWeekStart(currentYear, currentWeek))),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.setting, todayDateISO),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.setting, weekStartDate),
       fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.setting, monthStart),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.closing, formatDateISO(getISOWeekStart(currentYear, currentWeek))),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.closing, todayDateISO),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.closing, weekStartDate),
       fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.closing, monthStart),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.followUp, formatDateISO(getISOWeekStart(currentYear, currentWeek))),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.followUp, todayDateISO),
+      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.followUp, weekStartDate),
       fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.followUp, monthStart),
     ])
 
-    // Get calls this week + month via activity report
-    const callsThisWeekVal = weeklyCallData.length > 0 ? weeklyCallData[weeklyCallData.length - 1]?.calls || 0 : 0
+    // Get calls today, this week, this month via activity report
+    let callsToday = 0
+    try {
+      const tomorrow = new Date(now.getTime() + 86400000)
+      const todayActivity = await closeApiFetch('/report/activity/overview/', {
+        method: 'POST',
+        body: JSON.stringify({
+          date_start: todayDateISO,
+          date_end: formatDateISO(tomorrow),
+        }),
+      })
+      callsToday = todayActivity?.aggregations?.calls_made || 0
+    } catch {
+      callsToday = 0
+    }
+
+    // Weekly calls: use the report, but fallback to today's count if it's higher
+    const callsThisWeekVal = Math.max(
+      weeklyCallData.length > 0 ? weeklyCallData[weeklyCallData.length - 1]?.calls || 0 : 0,
+      callsToday
+    )
 
     let callsThisMonth = 0
     try {
@@ -394,6 +419,7 @@ export async function fetchCloseData() {
     const totalClosingsGelegt = pipelineSnapshot.closingTerminiert + pipelineSnapshot.closingNoShow + pipelineSnapshot.closingFollowUp + pipelineSnapshot.angebotVerschickt + pipelineSnapshot.cc2Terminiert
 
     // Gespräche gesamt = Cold Calls + Follow-Ups (alle Kontakte mit Entscheidern)
+    const gespraecheToday = coldCallToday + followUpToday
     const gespraecheWeek = coldCallWeek + followUpWeek
     const gespraecheMonth = coldCallMonth + followUpMonth
 
@@ -405,6 +431,16 @@ export async function fetchCloseData() {
     const quotenOverall = callsThisMonth > 0 ? Math.round((wonThisMonth.length / callsThisMonth) * 1000) / 10 : 0
 
     const salesFunnel = {
+      today: {
+        anwahlen: callsToday,
+        entscheiderErreicht: gespraecheToday,
+        coldCalls: coldCallToday,
+        followUps: followUpToday,
+        settingsGelegt: settingActToday,
+        closingsGelegt: closingActToday,
+        wonDeals: 0,
+        wonRevenue: 0,
+      },
       week: {
         anwahlen: callsThisWeekVal,
         entscheiderErreicht: gespraecheWeek,
