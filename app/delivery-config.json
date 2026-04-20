@@ -33,16 +33,18 @@
     {"cl_id":"CL-033","firma":"B&C Direct Sales","paket":"Recruiting Ads","rate_monat":1000,"status":"Onboarding","delivery":{"felix_hours":0,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Onboarding. Noch kein laufender Aufwand.","delivery_cost":0,"margin_euro":1000,"margin_percent":100}},
     {"cl_id":"CL-035","firma":"ASS-KO solutions","paket":"PitchFirst Software","rate_monat":450,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Kein Aufwand. Nur Software-Abo.","delivery_cost":0,"margin_euro":450,"margin_percent":100}},
     {"cl_id":"CL-037","firma":"Systemklar UG","paket":"Coaching + PitchFirst","rate_monat":1500,"status":"Aktiv","delivery":{"felix_hours":1.3,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Felix: Gruppencoaching anteilig (1.3h).","delivery_cost":40.3,"margin_euro":1459.7,"margin_percent":97.3}},
-    {"cl_id":"CL-038","firma":"Pro Augmentum","paket":"DFY Leadposts","rate_monat":1500,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Details noch nicht erfasst.","delivery_cost":0,"margin_euro":1500,"margin_percent":100}}
+    {"cl_id":"CL-038","firma":"Pro Augmentum","paket":"DFY Leadposts","rate_monat":1500,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Details noch nicht erfasst.","delivery_cost":0,"margin_euro":1500,"margin_percent":100}},
+    {"cl_id":"CL-030","firma":"CGMS Köln","paket":"Altkunde","rate_monat":3750,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":0,"marcel_hours":0,"lisa_hours":0,"tasks":"Läuft durch. Kein laufender Aufwand.","delivery_cost":0,"margin_euro":3750,"margin_percent":100}},
+    {"cl_id":"CL-036","firma":"Teo Hentzschel","paket":"DFY LinkedIn","rate_monat":1000,"status":"Aktiv","delivery":{"felix_hours":0,"nils_hours":2,"marcel_hours":0.5,"lisa_hours":0,"tasks":"Nils: 8 Leadposts/Mo à 15min (2h). Marcel: Review + Feedbackschleife (30min).","delivery_cost":47.5,"margin_euro":952.5,"margin_percent":95.3}}
   ],
   "summary": {
-    "total_active_mrr": 29575,
+    "total_active_mrr": 35325,
     "total_delivery_hours_felix": 22.0,
-    "total_delivery_hours_nils": 41.5,
+    "total_delivery_hours_nils": 43.5,
     "total_delivery_hours_marcel": 1.8,
     "total_delivery_hours_lisa": 0,
-    "total_delivery_cost": 1386.3,
-    "total_margin": 28188.7,
-    "avg_margin_percent": 95.3
+    "total_delivery_cost": 1433.8,
+    "total_margin": 33891.2,
+    "avg_margin_percent": 96.0
   }
 }
