@@ -182,6 +182,31 @@ interface DashboardData {
       notizen: string
     }[]
   }
+  nilsMetrics: {
+    totalSoll: number
+    totalIst: number
+    differenz: number
+    daysWorked: number
+    avgHoursPerDay: number
+    urlaubDays: number
+    krankDays: number
+    fehlendDays: number
+    costPerMonth: number
+    costPerHour: number
+    costPerDay: number
+    months: {
+      month: string
+      monthLabel: string
+      sollHours: number
+      istHours: number
+      erfuellungPct: number
+      daysWorked: number
+      avgHoursPerDay: number
+      urlaub: number
+      krank: number
+      fehlend: number
+    }[]
+  }
   calendlyMetrics: {
     weekEvents: { name: string; startTime: string; endTime: string; category: 'setting' | 'closing' | 'onboarding' | 'other'; location: string }[]
     monthEvents: { name: string; startTime: string; endTime: string; category: 'setting' | 'closing' | 'onboarding' | 'other'; location: string }[]
@@ -1332,92 +1357,133 @@ export default function Dashboard({ data }: { data: DashboardData }) {
              ═══════════════════════════════════════════════════ */}
           {activeNav === 'fulfillment' && (
             <>
-              {/* ── Nils Holland — Kostenanalyse ── */}
+              {/* ── Nils Holland — Stundenkonto (Hero Panel) ── */}
               <div className="za-panel fade-up" style={{ animationDelay: '20ms', borderTop: '2px solid var(--za-gold, #d4a843)', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
-                    <span className="panel-eyebrow">Kostenanalyse</span>
-                    <div className="panel-title">Nils Holland &mdash; Kostenanalyse</div>
+                    <span className="panel-eyebrow">Clockodo Zeiterfassung</span>
+                    <div className="panel-title">Nils Holland &mdash; Stundenkonto</div>
+                  </div>
+                  <span style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Jan&ndash;Apr 2026</span>
+                </div>
+                <div className="kpi-grid" style={{ padding: '0 16px 16px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Ist-Stunden</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-success, #4ade80)' }}>{fmtNum(data.nilsMetrics.totalIst)}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Soll: {fmtNum(data.nilsMetrics.totalSoll)}h ({data.nilsMetrics.differenz >= 0 ? '+' : ''}{data.nilsMetrics.differenz}h {data.nilsMetrics.differenz >= 0 ? '\u00DCberstunden' : 'Fehlstunden'})</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Erf&uuml;llung</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-success, #4ade80)' }}>{data.nilsMetrics.totalSoll > 0 ? Math.round((data.nilsMetrics.totalIst / data.nilsMetrics.totalSoll) * 100) : 0}%</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Soll vs. Ist gesamt</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>&Oslash; Stunden/Tag</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>{data.nilsMetrics.avgHoursPerDay.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>{data.nilsMetrics.daysWorked} Arbeitstage</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Fehlzeiten</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>{data.nilsMetrics.urlaubDays + data.nilsMetrics.krankDays + data.nilsMetrics.fehlendDays} Tage</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>{data.nilsMetrics.urlaubDays} Urlaub, {data.nilsMetrics.krankDays} Krank, {data.nilsMetrics.fehlendDays} Fehlend</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Monthly Breakdown — Chart + Table ── */}
+              <div className="za-panel fade-up" style={{ animationDelay: '40ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Monats&uuml;bersicht</span>
+                    <div className="panel-title">Ist vs. Soll &mdash; pro Monat</div>
+                  </div>
+                </div>
+                {/* Bar Chart */}
+                <div style={{ padding: '0 16px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', height: '140px', marginBottom: '12px' }}>
+                    {data.nilsMetrics.months.map((m, i) => {
+                      const maxH = Math.max(...data.nilsMetrics.months.map(x => Math.max(x.istHours, x.sollHours)))
+                      const istPct = maxH > 0 ? (m.istHours / maxH) * 100 : 0
+                      const sollPct = maxH > 0 ? (m.sollHours / maxH) * 100 : 0
+                      const shortLabel = m.monthLabel.split(' ')[0].substring(0, 3)
+                      return (
+                        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ fontSize: '10px', fontWeight: 600, color: m.erfuellungPct >= 100 ? 'var(--za-success, #4ade80)' : 'var(--za-fg-2)' }}>{m.istHours}h</div>
+                          <div style={{ width: '100%', display: 'flex', gap: '4px', alignItems: 'flex-end', justifyContent: 'center', height: '100px' }}>
+                            <div style={{ width: '40%', height: `${sollPct}%`, background: 'rgba(255,255,255,0.08)', borderRadius: '4px 4px 0 0', minHeight: '4px' }} title={`Soll: ${m.sollHours}h`} />
+                            <div style={{ width: '40%', height: `${istPct}%`, background: m.erfuellungPct >= 100 ? 'var(--za-success, #4ade80)' : m.erfuellungPct >= 95 ? 'var(--za-warning, #fb923c)' : 'var(--za-error, #f87171)', borderRadius: '4px 4px 0 0', minHeight: '4px', opacity: 0.85 }} title={`Ist: ${m.istHours}h`} />
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>{shortLabel}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', fontSize: '10px', color: 'var(--za-fg-3)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'rgba(255,255,255,0.08)', display: 'inline-block' }} /> Soll</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--za-success, #4ade80)', opacity: 0.85, display: 'inline-block' }} /> Ist</span>
+                  </div>
+                </div>
+                {/* Table */}
+                <div className="za-table-wrap">
+                  <table className="za-table">
+                    <thead>
+                      <tr>
+                        <th>Monat</th>
+                        <th style={{ textAlign: 'right' }}>Soll</th>
+                        <th style={{ textAlign: 'right' }}>Ist</th>
+                        <th style={{ textAlign: 'right' }}>Erf&uuml;llung</th>
+                        <th style={{ textAlign: 'right' }}>Tage</th>
+                        <th style={{ textAlign: 'right' }}>&Oslash;/Tag</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.nilsMetrics.months.map((m, i) => {
+                        const erfColor = m.erfuellungPct >= 100 ? 'var(--za-success, #4ade80)' : m.erfuellungPct >= 95 ? 'var(--za-warning, #fb923c)' : 'var(--za-error, #f87171)'
+                        const shortLabel = m.monthLabel.split(' ')[0].substring(0, 3) + ' ' + m.monthLabel.split(' ')[1]
+                        return (
+                          <tr key={i}>
+                            <td style={{ fontWeight: 600 }}>{shortLabel}</td>
+                            <td style={{ textAlign: 'right' }}>{m.sollHours}h</td>
+                            <td style={{ textAlign: 'right' }}>{m.istHours}h</td>
+                            <td style={{ textAlign: 'right', color: erfColor, fontWeight: 600 }}>{m.erfuellungPct}%{m.erfuellungPct >= 100 ? ' \u2705' : ''}</td>
+                            <td style={{ textAlign: 'right' }}>{m.daysWorked}</td>
+                            <td style={{ textAlign: 'right' }}>{m.avgHoursPerDay.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ── Updated Cost Panel (real data) ── */}
+              <div className="za-panel fade-up" style={{ animationDelay: '50ms', borderTop: '2px solid var(--za-gold, #d4a843)', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Kostenanalyse (tats&auml;chlich)</span>
+                    <div className="panel-title">Nils Holland &mdash; Kosten</div>
                   </div>
                 </div>
                 <div className="kpi-grid" style={{ padding: '0 16px 16px' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Monatskosten</div>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-gold, #d4a843)' }}>&euro;4.800</div>
-                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Brutto + NK + Software</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Cost/Stunde</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-gold, #d4a843)' }}>&euro;{data.nilsMetrics.costPerHour.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>tats&auml;chlich (Ist-Stunden)</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Cost/Tag</div>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>&euro;240</div>
-                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>bei 20 Arbeitstagen</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>&euro;{data.nilsMetrics.costPerDay.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>tats&auml;chlich ({data.nilsMetrics.daysWorked} Tage)</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Cost/Stunde</div>
-                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>&euro;30</div>
-                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>bei 8h/Tag</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Cost/Kunde</div>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Cost/Kunde/Mo</div>
                     <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>&euro;800</div>
-                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>6 Kunden-Accounts</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>{fmtEuro(data.nilsMetrics.costPerMonth)} / 6 Kunden</div>
                   </div>
-                </div>
-              </div>
-
-              {/* ── Nils — Cost Breakdown ── */}
-              <div className="za-panel fade-up" style={{ animationDelay: '40ms', borderTop: '2px solid var(--za-gold, #d4a843)', marginBottom: '16px' }}>
-                <div className="panel-head">
-                  <div>
-                    <span className="panel-eyebrow">Aufschl&uuml;sselung</span>
-                    <div className="panel-title">Kostenstruktur</div>
-                  </div>
-                </div>
-                <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {[
-                    { label: 'Brutto Gehalt', value: '\u20AC3.000' },
-                    { label: 'AG-Nebenkosten', value: '\u20AC1.300' },
-                    { label: 'Software', value: '\u20AC500' },
-                  ].map((row, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--za-fg-2)' }}>
-                      <span>{row.label}</span><span style={{ fontWeight: 600 }}>{row.value}</span>
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700, color: 'var(--za-gold, #d4a843)', borderTop: '1px solid var(--za-border)', paddingTop: '8px' }}>
-                    <span>Gesamt</span><span>&euro;4.800</span>
-                  </div>
-
-                  <div style={{ borderTop: '1px solid var(--za-border)', marginTop: '8px', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {[
-                      { label: 'Cost per Reel (gesch\u00E4tzt)', value: '\u20AC48', sub: '~100 Reels/Mo' },
-                      { label: 'Cost per LinkedIn Post', value: '\u20AC24', sub: '~200 Posts/Mo' },
-                      { label: 'Delivery-Kosten pro Kunde/Mo', value: '\u20AC800', sub: '4.800 / 6 Kunden' },
-                    ].map((row, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '13px', color: 'var(--za-fg-2)' }}>
-                        <span>{row.label} <span style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>({row.sub})</span></span>
-                        <span style={{ fontWeight: 600 }}>{row.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Nils — Profitability Insight ── */}
-              <div className="za-panel fade-up" style={{ animationDelay: '50ms', borderTop: '2px solid var(--za-gold, #d4a843)', marginBottom: '16px' }}>
-                <div className="panel-head">
-                  <div>
-                    <span className="panel-eyebrow">Profitabilit&auml;t</span>
-                    <div className="panel-title">Revenue vs. Cost</div>
-                  </div>
-                </div>
-                <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--za-warning, #fb923c)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <span>{'\u23F1'}</span><span>Clockodo noch nicht aktiv &mdash; Zeiterfassung starten f&uuml;r echte Produktivit&auml;ts-Metriken</span>
-                  </div>
-                  <div style={{ fontSize: '13px', color: 'var(--za-info, #60a5fa)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <span>{'\uD83D\uDCA1'}</span><span>Bei 6 Kunden mit &Oslash; &euro;2.000/Mo Rate = &euro;12.000 Revenue &rarr; &euro;4.800 Cost = 2,5x ROI</span>
-                  </div>
-                  <div style={{ fontSize: '13px', color: 'var(--za-fg-2)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <span>{'\uD83D\uDCCA'}</span><span>Break-Even: 2,4 Kunden (&euro;4.800 / &euro;2.000 Avg Rate)</span>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Delivery Q1</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>&euro;{(data.nilsMetrics.costPerMonth * 3).toLocaleString('de-DE')}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>3 Mon. &times; {fmtEuro(data.nilsMetrics.costPerMonth)}</div>
                   </div>
                 </div>
               </div>

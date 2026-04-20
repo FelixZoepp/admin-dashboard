@@ -1,5 +1,6 @@
 import { getAirtableMetrics, AirtableMetrics } from './airtable-data'
 import { fetchCalendlyData, CalendlyMetrics } from './calendly-data'
+import { getNilsMetrics } from './clockodo-data'
 
 const CLOSE_API_BASE = 'https://api.close.com/api/v1'
 
@@ -761,6 +762,8 @@ export async function fetchCloseData() {
       airtableMetrics: getAirtableMetrics(),
 
       calendlyMetrics: await fetchCalendlyData(),
+
+      nilsMetrics: getNilsMetrics(),
 
       lastUpdated: new Date().toISOString(),
     }
