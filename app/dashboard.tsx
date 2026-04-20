@@ -1332,6 +1332,96 @@ export default function Dashboard({ data }: { data: DashboardData }) {
              ═══════════════════════════════════════════════════ */}
           {activeNav === 'fulfillment' && (
             <>
+              {/* ── Nils Holland — Kostenanalyse ── */}
+              <div className="za-panel fade-up" style={{ animationDelay: '20ms', borderTop: '2px solid var(--za-gold, #d4a843)', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Kostenanalyse</span>
+                    <div className="panel-title">Nils Holland &mdash; Kostenanalyse</div>
+                  </div>
+                </div>
+                <div className="kpi-grid" style={{ padding: '0 16px 16px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Monatskosten</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-gold, #d4a843)' }}>&euro;4.800</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Brutto + NK + Software</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Cost/Tag</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>&euro;240</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>bei 20 Arbeitstagen</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Cost/Stunde</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>&euro;30</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>bei 8h/Tag</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Cost/Kunde</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--za-fg-1)' }}>&euro;800</div>
+                    <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>6 Kunden-Accounts</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Nils — Cost Breakdown ── */}
+              <div className="za-panel fade-up" style={{ animationDelay: '40ms', borderTop: '2px solid var(--za-gold, #d4a843)', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Aufschl&uuml;sselung</span>
+                    <div className="panel-title">Kostenstruktur</div>
+                  </div>
+                </div>
+                <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {[
+                    { label: 'Brutto Gehalt', value: '\u20AC3.000' },
+                    { label: 'AG-Nebenkosten', value: '\u20AC1.300' },
+                    { label: 'Software', value: '\u20AC500' },
+                  ].map((row, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--za-fg-2)' }}>
+                      <span>{row.label}</span><span style={{ fontWeight: 600 }}>{row.value}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700, color: 'var(--za-gold, #d4a843)', borderTop: '1px solid var(--za-border)', paddingTop: '8px' }}>
+                    <span>Gesamt</span><span>&euro;4.800</span>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--za-border)', marginTop: '8px', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {[
+                      { label: 'Cost per Reel (gesch\u00E4tzt)', value: '\u20AC48', sub: '~100 Reels/Mo' },
+                      { label: 'Cost per LinkedIn Post', value: '\u20AC24', sub: '~200 Posts/Mo' },
+                      { label: 'Delivery-Kosten pro Kunde/Mo', value: '\u20AC800', sub: '4.800 / 6 Kunden' },
+                    ].map((row, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '13px', color: 'var(--za-fg-2)' }}>
+                        <span>{row.label} <span style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>({row.sub})</span></span>
+                        <span style={{ fontWeight: 600 }}>{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Nils — Profitability Insight ── */}
+              <div className="za-panel fade-up" style={{ animationDelay: '50ms', borderTop: '2px solid var(--za-gold, #d4a843)', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Profitabilit&auml;t</span>
+                    <div className="panel-title">Revenue vs. Cost</div>
+                  </div>
+                </div>
+                <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--za-warning, #fb923c)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span>{'\u23F1'}</span><span>Clockodo noch nicht aktiv &mdash; Zeiterfassung starten f&uuml;r echte Produktivit&auml;ts-Metriken</span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--za-info, #60a5fa)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span>{'\uD83D\uDCA1'}</span><span>Bei 6 Kunden mit &Oslash; &euro;2.000/Mo Rate = &euro;12.000 Revenue &rarr; &euro;4.800 Cost = 2,5x ROI</span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--za-fg-2)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <span>{'\uD83D\uDCCA'}</span><span>Break-Even: 2,4 Kunden (&euro;4.800 / &euro;2.000 Avg Rate)</span>
+                  </div>
+                </div>
+              </div>
+
               {/* KPI Grid — Monday.com Snapshot (hardcoded, will be automated via API later) */}
               <div className="kpi-grid">
                 <div className="za-panel fade-up" style={{ animationDelay: '60ms' }}>
