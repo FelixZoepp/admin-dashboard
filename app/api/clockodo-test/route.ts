@@ -20,11 +20,10 @@ export async function GET() {
     const usersRes = await fetch('https://my.clockodo.com/api/v2/users', { headers })
     const users = await usersRes.json()
 
-    // Get this week's time entries
+    // Get last 30 days of time entries (focus on Nils = 283318)
     const now = new Date()
-    const weekStart = new Date(now)
-    weekStart.setDate(now.getDate() - now.getDay() + 1) // Monday
-    const timeSince = weekStart.toISOString().split('T')[0] + ' 00:00:00'
+    const monthAgo = new Date(now.getTime() - 30 * 86400000)
+    const timeSince = monthAgo.toISOString().split('T')[0] + ' 00:00:00'
     const timeUntil = now.toISOString().split('T')[0] + ' 23:59:59'
 
     const entriesRes = await fetch(
@@ -33,16 +32,46 @@ export async function GET() {
     )
     const entries = await entriesRes.json()
 
+    // Aggregate by user
+    const byUser: Record<number, { name: string; totalHours: number; days: Set<string>; entries: number }> = {}
+    for (const u of (users.users || [])) {
+      byUser[u.id] = { name: u.name, totalHours: 0, days: new Set(), entries: 0 }
+    }
+    for (const e of (entries.entries || [])) {
+      const uid = e.users_id
+      if (byUser[uid]) {
+        const hours = (e.duration || 0) / 3600
+        byUser[uid].totalHours += hours
+        byUser[uid].entries++
+        if (e.time_since) byUser[uid].days.add(e.time_since.split(' ')[0])
+      }
+    }
+
+    const summary = Object.entries(byUser).map(([id, data]) => ({
+      id: Number(id),
+      name: data.name,
+      totalHours: Math.round(data.totalHours * 10) / 10,
+      daysWorked: data.days.size,
+      entries: data.entries,
+      avgHoursPerDay: data.days.size > 0 ? Math.round((data.totalHours / data.days.size) * 10) / 10 : 0,
+    }))
+
+    // Nils details
+    const nilsEntries = (entries.entries || [])
+      .filter((e: any) => e.users_id === 283318)
+      .map((e: any) => ({
+        date: e.time_since?.split(' ')[0],
+        hours: Math.round((e.duration || 0) / 360) / 10,
+        text: e.text || '',
+        project: e.projects_id,
+      }))
+
     return NextResponse.json({
       users: users.users?.map((u: any) => ({ id: u.id, name: u.name, email: u.email, role: u.role })),
-      entriesCount: entries.entries?.length || 0,
-      sampleEntries: (entries.entries || []).slice(0, 5).map((e: any) => ({
-        userId: e.users_id,
-        timeSince: e.time_since,
-        timeUntil: e.time_until,
-        duration: e.duration,
-        text: e.text,
-      })),
+      period: { from: timeSince, to: timeUntil },
+      totalEntries: entries.entries?.length || 0,
+      summary,
+      nilsEntries: nilsEntries.slice(0, 30),
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message })
