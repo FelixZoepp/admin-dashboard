@@ -20,9 +20,9 @@ export async function GET() {
     const usersRes = await fetch('https://my.clockodo.com/api/v2/users', { headers })
     const users = await usersRes.json()
 
-    // Get last 30 days of time entries (focus on Nils = 283318)
+    // Get last 180 days of time entries
     const now = new Date()
-    const monthAgo = new Date(now.getTime() - 30 * 86400000)
+    const monthAgo = new Date(now.getTime() - 180 * 86400000)
     const timeSince = monthAgo.toISOString().split('T')[0] + ' 00:00:00'
     const timeUntil = now.toISOString().split('T')[0] + ' 23:59:59'
 
