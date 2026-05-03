@@ -322,6 +322,7 @@ const NAV_DASHBOARD = [
   { id: 'sales', label: 'Sales', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/></svg> },
   { id: 'fulfillment', label: 'Fulfillment', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg> },
   { id: 'marketing', label: 'Marketing', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg> },
+  { id: 'finanzen', label: 'Finanzen', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="9"/><path d="M14.5 9a2.5 2.5 0 00-2.5-1h-1a2 2 0 000 4h2a2 2 0 010 4h-1a2.5 2.5 0 01-2.5-1M12 5.5v1M12 17.5v1"/></svg> },
   { id: 'kunden', label: 'Kunden', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg> },
   { id: 'recruiting', label: 'Recruiting', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><path d="M12 12v4"/><path d="M10 14h4"/></svg> },
   { id: 'team', label: 'Team', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> },
@@ -576,40 +577,13 @@ function HeatmapChart({ weeks = 20 }: { weeks?: number }) {
 // MAIN DASHBOARD
 // ══════════════════════════════════════════════════════════════
 
-export default function Dashboard({ data: initialData }: { data: DashboardData }) {
-  const [data, setData] = useState<DashboardData>(initialData)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+export default function Dashboard({ data }: { data: DashboardData }) {
   const [activeNav, setActiveNav] = useState('sales')
   const [period, setPeriod] = useState<Period>('week')
 
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
   const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set())
   const [expandedLeadStatuses, setExpandedLeadStatuses] = useState<Set<string>>(new Set())
-
-  const refreshData = useCallback(async () => {
-    setIsRefreshing(true)
-    try {
-      const res = await fetch('/api/close')
-      if (res.ok) {
-        const newData = await res.json()
-        if (!newData.error) {
-          setData(newData)
-          setLastRefresh(new Date())
-        }
-      }
-    } catch {
-      // silently fail, keep existing data
-    } finally {
-      setIsRefreshing(false)
-    }
-  }, [])
-
-  // Auto-refresh every 5 minutes
-  useEffect(() => {
-    const interval = setInterval(refreshData, 60 * 1000)
-    return () => clearInterval(interval)
-  }, [refreshData])
 
   const toggleMonth = (label: string) => {
     setExpandedMonths(prev => { const next = new Set(prev); next.has(label) ? next.delete(label) : next.add(label); return next })
@@ -764,9 +738,6 @@ export default function Dashboard({ data: initialData }: { data: DashboardData }
               <input placeholder="Suchen... (Lead, Kunde, Report)" />
             </div>
             <div className="tb-actions">
-              <button className="tb-icon-btn" title={`Aktualisieren (Zuletzt: ${lastRefresh.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })})`} onClick={refreshData} disabled={isRefreshing} style={{ position: 'relative' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }}><path d="M21 12a9 9 0 11-2.2-5.9" /><path d="M21 3v5h-5" /></svg>
-              </button>
               <button className="tb-icon-btn" title="Benachrichtigungen">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 8a6 6 0 1112 0c0 7 3 7 3 9H3c0-2 3-2 3-9zM10 21a2 2 0 004 0" /></svg>
                 <span className="dot" />
@@ -1733,8 +1704,10 @@ export default function Dashboard({ data: initialData }: { data: DashboardData }
             </>
           )}
 
-          {/* Finanzen-Tab entfernt — intern nicht benötigt */}
-          {false && (() => {
+          {/* ═══════════════════════════════════════════════════
+               TAB: FINANZEN
+             ═══════════════════════════════════════════════════ */}
+          {activeNav === 'finanzen' && (() => {
             const dm = data.deliveryMetrics
             const deliveryCostPct = dm.totalMRR > 0 ? (dm.totalDeliveryCost / dm.totalMRR * 100).toFixed(1) : '0'
             const netProfitPct = dm.totalMRR > 0 ? (dm.netProfit / dm.totalMRR * 100).toFixed(1) : '0'
@@ -2044,27 +2017,76 @@ export default function Dashboard({ data: initialData }: { data: DashboardData }
              ═══════════════════════════════════════════════════ */}
           {activeNav === 'kunden' && (
             <>
-              {/* KPI Grid — Kunden Übersicht */}
+              {/* KPI Grid Row 1 — gold accent */}
               <div className="kpi-grid">
                 <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">MRR</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.airtableMetrics.mrr)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Monthly Recurring Revenue</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">ARR</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.airtableMetrics.arr)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Annual Run Rate</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Churn Rate</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>{data.airtableMetrics.churnRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">{data.airtableMetrics.churned} von {data.airtableMetrics.totalCustomers} Kunden gek&uuml;ndigt</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '300ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">LTV</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.airtableMetrics.ltv)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">&Oslash; Customer Lifetime Value</span></div>
+                </div>
+              </div>
+
+              {/* KPI Grid Row 2 */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '360ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Aktive Kunden</span></div>
                   <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{data.airtableMetrics.activeCustomers}</div>
                   <div className="kpi-foot"><span className="kpi-caption">von {data.airtableMetrics.totalCustomers} gesamt</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '140ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Churn Rate</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>{data.airtableMetrics.churnRate}<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">{data.airtableMetrics.churned} gek&uuml;ndigt</span></div>
+                <div className="za-panel fade-up" style={{ animationDelay: '420ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">ARPU</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(data.airtableMetrics.arpu)}<span className="unit">/Mo</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Avg Revenue Per User</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '480ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Upsells</span></div>
                   <div className="kpi-value">{data.airtableMetrics.upsellCount}</div>
                   <div className="kpi-foot"><span className="kpi-caption">{data.airtableMetrics.upsellRate}% Upsell Rate</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '300ms' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
                   <div className="kpi-top"><span className="kpi-label">&Oslash; Laufzeit</span></div>
                   <div className="kpi-value">{data.airtableMetrics.avgContractLength}<span className="unit"> Monate</span></div>
                   <div className="kpi-foot"><span className="kpi-caption">Vertragslaufzeit</span></div>
+                </div>
+              </div>
+
+              {/* MRR nach Produkt */}
+              <div className="za-panel fade-up" style={{ animationDelay: '600ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">MRR nach Produkt</span>
+                    <div className="panel-title">&euro;{fmtNum(data.airtableMetrics.mrr)}/Mo Recurring Revenue</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {data.airtableMetrics.productMix.filter(p => p.mrr > 0).map((p, i) => {
+                    const maxMrr = Math.max(...data.airtableMetrics.productMix.map(x => x.mrr))
+                    const pct = maxMrr > 0 ? (p.mrr / maxMrr) * 100 : 0
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '160px', flexShrink: 0, fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)' }}>{p.product}</div>
+                        <div style={{ flex: 1, height: '24px', background: 'rgba(249,249,249,0.04)', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, var(--za-gold), var(--za-gold-2))', borderRadius: '6px', transition: 'width 0.8s ease' }} />
+                        </div>
+                        <div style={{ width: '100px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontSize: '13px', fontWeight: 700, color: 'var(--za-gold-2)' }}>&euro;{fmtNum(p.mrr)}/Mo</div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
