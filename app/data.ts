@@ -2,6 +2,7 @@ import { getAirtableMetrics, AirtableMetrics } from './airtable-data'
 import { fetchCalendlyData, CalendlyMetrics } from './calendly-data'
 import { getNilsMetrics } from './clockodo-data'
 import { getDeliveryMetrics } from './delivery-data'
+import { fetchOutreachData, OutreachMetrics } from './outreach-data'
 
 const CLOSE_API_BASE = 'https://api.close.com/api/v1'
 
@@ -57,7 +58,7 @@ async function closeApiFetch(endpoint: string, options?: RequestInit) {
       Authorization: getAuthHeader(),
       ...options?.headers,
     },
-    next: { revalidate: 300 },
+    cache: 'no-store',
   })
   if (!res.ok) {
     const text = await res.text()
@@ -312,76 +313,95 @@ export async function fetchCloseData() {
     const weekStartISO_full = getISOWeekStart(currentYear, currentWeek).toISOString()
     const nowISO_full = now.toISOString()
 
-    async function fetchCustomActivityCount(typeId: string, dateGte: string): Promise<number> {
-      try {
+    // Custom field IDs for reach detection
+    const COLD_CALL_NIEMAND_ERREICHT = 'custom.cf_U3JJwHBkSgOGtEKO4wd7b5EeLbUyv0uBXAQuG3GgEu6' // ❌Niemand erreicht = "Ja"
+    const COLD_CALL_ENTSCHEIDER = 'custom.cf_0qd3PlDb9re1MU97cxNV7MJUXjHVYGmuifQc5CsTrN1' // 🔍Entscheider (choices)
+    const FOLLOW_UP_NAECHSTER_SCHRITT = 'custom.cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN' // Nächster Schritt (Follow-Up)
+    const SETTING_NAECHSTER_SCHRITT = 'custom.cf_xPhL5XUDQ8i4gCcUF4pz5uMaHUoIMwZXB3af8Xv0A6B' // Nächster Schritt (Setting)
+
+    // Fetch ALL custom activities for the month (all types) in one paginated call
+    const todayDateISO = formatDateISO(now)
+    const weekStartDate = formatDateISO(getISOWeekStart(currentYear, currentWeek))
+
+    let allCustomActivities: any[] = []
+    try {
+      let hasMore = true
+      let skip = 0
+      const limit = 100
+      while (hasMore) {
         const data = await closeApiFetch(
-          `/activity/custom/?custom_activity_type_id=${typeId}&date_created__gte=${dateGte}&_limit=1&_fields=id`
+          `/activity/custom/?date_created__gte=${monthStart}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
         )
-        return data.total_results || 0
-      } catch {
-        return 0
+        allCustomActivities.push(...data.data)
+        hasMore = data.has_more
+        skip += limit
+      }
+    } catch {
+      allCustomActivities = []
+    }
+
+    // Helper: filter activities by type and date
+    function filterActivities(typeId: string, dateGte: string) {
+      return allCustomActivities.filter((a: any) =>
+        a.custom_activity_type_id === typeId && a.date_created >= dateGte
+      )
+    }
+
+    // Count activities by type and period
+    const coldCallToday = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, todayDateISO).length
+    const coldCallWeek = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, weekStartDate).length
+    const coldCallMonth = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, monthStart).length
+    const followUpToday = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, todayDateISO).length
+    const followUpWeek = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, weekStartDate).length
+    const followUpMonth = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, monthStart).length
+
+    // Anwahlen = Cold Call + Follow-Up custom activities
+    const anwahlenToday = coldCallToday + followUpToday
+    const anwahlenWeek = coldCallWeek + followUpWeek
+    const anwahlenMonth = coldCallMonth + followUpMonth
+
+    // Entscheider erreicht = Activities wo NICHT "Niemand erreicht"
+    function countEntscheiderErreicht(typeId: string, dateGte: string): number {
+      const acts = filterActivities(typeId, dateGte)
+      if (typeId === CUSTOM_ACTIVITY_TYPES.coldCall) {
+        return acts.filter((a: any) => a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
+      } else {
+        return acts.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
       }
     }
 
-    // Fetch all activity counts in parallel: 4 types x 3 periods = 12 calls
-    const todayDateISO = formatDateISO(now)
-    const weekStartDate = formatDateISO(getISOWeekStart(currentYear, currentWeek))
-    const [
-      coldCallToday, coldCallWeek, coldCallMonth,
-      settingActToday, settingActWeek, settingActMonth,
-      closingActToday, closingActWeek, closingActMonth,
-      followUpToday, followUpWeek, followUpMonth,
-    ] = await Promise.all([
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.coldCall, todayDateISO),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.coldCall, weekStartDate),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.coldCall, monthStart),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.setting, todayDateISO),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.setting, weekStartDate),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.setting, monthStart),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.closing, todayDateISO),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.closing, weekStartDate),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.closing, monthStart),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.followUp, todayDateISO),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.followUp, weekStartDate),
-      fetchCustomActivityCount(CUSTOM_ACTIVITY_TYPES.followUp, monthStart),
-    ])
+    const entscheiderTodayCount = countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.coldCall, todayDateISO) + countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.followUp, todayDateISO)
+    const entscheiderWeekCount = countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.coldCall, weekStartDate) + countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.followUp, weekStartDate)
+    const entscheiderMonthCount = countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.coldCall, monthStart) + countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.followUp, monthStart)
 
-    // Get calls today, this week, this month via activity report
-    let callsToday = 0
-    try {
-      const tomorrow = new Date(now.getTime() + 86400000)
-      const todayActivity = await closeApiFetch('/report/activity/overview/', {
-        method: 'POST',
-        body: JSON.stringify({
-          date_start: todayDateISO,
-          date_end: formatDateISO(tomorrow),
-        }),
-      })
-      callsToday = todayActivity?.aggregations?.calls_made || 0
-    } catch {
-      callsToday = 0
+    // Settings gelegt = Cold Call mit Entscheider "Setting vereinbart am:" + Follow-Up mit "2. Setting gelegt am:"
+    function countSettingsGelegt(dateGte: string): number {
+      const coldCalls = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, dateGte)
+      const followUps = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, dateGte)
+      const fromColdCalls = coldCalls.filter((a: any) => a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:').length
+      const fromFollowUps = followUps.filter((a: any) => {
+        const step = a[FOLLOW_UP_NAECHSTER_SCHRITT]
+        return step === '2. Setting gelegt am:'
+      }).length
+      return fromColdCalls + fromFollowUps
     }
 
-    // Weekly calls: use the report, but fallback to today's count if it's higher
-    const callsThisWeekVal = Math.max(
-      weeklyCallData.length > 0 ? weeklyCallData[weeklyCallData.length - 1]?.calls || 0 : 0,
-      callsToday
-    )
+    const settingsGelegtToday = countSettingsGelegt(todayDateISO)
+    const settingsGelegtWeek = countSettingsGelegt(weekStartDate)
+    const settingsGelegtMonth = countSettingsGelegt(monthStart)
 
-    let callsThisMonth = 0
-    try {
-      const monthEnd = new Date(currentYear, currentMonth + 1, 1)
-      const monthActivity = await closeApiFetch('/report/activity/overview/', {
-        method: 'POST',
-        body: JSON.stringify({
-          date_start: monthStart,
-          date_end: formatDateISO(monthEnd),
-        }),
-      })
-      callsThisMonth = monthActivity?.aggregations?.calls_made || 0
-    } catch {
-      callsThisMonth = 0
+    // Closings gelegt = Setting mit "2. Closing gelegt auf:" + Follow-Up mit "3. Closing gelegt am:"
+    function countClosingsGelegt(dateGte: string): number {
+      const settings = filterActivities(CUSTOM_ACTIVITY_TYPES.setting, dateGte)
+      const followUps = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, dateGte)
+      const fromSettings = settings.filter((a: any) => a[SETTING_NAECHSTER_SCHRITT] === '2. Closing gelegt auf:').length
+      const fromFollowUps = followUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] === '3. Closing gelegt am:').length
+      return fromSettings + fromFollowUps
     }
+
+    const closingsGelegtToday = countClosingsGelegt(todayDateISO)
+    const closingsGelegtWeek = countClosingsGelegt(weekStartDate)
+    const closingsGelegtMonth = countClosingsGelegt(monthStart)
 
     // Won deals for week period
     const weekStartISODate = formatDateISO(getISOWeekStart(currentYear, currentWeek))
@@ -420,46 +440,41 @@ export async function fetchCloseData() {
     // Closings gelegt = Opps currently in any Closing stage (booked from Settings)
     const totalClosingsGelegt = pipelineSnapshot.closingTerminiert + pipelineSnapshot.closingNoShow + pipelineSnapshot.closingFollowUp + pipelineSnapshot.angebotVerschickt + pipelineSnapshot.cc2Terminiert
 
-    // Gespräche gesamt = Cold Calls + Follow-Ups (alle Kontakte mit Entscheidern)
-    const gespraecheToday = coldCallToday + followUpToday
-    const gespraecheWeek = coldCallWeek + followUpWeek
-    const gespraecheMonth = coldCallMonth + followUpMonth
-
-    // Conversion rates (month-based, using real pipeline data)
-    const quotenErreichquote = callsThisMonth > 0 ? Math.round((gespraecheMonth / callsThisMonth) * 1000) / 10 : 0
-    const quotenSettingQuote = gespraecheMonth > 0 ? Math.round((totalSettingsGelegt / gespraecheMonth) * 1000) / 10 : 0
-    const quotenClosingQuote = totalSettingsGelegt > 0 ? Math.round((totalClosingsGelegt / totalSettingsGelegt) * 1000) / 10 : 0
-    const quotenAbschlussQuote = totalClosingsGelegt > 0 ? Math.round((wonThisMonth.length / totalClosingsGelegt) * 1000) / 10 : 0
-    const quotenOverall = callsThisMonth > 0 ? Math.round((wonThisMonth.length / callsThisMonth) * 1000) / 10 : 0
+    // Conversion rates (month-based, using custom activity data)
+    const quotenErreichquote = anwahlenMonth > 0 ? Math.round((entscheiderMonthCount / anwahlenMonth) * 1000) / 10 : 0
+    const quotenSettingQuote = entscheiderMonthCount > 0 ? Math.round((settingsGelegtMonth / entscheiderMonthCount) * 1000) / 10 : 0
+    const quotenClosingQuote = settingsGelegtMonth > 0 ? Math.round((closingsGelegtMonth / settingsGelegtMonth) * 1000) / 10 : 0
+    const quotenAbschlussQuote = closingsGelegtMonth > 0 ? Math.round((wonThisMonth.length / closingsGelegtMonth) * 1000) / 10 : 0
+    const quotenOverall = anwahlenMonth > 0 ? Math.round((wonThisMonth.length / anwahlenMonth) * 1000) / 10 : 0
 
     const salesFunnel = {
       today: {
-        anwahlen: callsToday,
-        entscheiderErreicht: gespraecheToday,
+        anwahlen: anwahlenToday,
+        entscheiderErreicht: entscheiderTodayCount,
         coldCalls: coldCallToday,
         followUps: followUpToday,
-        settingsGelegt: settingActToday,
-        closingsGelegt: closingActToday,
+        settingsGelegt: settingsGelegtToday,
+        closingsGelegt: closingsGelegtToday,
         wonDeals: 0,
         wonRevenue: 0,
       },
       week: {
-        anwahlen: callsThisWeekVal,
-        entscheiderErreicht: gespraecheWeek,
+        anwahlen: anwahlenWeek,
+        entscheiderErreicht: entscheiderWeekCount,
         coldCalls: coldCallWeek,
         followUps: followUpWeek,
-        settingsGelegt: totalSettingsGelegt, // from pipeline
-        closingsGelegt: totalClosingsGelegt, // from pipeline
+        settingsGelegt: settingsGelegtWeek,
+        closingsGelegt: closingsGelegtWeek,
         wonDeals: wonThisWeek.length,
         wonRevenue: wonRevenueWeek,
       },
       month: {
-        anwahlen: callsThisMonth,
-        entscheiderErreicht: gespraecheMonth,
+        anwahlen: anwahlenMonth,
+        entscheiderErreicht: entscheiderMonthCount,
         coldCalls: coldCallMonth,
         followUps: followUpMonth,
-        settingsGelegt: totalSettingsGelegt,
-        closingsGelegt: totalClosingsGelegt,
+        settingsGelegt: settingsGelegtMonth,
+        closingsGelegt: closingsGelegtMonth,
         wonDeals: wonThisMonth.length,
         wonRevenue: wonRevenueMonth,
       },
@@ -700,7 +715,7 @@ export async function fetchCloseData() {
       currentMonthName: monthLong[String(currentMonth + 1).padStart(2, '0')] || '',
       currentYear,
 
-      callsThisWeek: weeklyCallData.length > 0 ? weeklyCallData[weeklyCallData.length - 1]?.calls || 0 : 0,
+      callsThisWeek: anwahlenWeek,
       callsLastWeek: weeklyCallData.length > 1 ? weeklyCallData[weeklyCallData.length - 2]?.calls || 0 : 0,
       wonDealsCount: wonThisMonth.length,
       wonDealsValue: revenueMTD,
@@ -767,6 +782,8 @@ export async function fetchCloseData() {
       nilsMetrics: getNilsMetrics(),
 
       deliveryMetrics: getDeliveryMetrics(),
+
+      outreachMetrics: await fetchOutreachData(),
 
       lastUpdated: new Date().toISOString(),
     }

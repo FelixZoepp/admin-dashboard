@@ -305,6 +305,27 @@ interface DashboardData {
     netProfit: number
     netProfitPercent: number
   }
+  outreachMetrics: {
+    available: boolean
+    totalLeads: number
+    campaigns: { id: string; name: string; status: string; leadsCount: number }[]
+    funnel: {
+      bereitFuerVernetzung: number; vernetzungAusstehend: number; vernetzungAngenommen: number
+      erstnachrichtGesendet: number; fu1Gesendet: number; fu2Gesendet: number; fu3Gesendet: number
+      reagiertWarm: number; positivGeantwortet: number; terminGebucht: number; abgeschlossen: number
+    }
+    rates: {
+      acceptanceRate: number; messageRate: number; replyRate: number
+      positiveRate: number; bookingRate: number; overallConversion: number
+    }
+    members: {
+      name: string; connectionsSent: number; connectionsAccepted: number; acceptanceRate: number
+      messagesSent: number; replies: number; replyRate: number; positiveReplies: number
+      appointmentsBooked: number; totalLeads: number
+    }[]
+    tracking: { pageViews: number; videoPlays: number; ctaClicks: number }
+    recentActivity: { name: string; company: string | null; status: string; updatedAt: string }[]
+  }
   lastUpdated: string
   error?: string
 }
@@ -319,6 +340,7 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 // ── Sidebar nav items ────────────────────────────────────────
 const NAV_DASHBOARD = [
+  { id: 'outreach', label: 'Outreach', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> },
   { id: 'sales', label: 'Sales', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/></svg> },
   { id: 'fulfillment', label: 'Fulfillment', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg> },
   { id: 'marketing', label: 'Marketing', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg> },
@@ -747,6 +769,239 @@ export default function Dashboard({ data }: { data: DashboardData }) {
               </button>
             </div>
           </div>
+
+          {/* ═══════════════════════════════════════════════════
+               TAB: OUTREACH
+             ═══════════════════════════════════════════════════ */}
+          {activeNav === 'outreach' && (() => {
+            const om = data.outreachMetrics
+            if (!om?.available) return (
+              <div className="za-panel fade-up" style={{ padding: '48px', textAlign: 'center' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>&#128279;</div>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>PitchFirst Outreach nicht verbunden</h3>
+                <p style={{ fontSize: '13px', color: 'var(--za-fg-3)', maxWidth: '400px', margin: '0 auto' }}>
+                  Setze <code>PITCHFIRST_SUPABASE_URL</code> und <code>PITCHFIRST_SUPABASE_SERVICE_KEY</code> in den Vercel Environment Variables.
+                </p>
+              </div>
+            )
+
+            const funnelSteps = [
+              { label: 'Bereit', value: om.funnel.bereitFuerVernetzung, color: '#94a3b8' },
+              { label: 'Vernetzung gesendet', value: om.funnel.vernetzungAusstehend, color: '#38bdf8' },
+              { label: 'Vernetzt', value: om.funnel.vernetzungAngenommen, color: '#22d3ee' },
+              { label: 'DM gesendet', value: om.funnel.erstnachrichtGesendet, color: '#a78bfa' },
+              { label: 'FU1', value: om.funnel.fu1Gesendet, color: '#c084fc' },
+              { label: 'FU2', value: om.funnel.fu2Gesendet, color: '#e879f9' },
+              { label: 'FU3', value: om.funnel.fu3Gesendet, color: '#f472b6' },
+              { label: 'Geantwortet', value: om.funnel.reagiertWarm, color: '#fb923c' },
+              { label: 'Positiv', value: om.funnel.positivGeantwortet, color: '#4ade80' },
+              { label: 'Termin', value: om.funnel.terminGebucht, color: '#f43f5e' },
+              { label: 'Abgeschlossen', value: om.funnel.abgeschlossen, color: '#fbbf24' },
+            ]
+            const maxFunnel = Math.max(...funnelSteps.map(s => s.value), 1)
+
+            const STATUS_LABELS: Record<string, string> = {
+              'neu': 'Neu', 'bereit_fuer_vernetzung': 'Bereit', 'vernetzung_ausstehend': 'Gesendet',
+              'vernetzung_angenommen': 'Vernetzt', 'erstnachricht_gesendet': 'DM gesendet',
+              'kein_klick_fu_offen': 'FU offen', 'fu1_gesendet': 'FU1', 'fu2_gesendet': 'FU2', 'fu3_gesendet': 'FU3',
+              'reagiert_warm': 'Warm', 'positiv_geantwortet': 'Positiv', 'termin_gebucht': 'Termin', 'abgeschlossen': 'Done',
+            }
+            const STATUS_COLORS: Record<string, string> = {
+              'neu': '#64748b', 'bereit_fuer_vernetzung': '#94a3b8', 'vernetzung_ausstehend': '#38bdf8',
+              'vernetzung_angenommen': '#22d3ee', 'erstnachricht_gesendet': '#a78bfa',
+              'kein_klick_fu_offen': '#f59e0b', 'fu1_gesendet': '#c084fc', 'fu2_gesendet': '#e879f9', 'fu3_gesendet': '#f472b6',
+              'reagiert_warm': '#fb923c', 'positiv_geantwortet': '#4ade80', 'termin_gebucht': '#f43f5e', 'abgeschlossen': '#fbbf24',
+            }
+
+            return (
+            <>
+              {/* Hero KPIs */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Leads gesamt</span></div>
+                  <div className="kpi-value">{fmtNum(om.totalLeads)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{om.campaigns.length} Kampagnen</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Annahmerate</span></div>
+                  <div className="kpi-value" style={{ color: om.rates.acceptanceRate >= 30 ? 'var(--za-success)' : om.rates.acceptanceRate >= 15 ? '#fbbf24' : 'var(--za-danger)' }}>{om.rates.acceptanceRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Vernetzung &rarr; Angenommen</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Antwortrate</span></div>
+                  <div className="kpi-value" style={{ color: om.rates.replyRate >= 20 ? 'var(--za-success)' : '#fbbf24' }}>{om.rates.replyRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Nachricht &rarr; Antwort</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '300ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Termine gebucht</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{om.funnel.terminGebucht}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{om.rates.overallConversion}% Gesamtkonversion</span></div>
+                </div>
+              </div>
+
+              {/* Conversion Rates Row */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '360ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Nachrichten-Rate</span></div>
+                  <div className="kpi-value">{om.rates.messageRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Vernetzt &rarr; DM gesendet</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '420ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Positiv-Rate</span></div>
+                  <div className="kpi-value">{om.rates.positiveRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Geantwortet &rarr; Positiv</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '480ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Page Views</span></div>
+                  <div className="kpi-value">{fmtNum(om.tracking.pageViews)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{fmtNum(om.tracking.videoPlays)} Videos &middot; {fmtNum(om.tracking.ctaClicks)} CTAs</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
+                  <div className="kpi-top"><span className="kpi-label">Buchungsrate</span></div>
+                  <div className="kpi-value">{om.rates.bookingRate}<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">Positiv &rarr; Termin</span></div>
+                </div>
+              </div>
+
+              {/* Funnel Visualization */}
+              <div className="za-panel fade-up" style={{ animationDelay: '600ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">LinkedIn Outreach Funnel</span>
+                    <div className="panel-title">{fmtNum(om.totalLeads)} Leads &middot; {om.funnel.terminGebucht} Termine</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {funnelSteps.map((step, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '140px', flexShrink: 0, fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)' }}>{step.label}</div>
+                      <div style={{ flex: 1, height: '28px', background: 'rgba(249,249,249,0.04)', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
+                        <div style={{ width: `${Math.max((step.value / maxFunnel) * 100, step.value > 0 ? 3 : 0)}%`, height: '100%', background: step.color, borderRadius: '6px', transition: 'width 0.8s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {step.value > 0 && <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff' }}>{step.value}</span>}
+                        </div>
+                      </div>
+                      <div style={{ width: '50px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontSize: '14px', fontWeight: 700, color: step.color }}>{step.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Team Leaderboard */}
+              {om.members.length > 0 && (
+                <div className="za-panel fade-up" style={{ animationDelay: '660ms', marginBottom: '16px' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Team Leaderboard</span>
+                      <div className="panel-title">{om.members.length} Teammitglieder</div>
+                    </div>
+                  </div>
+                  <div className="za-table-wrap">
+                    <table className="za-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Name</th>
+                          <th>Vernetzt</th>
+                          <th>Annahme</th>
+                          <th>DMs</th>
+                          <th>Antworten</th>
+                          <th>Antwort%</th>
+                          <th>Positiv</th>
+                          <th>Termine</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {om.members.map((m, i) => (
+                          <tr key={i}>
+                            <td style={{ fontWeight: 700, color: i === 0 ? '#fbbf24' : 'var(--za-fg-3)' }}>{i + 1}</td>
+                            <td>
+                              <div className="t-co">
+                                <span className="t-co-mark" style={i === 0 ? { background: 'linear-gradient(135deg, var(--za-gold), var(--za-gold-2))' } : {}}>{m.name.charAt(0)}</span>
+                                <span className="t-co-name">{m.name}</span>
+                              </div>
+                            </td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{m.connectionsSent}</td>
+                            <td style={{ color: m.acceptanceRate >= 30 ? 'var(--za-success)' : m.acceptanceRate >= 15 ? '#fbbf24' : 'var(--za-danger)' }}>{m.acceptanceRate}%</td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{m.messagesSent}</td>
+                            <td>{m.replies}</td>
+                            <td style={{ color: m.replyRate >= 20 ? 'var(--za-success)' : '#fbbf24' }}>{m.replyRate}%</td>
+                            <td style={{ color: 'var(--za-success)', fontWeight: 700 }}>{m.positiveReplies}</td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 700, color: m.appointmentsBooked > 0 ? '#f43f5e' : 'var(--za-fg-3)' }}>{m.appointmentsBooked}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Campaigns Overview */}
+              <div className="za-panel fade-up" style={{ animationDelay: '720ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Kampagnen</span>
+                    <div className="panel-title">{om.campaigns.length} Kampagnen</div>
+                  </div>
+                </div>
+                <div className="za-table-wrap">
+                  <table className="za-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Leads</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {om.campaigns.map((c, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 600 }}>{c.name}</td>
+                          <td><span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: c.status === 'active' ? 'rgba(34,197,94,0.15)' : 'rgba(249,249,249,0.06)', color: c.status === 'active' ? '#4ade80' : 'var(--za-fg-3)' }}>{c.status === 'active' ? 'Aktiv' : c.status === 'draft' ? 'Entwurf' : c.status}</span></td>
+                          <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{c.leadsCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              <div className="za-panel fade-up" style={{ animationDelay: '780ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Letzte Aktivit&auml;ten</span>
+                    <div className="panel-title">Aktuelle Status-&Auml;nderungen</div>
+                  </div>
+                </div>
+                <div className="za-table-wrap">
+                  <table className="za-table">
+                    <thead>
+                      <tr>
+                        <th>Lead</th>
+                        <th>Firma</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {om.recentActivity.map((a, i) => (
+                        <tr key={i}>
+                          <td>
+                            <div className="t-co">
+                              <span className="t-co-mark">{a.name.charAt(0)}</span>
+                              <span className="t-co-name">{a.name}</span>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{a.company || '\u2013'}</td>
+                          <td><span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: `${STATUS_COLORS[a.status] || '#64748b'}20`, color: STATUS_COLORS[a.status] || '#64748b' }}>{STATUS_LABELS[a.status] || a.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+            )
+          })()}
 
           {/* ═══════════════════════════════════════════════════
                TAB: SALES
