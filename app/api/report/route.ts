@@ -298,8 +298,20 @@ function buildCustomMonthReport(data: any, monthParam: string): string {
     }
   }
 
-  const neukundenDeals = monthWon.filter((d: any) => customerFirstDeals[d.name] >= monthStart && customerFirstDeals[d.name] <= monthEnd)
-  const upsellDeals = monthWon.filter((d: any) => customerFirstDeals[d.name] < monthStart)
+  // Neukunde = customer whose FIRST EVER deal is in this month — only count their first deal as Neukunde
+  const neukundenNames_set = new Set<string>()
+  for (const [name, firstDate] of Object.entries(customerFirstDeals)) {
+    if (firstDate >= monthStart && firstDate <= monthEnd) neukundenNames_set.add(name)
+  }
+  // For each Neukunde, only their earliest deal in the month counts as "Neukunden-Deal"
+  // Additional deals from the same Neukunde in the same month are Upsells
+  const neukundenFirstDealIds = new Set<string>()
+  for (const name of neukundenNames_set) {
+    const firstDeal = monthWon.filter((d: any) => d.name === name).sort((a: any, b: any) => a.date.localeCompare(b.date))[0]
+    if (firstDeal) neukundenFirstDealIds.add(`${firstDeal.name}_${firstDeal.date}_${firstDeal.value}`)
+  }
+  const neukundenDeals = monthWon.filter((d: any) => neukundenFirstDealIds.has(`${d.name}_${d.date}_${d.value}`))
+  const upsellDeals = monthWon.filter((d: any) => !neukundenFirstDealIds.has(`${d.name}_${d.date}_${d.value}`))
   const neukundenRevenue = neukundenDeals.reduce((s: number, d: any) => s + d.value, 0)
   const upsellRevenue = upsellDeals.reduce((s: number, d: any) => s + d.value, 0)
   const neukundenNames = [...new Set(neukundenDeals.map((d: any) => d.name))]

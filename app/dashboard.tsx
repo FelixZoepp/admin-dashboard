@@ -270,6 +270,9 @@ interface DashboardData {
   }
   allWonDeals: { name: string; value: number; date: string; user: string }[]
   allLostDeals: { name: string; value: number; date: string }[]
+  allCustomActivities: any[]
+  customActivityTypeIds: any
+  customFieldIds: any
   todayISO: string
   weekStartISO: string
   monthStartISO: string
@@ -601,7 +604,18 @@ function HeatmapChart({ weeks = 20 }: { weeks?: number }) {
 
 export default function Dashboard({ data }: { data: DashboardData }) {
   const [activeNav, setActiveNav] = useState('sales')
-  const [period, setPeriod] = useState<Period>('week')
+  const [period, setPeriod] = useState<Period>('month')
+  const [customFrom, setCustomFrom] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+  })
+  const [customTo, setCustomTo] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth());
+    const lastDay = new Date(d.getFullYear(), d.getMonth(), 0).getDate()
+    const m = new Date(); m.setMonth(m.getMonth() - 1);
+    return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  })
+  const [useCustomRange, setUseCustomRange] = useState(false)
 
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
   const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set())
@@ -618,17 +632,31 @@ export default function Dashboard({ data }: { data: DashboardData }) {
   }
 
   // Period-filtered data
-  const periodStart = period === 'today' ? data.todayISO
+  const periodStart = useCustomRange ? customFrom
+    : period === 'today' ? data.todayISO
     : period === 'week' ? data.weekStartISO
     : period === 'month' ? data.monthStartISO
     : data.yearStartISO
+  const periodEnd = useCustomRange ? customTo + 'T23:59:59' : '9999-12-31'
 
-  const filteredWon = (data.allWonDeals || []).filter(d => d.date >= periodStart)
-  const filteredLost = (data.allLostDeals || []).filter(d => d.date >= periodStart)
+  const filteredWon = (data.allWonDeals || []).filter(d => d.date >= periodStart && d.date <= periodEnd)
+  const filteredLost = (data.allLostDeals || []).filter(d => d.date >= periodStart && d.date <= periodEnd)
   const periodRevenue = filteredWon.reduce((s, d) => s + d.value, 0)
   const periodLostValue = filteredLost.reduce((s, d) => s + d.value, 0)
   const periodClosedTotal = filteredWon.length + filteredLost.length
   const periodClosingRate = periodClosedTotal > 0 ? Math.round((filteredWon.length / periodClosedTotal) * 100) : 0
+
+  // Activities filtered by custom range (for Anwahlen display)
+  const periodActivities = (data.allCustomActivities || []).filter((a: any) => a.date_created >= periodStart && a.date_created <= periodEnd)
+  const periodTypeIds = data.customActivityTypeIds || {} as any
+  const periodFields = data.customFieldIds || {} as any
+  const periodColdCalls = periodActivities.filter((a: any) => a.custom_activity_type_id === periodTypeIds.coldCall)
+  const periodFollowUps = periodActivities.filter((a: any) => a.custom_activity_type_id === periodTypeIds.followUp)
+  const periodAnwahlen = periodColdCalls.length + periodFollowUps.length
+  const periodEntscheider = periodColdCalls.filter((a: any) => a[periodFields.COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
+    + periodFollowUps.filter((a: any) => a[periodFields.FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
+  const periodSettings = periodColdCalls.filter((a: any) => a[periodFields.COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:').length
+    + periodFollowUps.filter((a: any) => a[periodFields.FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:').length
 
   // Call change
   const callChange = data.callsLastWeek > 0
@@ -1008,26 +1036,37 @@ export default function Dashboard({ data }: { data: DashboardData }) {
              ═══════════════════════════════════════════════════ */}
           {activeNav === 'sales' && (
             <>
-              {/* Period selector + export buttons row */}
+              {/* Period selector with calendar */}
               <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }} className="fade-up">
                 <div className="view-switch">
                   {(['today', 'week', 'month', 'year'] as Period[]).map(p => (
-                    <button key={p} className={period === p ? 'is-active' : ''} onClick={() => setPeriod(p)}>
+                    <button key={p} className={period === p && !useCustomRange ? 'is-active' : ''} onClick={() => { setPeriod(p); setUseCustomRange(false); }}>
                       {PERIOD_LABELS[p]}
                     </button>
                   ))}
+                  <button className={useCustomRange ? 'is-active' : ''} onClick={() => setUseCustomRange(true)}>
+                    Zeitraum
+                  </button>
                 </div>
+
+                {useCustomRange && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                      style={{ background: 'rgba(249,249,249,0.06)', border: '1px solid rgba(249,249,249,0.12)', borderRadius: '8px', padding: '6px 10px', color: '#fff', fontSize: '12px' }} />
+                    <span style={{ color: 'var(--za-fg-3)', fontSize: '12px' }}>bis</span>
+                    <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                      style={{ background: 'rgba(249,249,249,0.06)', border: '1px solid rgba(249,249,249,0.12)', borderRadius: '8px', padding: '6px 10px', color: '#fff', fontSize: '12px' }} />
+                  </div>
+                )}
+
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-                  {[
-                    { label: 'Tagesreport', period: 'daily' },
-                    { label: 'Wochenreport', period: 'weekly' },
-                    { label: 'Monatsreport', period: 'monthly' },
-                  ].map(btn => (
-                    <button key={btn.period} className="za-glass-btn" onClick={() => window.open(`/api/report?period=${btn.period}`, '_blank')}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-                      {btn.label}
-                    </button>
-                  ))}
+                  <button className="za-glass-btn" onClick={() => {
+                    const month = useCustomRange ? customFrom.slice(0, 7) : `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+                    window.open(`/api/report?period=custom&month=${month}`, '_blank');
+                  }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                    PDF Report
+                  </button>
                 </div>
               </div>
 
@@ -1096,12 +1135,11 @@ export default function Dashboard({ data }: { data: DashboardData }) {
 
                 <div className="za-panel fade-up" style={{ animationDelay: '420ms' }}>
                   <div className="kpi-top">
-                    <span className="kpi-label">Leads gesamt</span>
+                    <span className="kpi-label">Anwahlen</span>
                   </div>
-                  <div className="kpi-value">{fmtNum(data.totalLeads)}</div>
+                  <div className="kpi-value">{fmtNum(periodAnwahlen)}</div>
                   <div className="kpi-foot">
-                    <span className="kpi-caption">Leadpool: {fmtNum(data.leadpoolCount)}</span>
-                    <SparklineChart data={sparkData.e} />
+                    <span className="kpi-caption">{fmtNum(periodEntscheider)} Entscheider &middot; {fmtNum(periodSettings)} Settings</span>
                   </div>
                 </div>
               </div>
@@ -1636,35 +1674,6 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
-              {/* ═══ MONATSREPORT PDF DOWNLOAD ═══ */}
-              <div className="za-panel fade-up" style={{ marginTop: '24px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>Monatsreport f&uuml;r Coach:</span>
-                </div>
-                <select
-                  id="report-month-select"
-                  defaultValue={(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })()}
-                  style={{ background: 'rgba(249,249,249,0.06)', border: '1px solid rgba(249,249,249,0.12)', borderRadius: '8px', padding: '8px 12px', color: '#fff', fontSize: '13px', cursor: 'pointer' }}
-                >
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const d = new Date(); d.setMonth(d.getMonth() - i);
-                    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                    const label = d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-                    return <option key={val} value={val}>{label}</option>;
-                  })}
-                </select>
-                <button
-                  className="za-glass-btn"
-                  onClick={() => {
-                    const sel = (document.getElementById('report-month-select') as HTMLSelectElement)?.value;
-                    window.open(`/api/report?period=custom&month=${sel}`, '_blank');
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-                  PDF Report generieren
-                </button>
-              </div>
             </>
           )}
 
