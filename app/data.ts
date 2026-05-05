@@ -824,6 +824,28 @@ export async function fetchCloseData() {
       allCustomActivities,
       customActivityTypeIds: CUSTOM_ACTIVITY_TYPES,
       customFieldIds: { COLD_CALL_NIEMAND_ERREICHT, COLD_CALL_ENTSCHEIDER, FOLLOW_UP_NAECHSTER_SCHRITT, SETTING_NAECHSTER_SCHRITT },
+      // Total calls for the last 90 days from activity overview
+      totalCallsLast90Days: await (async () => {
+        try {
+          const res = await closeApiFetch('/report/activity/overview/', {
+            method: 'POST',
+            body: JSON.stringify({ date_start: activitiesSince, date_end: formatDateISO(now) }),
+          })
+          return res?.aggregations?.calls_made || 0
+        } catch { return 0 }
+      })(),
+      callsPerMonth: await (async () => {
+        // Get calls for last month and current month separately
+        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+        try {
+          const res = await closeApiFetch('/report/activity/overview/', {
+            method: 'POST',
+            body: JSON.stringify({ date_start: formatDateISO(lastMonthStart), date_end: formatDateISO(lastMonthEnd) }),
+          })
+          return { lastMonth: res?.aggregations?.calls_made || 0, lastMonthStart: formatDateISO(lastMonthStart), lastMonthEnd: formatDateISO(lastMonthEnd) }
+        } catch { return { lastMonth: 0, lastMonthStart: '', lastMonthEnd: '' } }
+      })(),
       conversionFunnel,
       waterfall,
       pipelineDealsByStatus,

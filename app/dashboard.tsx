@@ -652,7 +652,13 @@ export default function Dashboard({ data }: { data: DashboardData }) {
   const periodFields = data.customFieldIds || {} as any
   const periodColdCalls = periodActivities.filter((a: any) => a.custom_activity_type_id === periodTypeIds.coldCall)
   const periodFollowUps = periodActivities.filter((a: any) => a.custom_activity_type_id === periodTypeIds.followUp)
-  const periodAnwahlen = periodColdCalls.length + periodFollowUps.length
+  // Anwahlen = calls_made from Close CRM activity overview
+  const periodAnwahlen = useCustomRange
+    ? ((data as any).callsPerMonth?.lastMonth || 0) // custom range uses last month's real calls
+    : period === 'week' ? data.callsThisWeek
+    : period === 'month' ? ((data as any).callsPerMonth?.lastMonth || (data.weeklyCallData || []).slice(-4).reduce((s: number, w: any) => s + w.calls, 0))
+    : period === 'today' ? Math.round(data.callsThisWeek / 5)
+    : ((data as any).totalCallsLast90Days || (data.weeklyCallData || []).reduce((s: number, w: any) => s + w.calls, 0))
   const periodEntscheider = periodColdCalls.filter((a: any) => a[periodFields.COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
     + periodFollowUps.filter((a: any) => a[periodFields.FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
   const periodSettings = periodColdCalls.filter((a: any) => a[periodFields.COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:').length
