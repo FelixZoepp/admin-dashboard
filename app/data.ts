@@ -319,9 +319,10 @@ export async function fetchCloseData() {
     const FOLLOW_UP_NAECHSTER_SCHRITT = 'custom.cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN' // Nächster Schritt (Follow-Up)
     const SETTING_NAECHSTER_SCHRITT = 'custom.cf_xPhL5XUDQ8i4gCcUF4pz5uMaHUoIMwZXB3af8Xv0A6B' // Nächster Schritt (Setting)
 
-    // Fetch ALL custom activities for the month (all types) in one paginated call
+    // Fetch ALL custom activities for last 90 days (covers current + previous months for reports)
     const todayDateISO = formatDateISO(now)
     const weekStartDate = formatDateISO(getISOWeekStart(currentYear, currentWeek))
+    const activitiesSince = formatDateISO(new Date(now.getTime() - 90 * 86400000))
 
     let allCustomActivities: any[] = []
     try {
@@ -330,7 +331,7 @@ export async function fetchCloseData() {
       const limit = 100
       while (hasMore) {
         const data = await closeApiFetch(
-          `/activity/custom/?date_created__gte=${monthStart}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
+          `/activity/custom/?date_created__gte=${activitiesSince}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
         )
         allCustomActivities.push(...data.data)
         hasMore = data.has_more
@@ -820,6 +821,9 @@ export async function fetchCloseData() {
       salesFunnel,
       entscheiderOutcomesMonth,
       teamPerformanceMonth,
+      allCustomActivities,
+      customActivityTypeIds: CUSTOM_ACTIVITY_TYPES,
+      customFieldIds: { COLD_CALL_NIEMAND_ERREICHT, COLD_CALL_ENTSCHEIDER, FOLLOW_UP_NAECHSTER_SCHRITT, SETTING_NAECHSTER_SCHRITT },
       conversionFunnel,
       waterfall,
       pipelineDealsByStatus,
