@@ -272,6 +272,134 @@ function buildMonthlyReport(data: any): string {
   </body></html>`
 }
 
+function buildCustomMonthReport(data: any, monthParam: string): string {
+  // monthParam format: "2026-04"
+  const [yearStr, monthStr] = monthParam.split('-')
+  if (!yearStr || !monthStr) return buildMonthlyReport(data)
+
+  const year = parseInt(yearStr)
+  const month = parseInt(monthStr)
+  const monthStart = `${yearStr}-${monthStr}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const monthEnd = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, '0')}`
+  const monthName = monthLong[monthStr] || monthStr
+
+  // Filter deals for selected month
+  const monthWon = (data.allWonDeals || []).filter((d: any) => d.date >= monthStart && d.date <= monthEnd)
+  const monthLost = (data.allLostDeals || []).filter((d: any) => d.date >= monthStart && d.date <= monthEnd)
+  const totalRevenue = monthWon.reduce((s: number, d: any) => s + d.value, 0)
+  const totalLostValue = monthLost.reduce((s: number, d: any) => s + d.value, 0)
+
+  // Neukunden vs Upsells
+  const customerFirstDeals: Record<string, string> = {}
+  for (const d of (data.allWonDeals || [])) {
+    if (!customerFirstDeals[d.name] || d.date < customerFirstDeals[d.name]) {
+      customerFirstDeals[d.name] = d.date
+    }
+  }
+
+  const neukundenDeals = monthWon.filter((d: any) => customerFirstDeals[d.name] >= monthStart && customerFirstDeals[d.name] <= monthEnd)
+  const upsellDeals = monthWon.filter((d: any) => customerFirstDeals[d.name] < monthStart)
+  const neukundenRevenue = neukundenDeals.reduce((s: number, d: any) => s + d.value, 0)
+  const upsellRevenue = upsellDeals.reduce((s: number, d: any) => s + d.value, 0)
+  const neukundenNames = [...new Set(neukundenDeals.map((d: any) => d.name))]
+  const upsellNames = [...new Set(upsellDeals.map((d: any) => d.name))]
+
+  const closedTotal = monthWon.length + monthLost.length
+  const closingRate = closedTotal > 0 ? Math.round((monthWon.length / closedTotal) * 100) : 0
+
+  // Sales funnel data (use month data from salesFunnel)
+  const funnel = data.salesFunnel?.month || {}
+
+  // Build Neukunden table
+  let neukundenRows = ''
+  for (const d of neukundenDeals.sort((a: any, b: any) => b.value - a.value)) {
+    neukundenRows += `<tr><td>${d.name}</td><td>${d.user || ''}</td><td style="text-align:right; font-weight:600; color:#059669">${fmtEuro(d.value)}</td><td>${fmtDate(d.date)}</td></tr>`
+  }
+
+  // Build Upsell table
+  let upsellRows = ''
+  for (const d of upsellDeals.sort((a: any, b: any) => b.value - a.value)) {
+    upsellRows += `<tr><td>${d.name}</td><td>${d.user || ''}</td><td style="text-align:right; font-weight:600; color:#7c3aed">${fmtEuro(d.value)}</td><td>${fmtDate(d.date)}</td></tr>`
+  }
+
+  // Lost deals table
+  let lostRows = ''
+  for (const d of monthLost.sort((a: any, b: any) => b.value - a.value)) {
+    lostRows += `<tr><td>${d.name}</td><td style="text-align:right; font-weight:600; color:#dc2626">${fmtEuro(d.value)}</td><td>${fmtDate(d.date)}</td></tr>`
+  }
+
+  return `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Monatsreport ${monthName} ${year} — Content Leads</title>${baseStyles()}
+    <style>
+      .highlight-box { border: 2px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+      .highlight-box.green { border-color: #86efac; background: #f0fdf4; }
+      .highlight-box.purple { border-color: #c4b5fd; background: #faf5ff; }
+      .highlight-box.red { border-color: #fca5a5; background: #fef2f2; }
+      .section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+      .big-number { font-size: 28px; font-weight: 800; }
+    </style>
+  </head><body>
+    ${header(`Monatsreport — ${monthName} ${year}`)}
+    <div class="subtitle">Sales Report f\u00FCr deinen Coach &mdash; ${monthName} ${year}</div>
+
+    <h2>Zusammenfassung</h2>
+    <div class="kpi-grid">
+      ${kpiCard('Gesamtumsatz', fmtEuro(totalRevenue), monthWon.length + ' Won Deals')}
+      ${kpiCard('Neukunden', fmtEuro(neukundenRevenue), neukundenNames.length + ' neue Kunden')}
+      ${kpiCard('Upsells / Bestand', fmtEuro(upsellRevenue), upsellNames.length + ' Bestandskunden')}
+      ${kpiCard('Closing Rate', closingRate + '%', monthWon.length + ' Won / ' + monthLost.length + ' Lost')}
+      ${kpiCard('Entgangen (Lost)', fmtEuro(totalLostValue), monthLost.length + ' Deals verloren')}
+    </div>
+
+    <h2>Sales Aktivit&auml;ten (Monat)</h2>
+    <div class="kpi-grid">
+      ${kpiCard('Anwahlen', fmtNum(funnel.anwahlen || 0), 'Cold Calls + Follow-Ups')}
+      ${kpiCard('Entscheider erreicht', fmtNum(funnel.entscheiderErreicht || 0), funnel.anwahlen > 0 ? Math.round((funnel.entscheiderErreicht / funnel.anwahlen) * 100) + '% Erreichquote' : '')}
+      ${kpiCard('Settings gelegt', fmtNum(funnel.settingsGelegt || 0), 'Termine vereinbart')}
+      ${kpiCard('Closings gelegt', fmtNum(funnel.closingsGelegt || 0), 'Beratungsgespr\u00E4che')}
+      ${kpiCard('Abschl\u00FCsse', fmtNum(funnel.wonDeals || monthWon.length), fmtEuro(funnel.wonRevenue || totalRevenue))}
+    </div>
+
+    ${neukundenDeals.length > 0 ? `
+    <h2 style="color:#059669">Neukunden (${neukundenNames.length})</h2>
+    <div class="highlight-box green">
+      <div class="section-label green">Erstmalige Kunden — ${fmtEuro(neukundenRevenue)} Neukunden-Umsatz</div>
+      <table>
+        <thead><tr><th>Kunde</th><th>Closer</th><th style="text-align:right">Wert</th><th>Datum</th></tr></thead>
+        <tbody>${neukundenRows}</tbody>
+      </table>
+    </div>
+    ` : '<h2>Neukunden</h2><p style="color:#888">Keine Neukunden in diesem Monat.</p>'}
+
+    ${upsellDeals.length > 0 ? `
+    <h2 style="color:#7c3aed">Bestandskunden / Upsells (${upsellNames.length})</h2>
+    <div class="highlight-box purple">
+      <div class="section-label" style="color:#7c3aed">Wiederkehrende Kunden — ${fmtEuro(upsellRevenue)} Upsell-Umsatz</div>
+      <table>
+        <thead><tr><th>Kunde</th><th>Closer</th><th style="text-align:right">Wert</th><th>Datum</th></tr></thead>
+        <tbody>${upsellRows}</tbody>
+      </table>
+    </div>
+    ` : ''}
+
+    ${monthLost.length > 0 ? `
+    <h2 style="color:#dc2626">Lost Deals (${monthLost.length})</h2>
+    <div class="highlight-box red">
+      <div class="section-label" style="color:#dc2626">${fmtEuro(totalLostValue)} entgangener Umsatz</div>
+      <table>
+        <thead><tr><th>Lead</th><th style="text-align:right">Wert</th><th>Datum</th></tr></thead>
+        <tbody>${lostRows}</tbody>
+      </table>
+    </div>
+    ` : ''}
+
+    ${funnelSection(data)}
+
+    ${footer()}
+    <script>window.onload = function() { window.print(); }</script>
+  </body></html>`
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -293,6 +421,9 @@ export async function GET(request: NextRequest) {
         break
       case 'monthly':
         html = buildMonthlyReport(data)
+        break
+      case 'custom':
+        html = buildCustomMonthReport(data, searchParams.get('month') || '')
         break
       case 'daily':
       default:

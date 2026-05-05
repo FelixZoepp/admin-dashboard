@@ -1636,129 +1636,35 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
-              {/* ═══ COACH REPORT — LETZTER MONAT ═══ */}
-              {(() => {
-                // Calculate last month's date range
-                const now = new Date()
-                const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10)
-                const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10)
-                const lastMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
-
-                // Filter won deals for last month
-                const lastMonthWon = (data.allWonDeals || []).filter(d => d.date >= lastMonthStart && d.date <= lastMonthEnd)
-                const lastMonthLost = (data.allLostDeals || []).filter(d => d.date >= lastMonthStart && d.date <= lastMonthEnd)
-                const lastMonthRevenue = lastMonthWon.reduce((s, d) => s + d.value, 0)
-                const lastMonthLostValue = lastMonthLost.reduce((s, d) => s + d.value, 0)
-
-                // Identify Neukunden vs Upsells
-                // A customer is "Neukunde" if their first deal is in last month
-                const customerFirstDeals: Record<string, string> = {}
-                for (const d of (data.allWonDeals || [])) {
-                  if (!customerFirstDeals[d.name] || d.date < customerFirstDeals[d.name]) {
-                    customerFirstDeals[d.name] = d.date
-                  }
-                }
-
-                const neukundenDeals = lastMonthWon.filter(d => customerFirstDeals[d.name] >= lastMonthStart && customerFirstDeals[d.name] <= lastMonthEnd)
-                const upsellDeals = lastMonthWon.filter(d => customerFirstDeals[d.name] < lastMonthStart)
-                const neukundenRevenue = neukundenDeals.reduce((s, d) => s + d.value, 0)
-                const upsellRevenue = upsellDeals.reduce((s, d) => s + d.value, 0)
-
-                // Unique Neukunden names
-                const neukundenNames = [...new Set(neukundenDeals.map(d => d.name))]
-                const upsellNames = [...new Set(upsellDeals.map(d => d.name))]
-
-                const closedTotal = lastMonthWon.length + lastMonthLost.length
-                const closingRate = closedTotal > 0 ? Math.round((lastMonthWon.length / closedTotal) * 100) : 0
-
-                return (
-                  <div className="za-panel fade-up" style={{ marginTop: '24px', borderTop: '2px solid var(--za-gold)', padding: '24px' }}>
-                    <div className="panel-head" style={{ marginBottom: '20px' }}>
-                      <div>
-                        <span className="panel-eyebrow" style={{ color: 'var(--za-gold-2)' }}>Coach Report</span>
-                        <div className="panel-title" style={{ fontSize: '18px' }}>
-                          Monatsabschluss &mdash; {lastMonthName}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* KPI Row */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-                      <div style={{ background: 'rgba(249,249,249,0.04)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginBottom: '4px' }}>Gesamtumsatz</div>
-                        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--za-serif)', color: 'var(--za-gold-2)' }}>{fmtEuro(lastMonthRevenue)}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginTop: '2px' }}>{lastMonthWon.length} Deals</div>
-                      </div>
-                      <div style={{ background: 'rgba(34,197,94,0.06)', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid rgba(34,197,94,0.15)' }}>
-                        <div style={{ fontSize: '11px', color: '#4ade80', marginBottom: '4px' }}>Neukunden-Umsatz</div>
-                        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--za-serif)', color: '#4ade80' }}>{fmtEuro(neukundenRevenue)}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginTop: '2px' }}>{neukundenNames.length} Neukunden</div>
-                      </div>
-                      <div style={{ background: 'rgba(168,85,247,0.06)', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid rgba(168,85,247,0.15)' }}>
-                        <div style={{ fontSize: '11px', color: '#a78bfa', marginBottom: '4px' }}>Bestandskunden (Upsell)</div>
-                        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--za-serif)', color: '#a78bfa' }}>{fmtEuro(upsellRevenue)}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginTop: '2px' }}>{upsellNames.length} Kunden</div>
-                      </div>
-                      <div style={{ background: 'rgba(249,249,249,0.04)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginBottom: '4px' }}>Closing Rate</div>
-                        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--za-serif)' }}>{closingRate}%</div>
-                        <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginTop: '2px' }}>{lastMonthWon.length} Won / {lastMonthLost.length} Lost</div>
-                      </div>
-                      <div style={{ background: 'rgba(239,68,68,0.06)', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid rgba(239,68,68,0.1)' }}>
-                        <div style={{ fontSize: '11px', color: '#f87171', marginBottom: '4px' }}>Entgangener Umsatz</div>
-                        <div style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--za-serif)', color: '#f87171' }}>{fmtEuro(lastMonthLostValue)}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginTop: '2px' }}>{lastMonthLost.length} Lost Deals</div>
-                      </div>
-                    </div>
-
-                    {/* Neukunden List */}
-                    {neukundenDeals.length > 0 && (
-                      <div style={{ marginBottom: '20px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#4ade80', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ade80' }} />
-                          Neukunden ({neukundenNames.length})
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {neukundenDeals.sort((a, b) => b.value - a.value).map((d, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(34,197,94,0.04)', borderRadius: '8px', border: '1px solid rgba(34,197,94,0.1)' }}>
-                              <div>
-                                <span style={{ fontWeight: 600, fontSize: '13px' }}>{d.name}</span>
-                                <span style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginLeft: '8px' }}>{d.user}</span>
-                              </div>
-                              <div style={{ fontFamily: 'var(--za-serif)', fontWeight: 700, color: '#4ade80' }}>{fmtEuro(d.value)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Upsell/Bestandskunden List */}
-                    {upsellDeals.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#a78bfa', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#a78bfa' }} />
-                          Bestandskunden / Upsells ({upsellNames.length})
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {upsellDeals.sort((a, b) => b.value - a.value).map((d, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(168,85,247,0.04)', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.1)' }}>
-                              <div>
-                                <span style={{ fontWeight: 600, fontSize: '13px' }}>{d.name}</span>
-                                <span style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginLeft: '8px' }}>{d.user}</span>
-                              </div>
-                              <div style={{ fontFamily: 'var(--za-serif)', fontWeight: 700, color: '#a78bfa' }}>{fmtEuro(d.value)}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {lastMonthWon.length === 0 && (
-                      <p style={{ textAlign: 'center', color: 'var(--za-fg-3)', padding: '20px', fontSize: '13px' }}>Keine Won Deals im {lastMonthName}</p>
-                    )}
-                  </div>
-                )
-              })()}
+              {/* ═══ MONATSREPORT PDF DOWNLOAD ═══ */}
+              <div className="za-panel fade-up" style={{ marginTop: '24px', padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>Monatsreport f&uuml;r Coach:</span>
+                </div>
+                <select
+                  id="report-month-select"
+                  defaultValue={(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })()}
+                  style={{ background: 'rgba(249,249,249,0.06)', border: '1px solid rgba(249,249,249,0.12)', borderRadius: '8px', padding: '8px 12px', color: '#fff', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const d = new Date(); d.setMonth(d.getMonth() - i);
+                    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    const label = d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+                    return <option key={val} value={val}>{label}</option>;
+                  })}
+                </select>
+                <button
+                  className="za-glass-btn"
+                  onClick={() => {
+                    const sel = (document.getElementById('report-month-select') as HTMLSelectElement)?.value;
+                    window.open(`/api/report?period=custom&month=${sel}`, '_blank');
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                  PDF Report generieren
+                </button>
+              </div>
             </>
           )}
 
