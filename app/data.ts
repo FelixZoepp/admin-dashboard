@@ -374,6 +374,29 @@ export async function fetchCloseData() {
     const entscheiderWeekCount = countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.coldCall, weekStartDate) + countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.followUp, weekStartDate)
     const entscheiderMonthCount = countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.coldCall, monthStart) + countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.followUp, monthStart)
 
+    // Entscheider outcome breakdown (what happened after reaching decision-maker)
+    function getEntscheiderOutcomes(dateGte: string): Record<string, number> {
+      const coldCalls = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, dateGte)
+        .filter((a: any) => a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja')
+      const followUps = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, dateGte)
+        .filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht')
+
+      const outcomes: Record<string, number> = {}
+      // Cold call outcomes from Entscheider field
+      for (const a of coldCalls) {
+        const outcome = a[COLD_CALL_ENTSCHEIDER] || 'Unbekannt'
+        outcomes[outcome] = (outcomes[outcome] || 0) + 1
+      }
+      // Follow-up outcomes from Nächster Schritt field
+      for (const a of followUps) {
+        const outcome = a[FOLLOW_UP_NAECHSTER_SCHRITT] || 'Unbekannt'
+        outcomes[outcome] = (outcomes[outcome] || 0) + 1
+      }
+      return outcomes
+    }
+
+    const entscheiderOutcomesMonth = getEntscheiderOutcomes(monthStart)
+
     // Settings gelegt = Cold Call mit Entscheider "Setting vereinbart am:" + Follow-Up mit "2. Setting gelegt am:"
     function countSettingsGelegt(dateGte: string): number {
       const coldCalls = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, dateGte)
@@ -747,6 +770,7 @@ export async function fetchCloseData() {
       avg3Months,
 
       salesFunnel,
+      entscheiderOutcomesMonth,
       conversionFunnel,
       waterfall,
       pipelineDealsByStatus,

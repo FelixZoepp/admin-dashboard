@@ -360,6 +360,26 @@ function buildCustomMonthReport(data: any, monthParam: string): string {
       ${kpiCard('Abschl\u00FCsse', fmtNum(funnel.wonDeals || monthWon.length), fmtEuro(funnel.wonRevenue || totalRevenue))}
     </div>
 
+    ${(() => {
+      const outcomes = data.entscheiderOutcomesMonth || {}
+      const entries = Object.entries(outcomes).sort((a: any, b: any) => b[1] - a[1])
+      if (entries.length === 0) return ''
+      const total = entries.reduce((s, [, v]) => s + (v as number), 0)
+      let rows = ''
+      for (const [outcome, count] of entries) {
+        const pct = total > 0 ? Math.round(((count as number) / total) * 100) : 0
+        rows += `<tr><td>${outcome}</td><td style="text-align:center; font-weight:600">${count}</td><td style="text-align:right">${pct}%</td></tr>`
+      }
+      return `
+        <h2>Entscheider-Ergebnisse (Was kam raus?)</h2>
+        <p style="font-size:12px; color:#666; margin-bottom:12px">Aufschl\u00FCsselung aller ${fmtNum(total)} Entscheider-Gespr\u00E4che nach Ergebnis:</p>
+        <table>
+          <thead><tr><th>Ergebnis</th><th style="text-align:center">Anzahl</th><th style="text-align:right">Anteil</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `
+    })()}
+
     ${neukundenDeals.length > 0 ? `
     <h2 style="color:#059669">Neukunden (${neukundenNames.length})</h2>
     <div class="highlight-box green">
