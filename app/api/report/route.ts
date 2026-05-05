@@ -361,6 +361,26 @@ function buildCustomMonthReport(data: any, monthParam: string): string {
     </div>
 
     ${(() => {
+      const team = data.teamPerformanceMonth || []
+      if (team.length === 0) return ''
+      let rows = ''
+      for (const m of team) {
+        rows += `<tr><td style="font-weight:600">${m.name}</td><td style="text-align:center">${m.calls}</td><td style="text-align:center; font-weight:600; color:#059669">${m.settings}</td><td style="text-align:center; font-weight:600; color:#7c3aed">${m.closings}</td><td style="text-align:center; font-weight:700">${m.settings + m.closings}</td></tr>`
+      }
+      const totalSettings = team.reduce((s: number, m: any) => s + m.settings, 0)
+      const totalClosings = team.reduce((s: number, m: any) => s + m.closings, 0)
+      const totalCalls = team.reduce((s: number, m: any) => s + m.calls, 0)
+      rows += `<tr style="border-top:2px solid #e5e7eb; font-weight:700"><td>GESAMT</td><td style="text-align:center">${totalCalls}</td><td style="text-align:center; color:#059669">${totalSettings}</td><td style="text-align:center; color:#7c3aed">${totalClosings}</td><td style="text-align:center">${totalSettings + totalClosings}</td></tr>`
+      return `
+        <h2>Team — Termine pro Mitarbeiter</h2>
+        <table>
+          <thead><tr><th>Mitarbeiter</th><th style="text-align:center">Anwahlen</th><th style="text-align:center">Settings gelegt</th><th style="text-align:center">Closings gelegt</th><th style="text-align:center">Termine gesamt</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `
+    })()}
+
+    ${(() => {
       const outcomes = data.entscheiderOutcomesMonth || {}
       const entries = Object.entries(outcomes).sort((a: any, b: any) => b[1] - a[1])
       if (entries.length === 0) return ''

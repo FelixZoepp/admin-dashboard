@@ -330,7 +330,7 @@ export async function fetchCloseData() {
       const limit = 100
       while (hasMore) {
         const data = await closeApiFetch(
-          `/activity/custom/?date_created__gte=${monthStart}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
+          `/activity/custom/?date_created__gte=${monthStart}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
         )
         allCustomActivities.push(...data.data)
         hasMore = data.has_more
@@ -396,6 +396,54 @@ export async function fetchCloseData() {
     }
 
     const entscheiderOutcomesMonth = getEntscheiderOutcomes(monthStart)
+
+    // Team performance: settings + closings per member
+    function getTeamPerformance(dateGte: string): { name: string; settings: number; closings: number; calls: number }[] {
+      const coldCalls = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, dateGte)
+      const followUps = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, dateGte)
+      const settings = filterActivities(CUSTOM_ACTIVITY_TYPES.setting, dateGte)
+
+      const memberMap: Record<string, { settings: number; closings: number; calls: number }> = {}
+
+      // Count calls per member
+      for (const a of [...coldCalls, ...followUps]) {
+        const name = a.user_name || 'Unbekannt'
+        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
+        memberMap[name].calls++
+      }
+
+      // Settings gelegt per member (from cold calls)
+      for (const a of coldCalls.filter((a: any) => a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:')) {
+        const name = a.user_name || 'Unbekannt'
+        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
+        memberMap[name].settings++
+      }
+      // Settings from follow-ups
+      for (const a of followUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:')) {
+        const name = a.user_name || 'Unbekannt'
+        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
+        memberMap[name].settings++
+      }
+
+      // Closings gelegt per member (from settings)
+      for (const a of settings.filter((a: any) => a[SETTING_NAECHSTER_SCHRITT] === '2. Closing gelegt auf:')) {
+        const name = a.user_name || 'Unbekannt'
+        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
+        memberMap[name].closings++
+      }
+      // Closings from follow-ups
+      for (const a of followUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] === '3. Closing gelegt am:')) {
+        const name = a.user_name || 'Unbekannt'
+        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
+        memberMap[name].closings++
+      }
+
+      return Object.entries(memberMap)
+        .map(([name, stats]) => ({ name, ...stats }))
+        .sort((a, b) => (b.settings + b.closings) - (a.settings + a.closings))
+    }
+
+    const teamPerformanceMonth = getTeamPerformance(monthStart)
 
     // Settings gelegt = Cold Call mit Entscheider "Setting vereinbart am:" + Follow-Up mit "2. Setting gelegt am:"
     function countSettingsGelegt(dateGte: string): number {
@@ -771,6 +819,7 @@ export async function fetchCloseData() {
 
       salesFunnel,
       entscheiderOutcomesMonth,
+      teamPerformanceMonth,
       conversionFunnel,
       waterfall,
       pipelineDealsByStatus,
