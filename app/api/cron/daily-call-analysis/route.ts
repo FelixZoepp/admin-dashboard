@@ -291,6 +291,7 @@ ${transcriptBlock}`
 // ── Opener KPIs from Close ────────────────────────────────
 interface OpenerKPIs {
   anwahlen: number
+  protokolle: number
   entscheiderGesprochen: number
   termineGelegt: number
 }
@@ -316,6 +317,11 @@ function computeOpenerKPIs(openerName: string, calls: any[], customActivities: a
 
   // Filter custom activities by this opener
   const openerActivities = customActivities.filter((a: any) => a.user_name === openerName)
+
+  // Protokolle = Cold Call Gesprächsprotokolle
+  const protokolle = openerActivities.filter((a: any) =>
+    a.custom_activity_type_id === CUSTOM_ACTIVITY_TYPES.coldCall
+  ).length
 
   // Entscheider gesprochen = Cold Calls mit Entscheider-Feld (nicht "Niemand erreicht") + Follow-Ups mit Nächster Schritt (nicht "Nicht erreicht")
   const coldCallEntscheider = openerActivities.filter((a: any) =>
@@ -345,7 +351,7 @@ function computeOpenerKPIs(openerName: string, calls: any[], customActivities: a
 
   const termineGelegt = termineFromColdCall + termineFromFollowUp
 
-  return { anwahlen, entscheiderGesprochen, termineGelegt }
+  return { anwahlen, protokolle, entscheiderGesprochen, termineGelegt }
 }
 
 // ── Slack ──────────────────────────────────────────────────
@@ -543,11 +549,17 @@ export async function GET(request: Request) {
     for (const [, openerName] of Object.entries(OPENER_IDS)) {
       const kpi = openerKPIMap[openerName]
       if (kpi) {
+        const quoteEntscheider = kpi.anwahlen > 0 ? Math.round(kpi.anwahlen / Math.max(kpi.entscheiderGesprochen, 1)) : 0
+        const quoteTermin = kpi.anwahlen > 0 ? Math.round(kpi.anwahlen / Math.max(kpi.termineGelegt, 1)) : 0
+        const erreichquote = kpi.protokolle > 0 ? Math.round((kpi.entscheiderGesprochen / kpi.protokolle) * 100) : 0
+
         slackLines.push(
           `\n*${openerName}*`,
           `:phone: Anwahlen: *${kpi.anwahlen}*`,
+          `:clipboard: Protokolle: *${kpi.protokolle}*`,
           `:bust_in_silhouette: Entscheider gesprochen: *${kpi.entscheiderGesprochen}*`,
           `:calendar: Termine gelegt: *${kpi.termineGelegt}*`,
+          `:chart_with_upwards_trend: *Quoten:* ${quoteEntscheider} Anwahlen/Entscheider | ${quoteTermin} Anwahlen/Termin | ${erreichquote}% Erreichquote`,
         )
       }
     }
