@@ -49,15 +49,14 @@ const COLD_CALL_ENTSCHEIDER = 'custom.cf_0qd3PlDb9re1MU97cxNV7MJUXjHVYGmuifQc5Cs
 const FOLLOW_UP_NAECHSTER_SCHRITT = 'custom.cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN'
 
 // ── Helpers ────────────────────────────────────────────────
-function getTodayDateRange(): { start: string; end: string; dateISO: string } {
-  // CET/CEST: today from midnight CET to now
+function getDateRange(overrideDate?: string): { start: string; end: string; dateISO: string } {
+  if (overrideDate && /^\d{4}-\d{2}-\d{2}$/.test(overrideDate)) {
+    return { start: overrideDate, end: overrideDate, dateISO: overrideDate }
+  }
   const now = new Date()
-  const cetOffset = now.getTimezoneOffset() // We use UTC-based calculation
-  // Start of today CET (approx: UTC midnight - 1h in winter, -2h in summer)
   const year = now.getUTCFullYear()
   const month = now.getUTCMonth()
   const day = now.getUTCDate()
-  // Use the current UTC date as the reference day
   const startUTC = new Date(Date.UTC(year, month, day, 0, 0, 0))
   const endUTC = new Date(Date.UTC(year, month, day, 23, 59, 59))
   const dateISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -394,7 +393,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'CLOSE_API_KEY not set' }, { status: 500 })
     }
 
-    const { start, dateISO } = getTodayDateRange()
+    const url = new URL(request.url)
+    const dateParam = url.searchParams.get('date') || undefined
+    const { start, dateISO } = getDateRange(dateParam)
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
