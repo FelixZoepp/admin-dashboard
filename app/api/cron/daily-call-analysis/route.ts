@@ -357,9 +357,12 @@ function computeOpenerKPIs(openerName: string, calls: any[], customActivities: a
 // ── Slack ──────────────────────────────────────────────────
 async function sendSlackMessage(text: string) {
   const token = process.env.SLACK_BOT_TOKEN
-  if (!token) return
+  if (!token) {
+    console.error('SLACK_BOT_TOKEN not set — skipping Slack message')
+    return
+  }
 
-  await fetch('https://slack.com/api/chat.postMessage', {
+  const res = await fetch('https://slack.com/api/chat.postMessage', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -371,6 +374,11 @@ async function sendSlackMessage(text: string) {
       unfurl_links: false,
     }),
   })
+
+  const data = await res.json()
+  if (!data.ok) {
+    console.error('Slack API error:', data.error)
+  }
 }
 
 // ── Main Cron Handler ─────────────────────────────────────

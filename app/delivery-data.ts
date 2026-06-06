@@ -6,7 +6,11 @@ export interface DeliveryCustomer {
   firma: string
   paket: string
   rateMonat: number
+  cashInMonat: number
   status: string
+  paymentStatus: 'zahlend' | 'streitfall'
+  streitfallDetails: string
+  streitfallGesamt: number
   delivery: {
     felixHours: number
     nilsHours: number
@@ -33,6 +37,8 @@ export interface DeliveryMetrics {
   totalTeamCost: number
   netProfit: number
   netProfitPercent: number
+  cashInMonatNetto: number
+  cashInMonatBrutto: number
 }
 
 export function getDeliveryMetrics(): DeliveryMetrics {
@@ -53,7 +59,11 @@ export function getDeliveryMetrics(): DeliveryMetrics {
     firma: c.firma,
     paket: c.paket,
     rateMonat: c.rate_monat,
+    cashInMonat: c.cash_in_monat || c.rate_monat,
     status: c.status,
+    paymentStatus: c.payment_status || 'zahlend',
+    streitfallDetails: c.streitfall_details || '',
+    streitfallGesamt: c.streitfall_gesamt || 0,
     delivery: {
       felixHours: c.delivery.felix_hours,
       nilsHours: c.delivery.nils_hours,
@@ -76,8 +86,12 @@ export function getDeliveryMetrics(): DeliveryMetrics {
   const totalTeamCost = felixCost + lisaCost + marcelCost + nilsActualCost // 13550
 
   const totalMRR = summary.total_active_mrr
-  const netProfit = totalMRR - totalTeamCost
-  const netProfitPercent = Math.round((netProfit / totalMRR) * 1000) / 10
+
+  const cashInMonatNetto = summary.cash_in_monat || customers.reduce((s: number, c: any) => s + (c.cashInMonat || c.rateMonat), 0)
+  const cashInMonatBrutto = Math.round(cashInMonatNetto * 1.19)
+
+  const netProfit = cashInMonatNetto - totalTeamCost
+  const netProfitPercent = cashInMonatNetto > 0 ? Math.round((netProfit / cashInMonatNetto) * 1000) / 10 : 0
 
   return {
     team,
@@ -93,5 +107,7 @@ export function getDeliveryMetrics(): DeliveryMetrics {
     totalTeamCost,
     netProfit,
     netProfitPercent,
+    cashInMonatNetto,
+    cashInMonatBrutto,
   }
 }

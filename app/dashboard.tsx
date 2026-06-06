@@ -2,6 +2,68 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 
+// ── Types ──────────────────────────────────────────────────
+interface StatusTransition {
+  fromLabel: string
+  toLabel: string
+  count: number
+}
+
+interface PipelineQuality {
+  settingTransitions: StatusTransition[]
+  settingTotal: number
+  settingNoShowCount: number
+  settingNoShowRate: number
+  settingToClosingCount: number
+  settingToClosingRate: number
+  settingLostCount: number
+  settingLostRate: number
+  settingFollowUpCount: number
+  settingFollowUpRate: number
+  closingTransitions: StatusTransition[]
+  closingTotal: number
+  closingNoShowCount: number
+  closingNoShowRate: number
+  closingWonCount: number
+  closingWonRate: number
+  closingLostCount: number
+  closingLostRate: number
+  closingFollowUpCount: number
+  closingFollowUpRate: number
+  closingAngebotCount: number
+  closingCC2Count: number
+  noShowRecovery: StatusTransition[]
+}
+
+interface FunnelPeriod {
+  anwahlen: number
+  entscheiderErreicht: number
+  coldCalls: number
+  followUps: number
+  settingsGelegt: number
+  closingsGelegt: number
+  wonDeals: number
+  wonRevenue: number
+  erstdeals: number
+  upsells: number
+  erstdealRevenue: number
+  upsellRevenue: number
+  upsellRate: number
+}
+
+interface TeamMemberPerformance {
+  name: string
+  role: 'opener' | 'setter' | 'closer' | 'opener+setter' | 'setter+closer' | 'all'
+  calls: number
+  coldCallProtocols: number
+  followUpProtocols: number
+  entscheiderErreicht: number
+  settingsGelegt: number
+  closingsGelegt: number
+  callsPerEntscheider: number
+  callsPerSetting: number
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 function fmtNum(n: number): string {
   return n.toLocaleString('de-DE')
@@ -83,6 +145,11 @@ interface DashboardData {
     avgDealCycle: number
   }
   pipelineDealsByStatus: Record<string, { leadName: string; value: number; date: string }[]>
+  pipelineNeukunde: { leadName: string; status: string; value: number; date: string }[]
+  pipelineBestandskunde: { leadName: string; status: string; value: number; date: string }[]
+  pipelineNeukundeValue: number
+  pipelineBestandskundeValue: number
+  upsellDealsList: { leadName: string; value: number; date: string }[]
   customerAnalytics: {
     customers: {
       name: string
@@ -218,39 +285,24 @@ interface DashboardData {
     monthClosings: number
     monthOnboardings: number
     monthOther: number
+    weekCanceledSettings: number
+    weekCanceledClosings: number
+    monthCanceledSettings: number
+    monthCanceledClosings: number
   }
   salesFunnel: {
-    today: {
-      anwahlen: number
-      entscheiderErreicht: number
-      coldCalls: number
-      followUps: number
-      settingsGelegt: number
-      closingsGelegt: number
-      wonDeals: number
-      wonRevenue: number
-    }
-    week: {
-      anwahlen: number
-      entscheiderErreicht: number
-      coldCalls: number
-      followUps: number
-      settingsGelegt: number
-      closingsGelegt: number
-      wonDeals: number
-      wonRevenue: number
-    }
-    month: {
-      anwahlen: number
-      entscheiderErreicht: number
-      coldCalls: number
-      followUps: number
-      settingsGelegt: number
-      closingsGelegt: number
-      wonDeals: number
-      wonRevenue: number
-    }
+    today: FunnelPeriod
+    week: FunnelPeriod
+    month: FunnelPeriod
+    alltime: FunnelPeriod
     quoten: {
+      erreichquote: number
+      settingQuote: number
+      closingQuote: number
+      abschlussQuote: number
+      overallAnwahlenToWon: number
+    }
+    quotenAllTime: {
       erreichquote: number
       settingQuote: number
       closingQuote: number
@@ -268,6 +320,35 @@ interface DashboardData {
       cc2Terminiert: number
     }
   }
+  entscheiderOutcomesToday: Record<string, number>
+  entscheiderOutcomesWeek: Record<string, number>
+  entscheiderOutcomesMonth: Record<string, number>
+  entscheiderOutcomesYear: Record<string, number>
+  einwandToday: Record<string, number>
+  einwandWeek: Record<string, number>
+  einwandMonth: Record<string, number>
+  einwandYear: Record<string, number>
+  settingOutcomesToday: Record<string, number>
+  settingOutcomesWeek: Record<string, number>
+  settingOutcomesMonth: Record<string, number>
+  settingOutcomesYear: Record<string, number>
+  settingProtocolsMonth: number
+  settingProtocolsWeek: number
+  pipelineQualityAllTime: PipelineQuality
+  pipelineQualityWeek: PipelineQuality
+  pipelineQualityMonth: PipelineQuality
+  teamPerformanceToday: TeamMemberPerformance[]
+  teamPerformanceWeek: TeamMemberPerformance[]
+  teamPerformanceMonth: TeamMemberPerformance[]
+  teamPerformanceAllTime: TeamMemberPerformance[]
+  funnelRatios: {
+    anwahlenProEntscheider: number
+    anwahlenProSetting: number
+    settingsProClosing: number
+    closingsProWon: number
+    anwahlenProWon: number
+    entscheiderProSetting: number
+  }
   allWonDeals: { name: string; value: number; date: string; user: string }[]
   allLostDeals: { name: string; value: number; date: string }[]
   allCustomActivities: any[]
@@ -284,7 +365,11 @@ interface DashboardData {
       firma: string
       paket: string
       rateMonat: number
+      cashInMonat: number
       status: string
+      paymentStatus: 'zahlend' | 'streitfall'
+      streitfallDetails: string
+      streitfallGesamt: number
       delivery: {
         felixHours: number
         nilsHours: number
@@ -307,6 +392,8 @@ interface DashboardData {
     totalTeamCost: number
     netProfit: number
     netProfitPercent: number
+    cashInMonatNetto: number
+    cashInMonatBrutto: number
   }
   outreachMetrics: {
     available: boolean
@@ -328,6 +415,75 @@ interface DashboardData {
     }[]
     tracking: { pageViews: number; videoPlays: number; ctaClicks: number }
     recentActivity: { name: string; company: string | null; status: string; updatedAt: string }[]
+  }
+  marketingMetrics: {
+    available: boolean
+    platforms: Record<string, { source: string; metrics: Record<string, any>; recorded_at: string }>
+    kpis: { postsThisWeek: number; impressions: number; engagement: number; leadsViaMarketing: number }
+    history: { source: string; metrics: Record<string, any>; recorded_at: string }[]
+    perspective: {
+      totalLeads: number; completedLeads: number; convertedLeads: number; conversionRate: number
+      funnels: { name: string; leads: number; completed: number; converted: number }[]
+      recentLeads: { funnel_name: string; name: string | null; email: string | null; completed: boolean; converted: boolean; recorded_at: string }[]
+    }
+    perspectiveByCampaign: { campaignId: string; leads: number; converted: number; completed: number; creatives: Record<string, number> }[]
+  }
+  facebookMetrics: {
+    available: boolean
+    period: { start: string; end: string }
+    previousPeriod: { start: string; end: string } | null
+    campaigns: {
+      name: string; status: string; results: number; resultType: string
+      reach: number; frequency: number; costPerResult: number; budget: number
+      spend: number; impressions: number; cpm: number; linkClicks: number
+      cpc: number; ctr: number; allClicks: number; landingPageViews: number
+      videoViews3s: number; thruPlays: number
+    }[]
+    totals: { spend: number; impressions: number; reach: number; linkClicks: number; leads: number; cpl: number; ctr: number; cpm: number; landingPageViews: number }
+    previousTotals: { spend: number; impressions: number; reach: number; linkClicks: number; leads: number; cpl: number; ctr: number; cpm: number; landingPageViews: number } | null
+  }
+  callAnalysisMetrics: {
+    available: boolean
+    latest: {
+      date: string; opener_name: string; opener_user_id: string
+      total_calls: number; calls_with_transcript: number; total_call_minutes: number
+      skript_treue_score: number; tonalitaet_score: number; einwandbehandlung_score: number
+      gespraechsfuehrung_score: number; overall_score: number
+      analysis_text: string; strengths: string; weaknesses: string; patterns: string; recommendations: string
+      call_summaries: { call_nr: number; note: string }[]
+    }[]
+    history: {
+      date: string; opener_name: string; opener_user_id: string
+      total_calls: number; calls_with_transcript: number; total_call_minutes: number
+      skript_treue_score: number; tonalitaet_score: number; einwandbehandlung_score: number
+      gespraechsfuehrung_score: number; overall_score: number
+      analysis_text: string; strengths: string; weaknesses: string; patterns: string; recommendations: string
+      call_summaries: { call_nr: number; note: string }[]
+    }[]
+    avgScores: Record<string, {
+      skriptTreue: number; tonalitaet: number; einwandbehandlung: number
+      gespraechsfuehrung: number; overall: number; totalCalls: number; totalDays: number
+    }>
+  }
+  openerTracking: {
+    openers: {
+      name: string
+      startDate: string
+      targetTermine: number
+      maxDays: number
+      totalTermine: number
+      dailyLog: { date: string; count: number; fruehbonus: boolean; bonus: { base: number; fruehbonus: number; total: number } }[]
+      daysElapsed: number
+      daysRemaining: number
+      deadlineDate: string
+      termineRemaining: number
+      requiredPerDay: number
+      onTrack: boolean
+      progressPercent: number
+      completed: boolean
+      totalBonus: number
+    }[]
+    lastUpdated: string
   }
   lastUpdated: string
   error?: string
@@ -351,6 +507,7 @@ const NAV_DASHBOARD = [
   { id: 'kunden', label: 'Kunden', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg> },
   { id: 'recruiting', label: 'Recruiting', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><path d="M12 12v4"/><path d="M10 14h4"/></svg> },
   { id: 'team', label: 'Team', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> },
+  { id: 'call-analyse', label: 'Call-Analyse', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><path d="M12 19v4"/><path d="M8 23h8"/></svg> },
 ]
 
 // ══════════════════════════════════════════════════════════════
@@ -599,11 +756,515 @@ function HeatmapChart({ weeks = 20 }: { weeks?: number }) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// CALL-ANALYSE PANEL (own state: opener tabs, period)
+// ══════════════════════════════════════════════════════════════
+
+function CallAnalysePanel({ data }: { data: DashboardData }) {
+  const cam = data.callAnalysisMetrics
+  const [selectedOpener, setSelectedOpener] = useState<string>('all')
+
+  if (!cam || !cam.available) {
+    return (
+      <div className="za-panel fade-up" style={{ padding: '40px', textAlign: 'center' }}>
+        <div style={{ fontSize: '16px', color: 'var(--za-fg-3)', marginBottom: '8px' }}>Noch keine Call-Analyse vorhanden</div>
+        <div style={{ fontSize: '13px', color: 'var(--za-fg-4)' }}>Die t&auml;gliche Analyse l&auml;uft automatisch um 18:30 Uhr.</div>
+      </div>
+    )
+  }
+
+  const scoreColor = (s: number) => s >= 8 ? 'var(--za-success)' : s >= 6 ? 'var(--za-info)' : s >= 4 ? 'var(--za-gold-2)' : 'var(--za-danger)'
+
+  const scoreBar = (score: number, label: string) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+      <div style={{ width: '130px', fontSize: '11px', color: 'var(--za-fg-3)', textAlign: 'right' }}>{label}</div>
+      <div style={{ flex: 1, height: '18px', background: 'rgba(249,249,249,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
+        <div style={{ width: `${score * 10}%`, height: '100%', background: scoreColor(score), borderRadius: '4px', transition: 'width 0.6s ease' }} />
+      </div>
+      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '14px', fontWeight: 700, color: scoreColor(score), width: '32px', textAlign: 'right' }}>{score}/10</div>
+    </div>
+  )
+
+  const openerNames = [...new Set(cam.history.map(h => h.opener_name))]
+  const openerTabs = [{ key: 'all', label: 'Alle' }, ...openerNames.map(n => ({ key: n, label: n.split(' ')[0] }))]
+
+  // Filter data by selected opener
+  const filteredLatest = selectedOpener === 'all' ? cam.latest : cam.latest.filter(e => e.opener_name === selectedOpener)
+  const filteredHistory = selectedOpener === 'all' ? cam.history : cam.history.filter(e => e.opener_name === selectedOpener)
+
+  // Score trend chart (SVG line chart)
+  const TrendChart = ({ entries, metric, label, color }: { entries: typeof cam.history; metric: keyof typeof cam.history[0]; label: string; color: string }) => {
+    const sorted = [...entries].filter(e => (e[metric] as number) > 0).reverse()
+    if (sorted.length < 2) return null
+    const values = sorted.map(e => e[metric] as number)
+    const w = 400, h = 100, pad = 20
+    const maxV = 10, minV = 0
+    const step = (w - pad * 2) / (values.length - 1)
+    const pts = values.map((v, i) => `${pad + i * step},${pad + (1 - (v - minV) / (maxV - minV)) * (h - pad * 2)}`)
+    const dates = sorted.map(e => e.date.substring(5))
+
+    return (
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{label}</div>
+        <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: '80px' }}>
+          {/* Grid lines */}
+          {[2, 4, 6, 8].map(v => (
+            <line key={v} x1={pad} x2={w - pad} y1={pad + (1 - v / 10) * (h - pad * 2)} y2={pad + (1 - v / 10) * (h - pad * 2)} stroke="rgba(249,249,249,0.06)" strokeWidth="0.5" />
+          ))}
+          {/* Line */}
+          <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+          {/* Dots */}
+          {pts.map((p, i) => {
+            const [x, y] = p.split(',').map(Number)
+            return <circle key={i} cx={x} cy={y} r="3" fill={color} />
+          })}
+          {/* Labels */}
+          {dates.map((d, i) => {
+            if (dates.length > 10 && i % 2 !== 0) return null
+            return <text key={i} x={pad + i * step} y={h - 2} textAnchor="middle" fill="rgba(249,249,249,0.3)" fontSize="7">{d}</text>
+          })}
+          {/* Y labels */}
+          {[0, 5, 10].map(v => (
+            <text key={v} x={pad - 6} y={pad + (1 - v / 10) * (h - pad * 2) + 3} textAnchor="end" fill="rgba(249,249,249,0.3)" fontSize="7">{v}</text>
+          ))}
+        </svg>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Opener Tabs */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+        {openerTabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setSelectedOpener(tab.key)}
+            style={{
+              padding: '8px 18px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s',
+              border: selectedOpener === tab.key ? '1px solid var(--za-violet)' : '1px solid rgba(249,249,249,0.1)',
+              background: selectedOpener === tab.key ? 'rgba(124,92,191,0.15)' : 'rgba(249,249,249,0.04)',
+              color: selectedOpener === tab.key ? 'var(--za-violet)' : 'var(--za-fg-3)',
+              fontSize: '13px', fontWeight: 600,
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Latest Analysis Cards per Opener */}
+      <div style={{ display: 'grid', gridTemplateColumns: filteredLatest.length > 1 ? 'repeat(2, 1fr)' : '1fr', gap: '16px', marginBottom: '16px' }}>
+        {filteredLatest.map((entry, i) => (
+          <div key={i} className="za-panel fade-up" style={{ animationDelay: `${i * 80}ms`, borderTop: `2px solid ${scoreColor(entry.overall_score)}`, padding: '24px' }}>
+            <div className="panel-head" style={{ marginBottom: '16px' }}>
+              <div>
+                <span className="panel-eyebrow" style={{ color: scoreColor(entry.overall_score) }}>{entry.opener_name}</span>
+                <div className="panel-title" style={{ fontSize: '16px' }}>
+                  {entry.date} &mdash; {entry.total_calls} Calls ({entry.calls_with_transcript} transkribiert)
+                </div>
+              </div>
+              <div style={{ fontFamily: 'var(--za-serif)', fontSize: '28px', fontWeight: 700, color: scoreColor(entry.overall_score) }}>
+                {entry.overall_score}/10
+              </div>
+            </div>
+
+            {scoreBar(entry.skript_treue_score, 'Skript-Treue')}
+            {scoreBar(entry.tonalitaet_score, 'Tonalit\u00e4t')}
+            {scoreBar(entry.einwandbehandlung_score, 'Einwandbehandlung')}
+            {scoreBar(entry.gespraechsfuehrung_score, 'Gespr\u00e4chsf\u00fchrung')}
+
+            {entry.analysis_text && (
+              <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', fontSize: '13px', color: 'var(--za-fg-2)', lineHeight: 1.6 }}>
+                {entry.analysis_text}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+              {entry.strengths && (
+                <div style={{ padding: '12px', background: 'rgba(78,138,107,0.06)', borderRadius: '8px', borderLeft: '3px solid var(--za-success)' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--za-success)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>St\u00e4rken</div>
+                  <div style={{ fontSize: '12px', color: 'var(--za-fg-2)', lineHeight: 1.5 }}>{entry.strengths}</div>
+                </div>
+              )}
+              {entry.weaknesses && (
+                <div style={{ padding: '12px', background: 'rgba(192,57,43,0.06)', borderRadius: '8px', borderLeft: '3px solid var(--za-danger)' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--za-danger)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Schw\u00e4chen</div>
+                  <div style={{ fontSize: '12px', color: 'var(--za-fg-2)', lineHeight: 1.5 }}>{entry.weaknesses}</div>
+                </div>
+              )}
+            </div>
+
+            {entry.recommendations && (
+              <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(59,130,246,0.06)', borderRadius: '8px', borderLeft: '3px solid var(--za-info)' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--za-info)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Morgen \u00fcben</div>
+                <div style={{ fontSize: '12px', color: 'var(--za-fg-2)', lineHeight: 1.5 }}>{entry.recommendations}</div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Score Trend Graphs */}
+      {filteredHistory.length >= 2 && (
+        <div className="za-panel fade-up" style={{ animationDelay: '160ms', marginBottom: '16px', padding: '24px' }}>
+          <div className="panel-head" style={{ marginBottom: '16px' }}>
+            <div>
+              <span className="panel-eyebrow" style={{ color: 'var(--za-gold-2)' }}>Score-Verlauf</span>
+              <div className="panel-title" style={{ fontSize: '16px' }}>
+                Performance &uuml;ber Zeit {selectedOpener !== 'all' ? `\u2014 ${selectedOpener}` : ''}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <TrendChart entries={filteredHistory} metric="overall_score" label="Gesamt" color="var(--za-gold-2)" />
+            <TrendChart entries={filteredHistory} metric="skript_treue_score" label="Skript-Treue" color="var(--za-info)" />
+            <TrendChart entries={filteredHistory} metric="tonalitaet_score" label="Tonalit\u00e4t" color="var(--za-violet)" />
+            <TrendChart entries={filteredHistory} metric="einwandbehandlung_score" label="Einwandbehandlung" color="var(--za-danger)" />
+          </div>
+        </div>
+      )}
+
+      {/* Vergleichstabelle */}
+      {Object.keys(cam.avgScores).length > 0 && selectedOpener === 'all' && (
+        <div className="za-panel fade-up" style={{ animationDelay: '240ms', marginBottom: '16px', padding: '24px' }}>
+          <div className="panel-head" style={{ marginBottom: '16px' }}>
+            <div>
+              <span className="panel-eyebrow" style={{ color: 'var(--za-gold-2)' }}>30-Tage Durchschnitt</span>
+              <div className="panel-title" style={{ fontSize: '16px' }}>Opener im Vergleich</div>
+            </div>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(249,249,249,0.1)' }}>
+                  {['Opener', 'Tage', 'Calls', 'Skript', 'Tonalit\u00e4t', 'Einw\u00e4nde', 'F\u00fchrung', 'Gesamt'].map((h, j) => (
+                    <th key={j} style={{ padding: '8px 10px', textAlign: j === 0 ? 'left' : 'right', fontSize: '10px', fontWeight: 700, color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(cam.avgScores).map(([name, scores], j) => (
+                  <tr key={j} style={{ borderBottom: '1px solid rgba(249,249,249,0.05)', cursor: 'pointer' }} onClick={() => setSelectedOpener(name)}>
+                    <td style={{ padding: '10px', fontWeight: 600, color: '#fff' }}>{name}</td>
+                    <td style={{ padding: '10px', textAlign: 'right', color: 'var(--za-fg-3)' }}>{scores.totalDays}</td>
+                    <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700 }}>{fmtNum(scores.totalCalls)}</td>
+                    <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: scoreColor(scores.skriptTreue) }}>{scores.skriptTreue}</td>
+                    <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: scoreColor(scores.tonalitaet) }}>{scores.tonalitaet}</td>
+                    <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: scoreColor(scores.einwandbehandlung) }}>{scores.einwandbehandlung}</td>
+                    <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: scoreColor(scores.gespraechsfuehrung) }}>{scores.gespraechsfuehrung}</td>
+                    <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 700, color: scoreColor(scores.overall) }}>{scores.overall}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tageshistorie */}
+      {filteredHistory.length > 0 && (
+        <div className="za-panel fade-up" style={{ animationDelay: '320ms', marginBottom: '16px', padding: '24px' }}>
+          <div className="panel-head" style={{ marginBottom: '16px' }}>
+            <div>
+              <span className="panel-eyebrow">Verlauf</span>
+              <div className="panel-title" style={{ fontSize: '16px' }}>T&auml;gliche Analysen</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '400px', overflowY: 'auto' }}>
+            {filteredHistory.map((entry, j) => (
+              <div key={j} style={{
+                display: 'grid', gridTemplateColumns: selectedOpener === 'all' ? '90px 140px 60px repeat(4, 50px) 60px' : '90px 60px repeat(4, 50px) 60px',
+                alignItems: 'center', gap: '8px', padding: '8px 10px',
+                background: j % 2 === 0 ? 'rgba(249,249,249,0.03)' : 'transparent',
+                borderRadius: '6px',
+              }}>
+                <div style={{ fontSize: '12px', color: 'var(--za-fg-3)', fontFamily: 'var(--za-mono, monospace)' }}>{entry.date}</div>
+                {selectedOpener === 'all' && <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>{entry.opener_name.split(' ')[0]}</div>}
+                <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', textAlign: 'right' }}>{entry.total_calls} Calls</div>
+                <div style={{ fontSize: '12px', textAlign: 'right', color: scoreColor(entry.skript_treue_score) }}>{entry.skript_treue_score}</div>
+                <div style={{ fontSize: '12px', textAlign: 'right', color: scoreColor(entry.tonalitaet_score) }}>{entry.tonalitaet_score}</div>
+                <div style={{ fontSize: '12px', textAlign: 'right', color: scoreColor(entry.einwandbehandlung_score) }}>{entry.einwandbehandlung_score}</div>
+                <div style={{ fontSize: '12px', textAlign: 'right', color: scoreColor(entry.gespraechsfuehrung_score) }}>{entry.gespraechsfuehrung_score}</div>
+                <div style={{ fontFamily: 'var(--za-serif)', fontSize: '14px', fontWeight: 700, textAlign: 'right', color: scoreColor(entry.overall_score) }}>{entry.overall_score}/10</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════
+// OPENER PERFORMANCE PANEL (own period state)
+// ══════════════════════════════════════════════════════════════
+
+type OpenerPeriod = 'today' | 'week' | 'month' | 'alltime' | 'custom'
+
+function OpenerPerformancePanel({ data }: { data: DashboardData }) {
+  const [openerPeriod, setOpenerPeriod] = useState<OpenerPeriod>('month')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [customData, setCustomData] = useState<{ team: TeamMemberPerformance[]; funnelRatios: typeof data.funnelRatios } | null>(null)
+  const [customLoading, setCustomLoading] = useState(false)
+
+  const periodMap: Record<Exclude<OpenerPeriod, 'custom'>, { team: TeamMemberPerformance[]; label: string }> = {
+    today: { team: data.teamPerformanceToday, label: 'Heute' },
+    week: { team: data.teamPerformanceWeek, label: 'Diese Woche' },
+    month: { team: data.teamPerformanceMonth, label: 'Dieser Monat' },
+    alltime: { team: data.teamPerformanceAllTime, label: `Gesamt ${new Date().getFullYear()}` },
+  }
+
+  // Fetch custom date range from API
+  const fetchCustomRange = useCallback(async (from: string, to: string) => {
+    if (!from) return
+    setCustomLoading(true)
+    try {
+      const params = new URLSearchParams({ from })
+      if (to) params.set('to', to)
+      const res = await fetch(`/api/close/team-performance?${params}`)
+      if (res.ok) {
+        const result = await res.json()
+        setCustomData({ team: result.team, funnelRatios: result.funnelRatios })
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCustomLoading(false)
+    }
+  }, [])
+
+  // Trigger fetch when custom dates change
+  useEffect(() => {
+    if (openerPeriod === 'custom' && customFrom) {
+      const timeout = setTimeout(() => fetchCustomRange(customFrom, customTo), 300)
+      return () => clearTimeout(timeout)
+    }
+  }, [openerPeriod, customFrom, customTo, fetchCustomRange])
+
+  let team: TeamMemberPerformance[]
+  let periodLabel: string
+  let fr = data.funnelRatios
+
+  // Map openerPeriod to salesFunnel period key
+  const funnelPeriodMap: Record<string, FunnelPeriod | undefined> = {
+    today: data.salesFunnel.today,
+    week: data.salesFunnel.week,
+    month: data.salesFunnel.month,
+    alltime: data.salesFunnel.alltime,
+  }
+
+  const computeRatios = (fp: FunnelPeriod) => {
+    const r = (a: number, b: number) => b > 0 ? Math.round((a / b) * 10) / 10 : 0
+    return {
+      anwahlenProEntscheider: r(fp.anwahlen, fp.entscheiderErreicht),
+      anwahlenProSetting: r(fp.anwahlen, fp.settingsGelegt),
+      entscheiderProSetting: r(fp.entscheiderErreicht, fp.settingsGelegt),
+      settingsProClosing: r(fp.settingsGelegt, fp.closingsGelegt),
+      closingsProWon: r(fp.closingsGelegt, fp.wonDeals),
+      anwahlenProWon: r(fp.anwahlen, fp.wonDeals),
+    }
+  }
+
+  if (openerPeriod === 'custom') {
+    if (customData) {
+      team = customData.team
+      fr = customData.funnelRatios
+    } else {
+      team = data.teamPerformanceMonth
+    }
+    periodLabel = customFrom ? `${customFrom}${customTo ? ` – ${customTo}` : ' – heute'}` : 'Zeitraum wählen'
+  } else {
+    const p = periodMap[openerPeriod]
+    team = p.team
+    periodLabel = p.label
+    const fp = funnelPeriodMap[openerPeriod]
+    if (fp) fr = computeRatios(fp)
+  }
+
+  if (!team || team.length === 0) return null
+
+  const openers = team.filter(m => m.role === 'opener')
+
+  const roleLabel = (r: string) => {
+    switch (r) {
+      case 'opener': return 'Opener'
+      case 'setter': return 'Setter'
+      case 'closer': return 'Closer'
+      case 'setter+closer': return 'Setter + Closer'
+      default: return r
+    }
+  }
+
+  const roleColor = (r: string) => {
+    switch (r) {
+      case 'opener': return 'var(--za-info)'
+      case 'setter+closer': return 'var(--za-violet)'
+      default: return 'var(--za-gold-2)'
+    }
+  }
+
+  const periodButtons: { key: OpenerPeriod; label: string }[] = [
+    { key: 'today', label: 'Heute' },
+    { key: 'week', label: 'Woche' },
+    { key: 'month', label: 'Monat' },
+    { key: 'alltime', label: 'Gesamt' },
+    { key: 'custom', label: 'Custom' },
+  ]
+
+  return (
+    <div className="za-panel fade-up" style={{ animationDelay: '485ms', marginBottom: '16px', borderTop: '2px solid var(--za-info)', padding: '24px' }}>
+      <div className="panel-head" style={{ marginBottom: '16px' }}>
+        <div>
+          <span className="panel-eyebrow" style={{ color: 'var(--za-info)' }}>Team Performance</span>
+          <div className="panel-title" style={{ fontSize: '18px' }}>
+            Opener &amp; Setter &mdash; {periodLabel}{customLoading ? ' ...' : ''}
+          </div>
+        </div>
+      </div>
+
+      {/* Period Toggle */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        {periodButtons.map(pb => (
+          <button
+            key={pb.key}
+            onClick={() => setOpenerPeriod(pb.key)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: openerPeriod === pb.key ? '1px solid var(--za-info)' : '1px solid rgba(249,249,249,0.1)',
+              background: openerPeriod === pb.key ? 'rgba(59,130,246,0.15)' : 'rgba(249,249,249,0.04)',
+              color: openerPeriod === pb.key ? 'var(--za-info)' : 'var(--za-fg-3)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            {pb.label}
+          </button>
+        ))}
+        {openerPeriod === 'custom' && (
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginLeft: '8px' }}>
+            <input
+              type="date"
+              value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              style={{
+                padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(249,249,249,0.15)',
+                background: 'rgba(249,249,249,0.06)', color: '#fff', fontSize: '12px',
+              }}
+            />
+            <span style={{ color: 'var(--za-fg-4)', fontSize: '12px' }}>–</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              style={{
+                padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(249,249,249,0.15)',
+                background: 'rgba(249,249,249,0.06)', color: '#fff', fontSize: '12px',
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Funnel Efficiency Ratios */}
+      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-gold-2)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+        Funnel-Effizienz ({periodLabel})
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }}>
+        {[
+          { label: 'Anwahlen / Entscheider', value: `${fr.anwahlenProEntscheider}x`, sub: 'Calls pro Entscheider', color: 'var(--za-fg-2)' },
+          { label: 'Anwahlen / Setting', value: `${fr.anwahlenProSetting}x`, sub: 'Calls pro Setting', color: 'var(--za-info)' },
+          { label: 'Entscheider / Setting', value: `${fr.entscheiderProSetting}x`, sub: 'Entscheider pro Setting', color: 'var(--za-fg-2)' },
+          { label: 'Settings / Closing', value: `${fr.settingsProClosing}x`, sub: 'Settings pro Closing', color: 'var(--za-violet)' },
+          { label: 'Closings / Won', value: `${fr.closingsProWon}x`, sub: 'Closings pro Abschluss', color: 'var(--za-success)' },
+          { label: 'Anwahlen / Won', value: `${fr.anwahlenProWon}x`, sub: 'Calls pro Abschluss', color: 'var(--za-gold-2)' },
+        ].map((kpi, i) => (
+          <div key={i} style={{ padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: `3px solid ${kpi.color}` }}>
+            <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>{kpi.label}</div>
+            <div style={{ fontFamily: 'var(--za-serif)', fontSize: '20px', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+            <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', marginTop: '1px' }}>{kpi.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-member table */}
+      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-info)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+        Performance pro Teammitglied
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid rgba(249,249,249,0.1)' }}>
+              {['Name', 'Rolle', 'Anwahlen', 'Entscheider', 'Settings', 'Closings', 'Calls/Entsch.', 'Calls/Setting'].map((h, i) => (
+                <th key={i} style={{ padding: '8px 10px', textAlign: i < 2 ? 'left' : 'right', fontSize: '10px', fontWeight: 700, color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {team.map((m, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid rgba(249,249,249,0.05)' }}>
+                <td style={{ padding: '10px', fontWeight: 600, color: '#fff' }}>{m.name}</td>
+                <td style={{ padding: '10px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: '8px', background: `color-mix(in srgb, ${roleColor(m.role)} 15%, transparent)`, color: roleColor(m.role) }}>
+                    {roleLabel(m.role)}
+                  </span>
+                </td>
+                <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700 }}>{fmtNum(m.calls)}</td>
+                <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700 }}>{fmtNum(m.entscheiderErreicht)}</td>
+                <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: 'var(--za-info)' }}>{m.settingsGelegt}</td>
+                <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: 'var(--za-violet)' }}>{m.closingsGelegt}</td>
+                <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', color: 'var(--za-fg-3)' }}>{m.callsPerEntscheider > 0 ? `${m.callsPerEntscheider}x` : '-'}</td>
+                <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', color: 'var(--za-fg-3)' }}>{m.callsPerSetting > 0 ? `${m.callsPerSetting}x` : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Opener highlight cards */}
+      {openers.length > 0 && (
+        <div style={{ marginTop: '20px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-info)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+            Opener Detail
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(openers.length, 3)}, 1fr)`, gap: '12px' }}>
+            {openers.map((op, i) => (
+              <div key={i} style={{ padding: '16px', background: 'rgba(59,130,246,0.06)', borderRadius: '10px', border: '1px solid rgba(59,130,246,0.15)' }}>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginBottom: '10px' }}>{op.name}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  {[
+                    { label: 'Anwahlen', value: fmtNum(op.calls) },
+                    { label: 'Cold Calls', value: fmtNum(op.coldCallProtocols) },
+                    { label: 'Follow-Ups', value: fmtNum(op.followUpProtocols) },
+                    { label: 'Entscheider', value: fmtNum(op.entscheiderErreicht) },
+                    { label: 'Settings gelegt', value: String(op.settingsGelegt) },
+                    { label: 'Calls/Setting', value: op.callsPerSetting > 0 ? `${op.callsPerSetting}x` : '-' },
+                  ].map((stat, j) => (
+                    <div key={j}>
+                      <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase' }}>{stat.label}</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 700, color: '#fff' }}>{stat.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════
 // MAIN DASHBOARD
 // ══════════════════════════════════════════════════════════════
 
 export default function Dashboard({ data }: { data: DashboardData }) {
   const [activeNav, setActiveNav] = useState('sales')
+  const [kundenSubTab, setKundenSubTab] = useState<'zahlend' | 'streitfaelle'>('zahlend')
   const [period, setPeriod] = useState<Period>('month')
   const [customFrom, setCustomFrom] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() - 1);
@@ -620,6 +1281,24 @@ export default function Dashboard({ data }: { data: DashboardData }) {
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
   const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set())
   const [expandedLeadStatuses, setExpandedLeadStatuses] = useState<Set<string>>(new Set())
+
+  // Won Deal Celebration
+  const [celebrationDeal, setCelebrationDeal] = useState<{ name: string; value: number; user: string; date: string } | null>(null)
+  const [celebClosing, setCelebClosing] = useState(false)
+  const celebShownRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    const todayDeals = (data.allWonDeals || []).filter(d => d.date === data.todayISO)
+    for (const deal of todayDeals) {
+      const key = `${deal.name}-${deal.date}-${deal.value}`
+      if (!celebShownRef.current.has(key)) {
+        celebShownRef.current.add(key)
+        setCelebrationDeal(deal)
+        const timer = setTimeout(() => { setCelebClosing(true); setTimeout(() => { setCelebrationDeal(null); setCelebClosing(false) }, 500) }, 6000)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [data.allWonDeals, data.todayISO])
 
   const toggleMonth = (label: string) => {
     setExpandedMonths(prev => { const next = new Set(prev); next.has(label) ? next.delete(label) : next.add(label); return next })
@@ -646,23 +1325,12 @@ export default function Dashboard({ data }: { data: DashboardData }) {
   const periodClosedTotal = filteredWon.length + filteredLost.length
   const periodClosingRate = periodClosedTotal > 0 ? Math.round((filteredWon.length / periodClosedTotal) * 100) : 0
 
-  // Activities filtered by custom range (for Anwahlen display)
-  const periodActivities = (data.allCustomActivities || []).filter((a: any) => a.date_created >= periodStart && a.date_created <= periodEnd)
-  const periodTypeIds = data.customActivityTypeIds || {} as any
-  const periodFields = data.customFieldIds || {} as any
-  const periodColdCalls = periodActivities.filter((a: any) => a.custom_activity_type_id === periodTypeIds.coldCall)
-  const periodFollowUps = periodActivities.filter((a: any) => a.custom_activity_type_id === periodTypeIds.followUp)
-  // Anwahlen = calls_made from Close CRM activity overview
-  const periodAnwahlen = useCustomRange
-    ? ((data as any).callsPerMonth?.lastMonth || 0) // custom range uses last month's real calls
-    : period === 'week' ? data.callsThisWeek
-    : period === 'month' ? ((data as any).callsPerMonth?.lastMonth || (data.weeklyCallData || []).slice(-4).reduce((s: number, w: any) => s + w.calls, 0))
-    : period === 'today' ? Math.round(data.callsThisWeek / 5)
-    : ((data as any).totalCallsLast90Days || (data.weeklyCallData || []).reduce((s: number, w: any) => s + w.calls, 0))
-  const periodEntscheider = periodColdCalls.filter((a: any) => a[periodFields.COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
-    + periodFollowUps.filter((a: any) => a[periodFields.FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
-  const periodSettings = periodColdCalls.filter((a: any) => a[periodFields.COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:').length
-    + periodFollowUps.filter((a: any) => a[periodFields.FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:').length
+  // Anwahlen, Entscheider, Settings from salesFunnel (pre-computed in data.ts)
+  const funnelPeriod = period === 'today' ? 'today' : period === 'week' ? 'week' : 'month'
+  const periodFunnel = data.salesFunnel?.[funnelPeriod] || data.salesFunnel?.month || { anwahlen: 0, entscheiderErreicht: 0, settingsGelegt: 0 }
+  const periodAnwahlen = periodFunnel.anwahlen || 0
+  const periodEntscheider = periodFunnel.entscheiderErreicht || 0
+  const periodSettings = periodFunnel.settingsGelegt || 0
 
   // Call change
   const callChange = data.callsLastWeek > 0
@@ -735,8 +1403,49 @@ export default function Dashboard({ data }: { data: DashboardData }) {
     </div>
   )
 
+  // Confetti generator
+  const confettiColors = ['#C5A059', '#E9CB8B', '#7FC29B', '#8BB6E8', '#B49AE8', '#fff']
+  const confettiPieces = celebrationDeal ? Array.from({ length: 40 }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    delay: Math.random() * 1.5,
+    duration: 2 + Math.random() * 2,
+    color: confettiColors[i % confettiColors.length],
+    size: 6 + Math.random() * 8,
+    rotation: Math.random() * 360,
+  })) : []
+
   return (
     <>
+      {/* Won Deal Celebration Overlay */}
+      {celebrationDeal && (
+        <>
+          <div className="confetti-container" aria-hidden="true">
+            {confettiPieces.map(p => (
+              <div key={p.id} className="confetti-piece" style={{
+                left: `${p.left}%`,
+                width: `${p.size}px`, height: `${p.size}px`,
+                background: p.color,
+                borderRadius: p.size > 10 ? '50%' : '2px',
+                animationDelay: `${p.delay}s`,
+                animationDuration: `${p.duration}s`,
+                transform: `rotate(${p.rotation}deg)`,
+              }} />
+            ))}
+          </div>
+          <div className={`celebration-overlay${celebClosing ? ' closing' : ''}`} onClick={() => { setCelebClosing(true); setTimeout(() => { setCelebrationDeal(null); setCelebClosing(false) }, 500) }}>
+            <div className="celebration-card">
+              <div className="celebration-trophy">&#127942;</div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-gold)', textTransform: 'uppercase', letterSpacing: '2px', marginTop: '8px' }}>Deal gewonnen!</div>
+              <div className="celebration-amount">{fmtEuro(celebrationDeal.value)}</div>
+              <div className="celebration-name">{celebrationDeal.name}</div>
+              <div className="celebration-meta">Geschlossen von {celebrationDeal.user} &middot; {fmtDate(celebrationDeal.date)}</div>
+              <div style={{ marginTop: '20px', fontSize: '11px', color: 'var(--za-fg-4)' }}>Klicken zum Schliessen</div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Aurora background */}
       <div className="aurora" aria-hidden="true"><div className="aurora-blob3" /></div>
 
@@ -1152,18 +1861,71 @@ export default function Dashboard({ data }: { data: DashboardData }) {
 
               {/* ═══ SALES FUNNEL — HERO ═══ */}
               {(() => {
-                const funnelData = period === 'today' ? (data.salesFunnel as any).today || data.salesFunnel.week : period === 'week' ? data.salesFunnel.week : data.salesFunnel.month
-                const periodNote = period === 'year' ? ' (Monatsdaten)' : ''
-                const quoten = data.salesFunnel.quoten
+                const funnelData = period === 'today' ? data.salesFunnel.today
+                  : period === 'week' ? data.salesFunnel.week
+                  : period === 'year' ? data.salesFunnel.alltime
+                  : data.salesFunnel.month
+                const periodNote = period === 'year' ? ` (${new Date().getFullYear()})` : ''
+                const quoten = period === 'year' ? data.salesFunnel.quotenAllTime : data.salesFunnel.quoten
+
+                // Outcome breakdowns per period
+                const entscheiderOutcomes = period === 'today' ? data.entscheiderOutcomesToday
+                  : period === 'week' ? data.entscheiderOutcomesWeek
+                  : period === 'year' ? data.entscheiderOutcomesYear
+                  : data.entscheiderOutcomesMonth
+
+                const einwandBreakdown = period === 'today' ? data.einwandToday
+                  : period === 'week' ? data.einwandWeek
+                  : period === 'year' ? data.einwandYear
+                  : data.einwandMonth
+
+                const settingOutcomes = period === 'today' ? data.settingOutcomesToday
+                  : period === 'week' ? data.settingOutcomesWeek
+                  : period === 'year' ? data.settingOutcomesYear
+                  : data.settingOutcomesMonth
 
                 const stages = [
-                  { label: 'Anwahlen', value: funnelData.anwahlen, rate: null, rateLabel: '' },
-                  { label: 'Entscheider erreicht', value: funnelData.entscheiderErreicht, rate: quoten.erreichquote, rateLabel: 'Erreichquote', sub: `(${funnelData.coldCalls} Cold Calls + ${funnelData.followUps} Follow-Ups)` },
-                  { label: 'Settings gelegt', value: funnelData.settingsGelegt, rate: quoten.settingQuote, rateLabel: 'Setting-Quote', sub: `(${data.calendlyMetrics.weekSettings} Calendly Settings diese Woche)` },
-                  { label: 'Beratungsgespr\u00e4che (Closings)', value: funnelData.closingsGelegt, rate: quoten.closingQuote, rateLabel: 'Closing-Quote', sub: `(${data.calendlyMetrics.weekClosings} Calendly Closings diese Woche)` },
-                  { label: 'Abschl\u00fcsse (Won)', value: funnelData.wonDeals, rate: quoten.abschlussQuote, rateLabel: 'Abschlussquote', revenue: funnelData.wonRevenue },
+                  { label: 'Anwahlen', value: funnelData.anwahlen, rate: null, rateLabel: '', breakdownIdx: -1 },
+                  { label: 'Entscheider erreicht', value: funnelData.entscheiderErreicht, rate: quoten.erreichquote, rateLabel: 'Erreichquote', sub: `(${funnelData.coldCalls} Cold Calls + ${funnelData.followUps} Follow-Ups)`, breakdownIdx: 1 },
+                  { label: 'Settings gelegt', value: funnelData.settingsGelegt, rate: quoten.settingQuote, rateLabel: 'Setting-Quote', breakdownIdx: -1 },
+                  { label: 'Beratungsgespr\u00e4che (Closings)', value: funnelData.closingsGelegt, rate: quoten.closingQuote, rateLabel: 'Closing-Quote', breakdownIdx: 2 },
+                  { label: 'Abschl\u00fcsse (Won)', value: funnelData.wonDeals, rate: quoten.abschlussQuote, rateLabel: 'Abschlussquote', revenue: funnelData.wonRevenue, breakdownIdx: -1 },
                 ]
+
+                // Upsell info
+                const hasUpsells = funnelData.wonDeals > 0
                 const maxVal = Math.max(...stages.map(s => s.value), 1)
+
+                // Render a breakdown section
+                const BreakdownSection = ({ outcomes, title }: { outcomes: Record<string, number>; title: string }) => {
+                  const sorted = Object.entries(outcomes).sort(([, a], [, b]) => b - a)
+                  const total = sorted.reduce((s, [, c]) => s + c, 0)
+                  if (sorted.length === 0) return null
+                  return (
+                    <div style={{ margin: '6px 0 6px 170px', padding: '10px 14px', background: 'rgba(197,160,89,0.04)', borderRadius: '8px', borderLeft: '2px solid rgba(197,160,89,0.3)' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--za-gold-2)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+                        {title}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {sorted.map(([label, count], j) => {
+                          const pct = total > 0 ? Math.round((count / total) * 100) : 0
+                          const isSuccess = label.toLowerCase().includes('setting vereinbart') || label.toLowerCase().includes('setting gelegt') || label.toLowerCase().includes('closing gelegt')
+                          const isHard = label.toLowerCase().includes('kein') || label.toLowerCase().includes('nicht') || label.toLowerCase().includes('no show') || label.toLowerCase().includes('verloren') || label.toLowerCase().includes('disqualif')
+                          const isSoft = label.toLowerCase().includes('follow') || label.toLowerCase().includes('nochmal') || label.toLowerCase().includes('später') || label.toLowerCase().includes('termin')
+                          const dotColor = isSuccess ? 'var(--za-success)' : isHard ? 'var(--za-danger)' : isSoft ? 'var(--za-gold-2)' : 'var(--za-info)'
+                          return (
+                            <div key={j} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+                              <span style={{ fontSize: '11px', color: 'var(--za-fg-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={label}>{label}</span>
+                              <span style={{ fontFamily: 'var(--za-serif)', fontSize: '12px', fontWeight: 700, color: '#fff', minWidth: '28px', textAlign: 'right' }}>{count}</span>
+                              <span style={{ fontSize: '10px', color: 'var(--za-fg-4)', minWidth: '32px', textAlign: 'right' }}>{pct}%</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                }
 
                 return (
                   <div className="za-panel fade-up" style={{ animationDelay: '480ms', marginBottom: '16px', borderTop: '2px solid var(--za-gold)', padding: '24px' }}>
@@ -1267,13 +2029,258 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                                 color: 'var(--za-fg-4)',
                                 textAlign: 'right',
                               }}>
-                                {i === 0 ? '100%' : stage.revenue !== undefined ? fmtEuro(stage.revenue) : `${maxVal > 0 ? ((stage.value / maxVal) * 100).toFixed(0) : 0}%`}
+                                {i === 0 ? '100%' : (stage as any).revenue !== undefined ? fmtEuro((stage as any).revenue) : `${maxVal > 0 ? ((stage.value / maxVal) * 100).toFixed(0) : 0}%`}
                               </div>
                             </div>
+
+                            {/* Breakdown: Entscheider → Settings (why not more settings?) */}
+                            {i === 1 && entscheiderOutcomes && Object.keys(entscheiderOutcomes).length > 0 && (
+                              <BreakdownSection outcomes={entscheiderOutcomes} title="Alle Entscheider-Ergebnisse" />
+                            )}
+                            {i === 1 && einwandBreakdown && Object.keys(einwandBreakdown).length > 0 && (
+                              <BreakdownSection outcomes={einwandBreakdown} title="Einw\u00e4nde der Entscheider" />
+                            )}
+
+                            {/* Breakdown: Settings → Closings (why not more closings?) */}
+                            {i === 2 && settingOutcomes && Object.keys(settingOutcomes).length > 0 && (
+                              <BreakdownSection outcomes={settingOutcomes} title="Alle Setting-Ergebnisse" />
+                            )}
                           </div>
                         )
                       })}
                     </div>
+
+                    {/* Upsell Breakdown after Won */}
+                    {hasUpsells && (
+                      <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(78,138,107,0.06)', borderRadius: '10px', border: '1px solid rgba(78,138,107,0.15)' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-success)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
+                          Abschl&uuml;sse aufgeschl&uuml;sselt: Erstdeal vs. Upsell
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                          <div style={{ padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: '3px solid var(--za-success)' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>Erstdeals</div>
+                            <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700, color: 'var(--za-success)' }}>{funnelData.erstdeals}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', marginTop: '1px' }}>{fmtEuro(funnelData.erstdealRevenue)}</div>
+                          </div>
+                          <div style={{ padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: '3px solid var(--za-violet)' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>Upsells</div>
+                            <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700, color: 'var(--za-violet)' }}>{funnelData.upsells}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', marginTop: '1px' }}>{fmtEuro(funnelData.upsellRevenue)}</div>
+                          </div>
+                          <div style={{ padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: '3px solid var(--za-gold-2)' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>Upsell-Rate</div>
+                            <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700, color: 'var(--za-gold-2)' }}>{funnelData.upsellRate}%</div>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', marginTop: '1px' }}>der Abschl&uuml;sse</div>
+                          </div>
+                          <div style={{ padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: '3px solid #fff' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>Echte Neukunden</div>
+                            <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700, color: '#fff' }}>{funnelData.erstdeals}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', marginTop: '1px' }}>von {funnelData.wonDeals} Won</div>
+                          </div>
+                        </div>
+
+                        {/* Visual bar showing Erstdeal vs Upsell split */}
+                        {funnelData.wonDeals > 0 && (
+                          <div style={{ marginTop: '12px' }}>
+                            <div style={{ display: 'flex', height: '24px', borderRadius: '6px', overflow: 'hidden' }}>
+                              <div style={{
+                                width: `${100 - funnelData.upsellRate}%`,
+                                background: 'linear-gradient(90deg, #4E8A6B, #7FC29B)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '10px', fontWeight: 700, color: '#fff',
+                                minWidth: funnelData.erstdeals > 0 ? '40px' : '0',
+                              }}>
+                                {funnelData.erstdeals > 0 ? `${funnelData.erstdeals} Erst` : ''}
+                              </div>
+                              {funnelData.upsells > 0 && (
+                                <div style={{
+                                  width: `${funnelData.upsellRate}%`,
+                                  background: 'linear-gradient(90deg, #7C5CBF, #A78BDA)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: '10px', fontWeight: 700, color: '#fff',
+                                  minWidth: '40px',
+                                }}>
+                                  {funnelData.upsells} Upsell
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* ═══ OPENER PERFORMANCE & FUNNEL RATIOS ═══ */}
+              <OpenerPerformancePanel data={data} />
+
+              {/* ═══ SETTING- & CLOSING-QUALITÄT (Pipeline-Statuswechsel) ═══ */}
+              {(() => {
+                const isWeek = period === 'today' || period === 'week'
+                const pq: PipelineQuality = isWeek ? data.pipelineQualityWeek : data.pipelineQualityMonth
+                const pqAll = data.pipelineQualityAllTime
+                const periodLabel = isWeek ? 'diese Woche' : 'diesen Monat'
+                const cal = data.calendlyMetrics
+
+                // Calendly no-show data
+                const calActiveSettings = isWeek ? cal.weekSettings : cal.monthSettings
+                const calCanceledSettings = isWeek ? cal.weekCanceledSettings : cal.monthCanceledSettings
+                const calActiveClosings = isWeek ? cal.weekClosings : cal.monthClosings
+                const calCanceledClosings = isWeek ? cal.weekCanceledClosings : cal.monthCanceledClosings
+
+                // Use pipeline quality data, fall back to all-time if period has no data
+                const sq = pq.settingTotal > 0 ? pq : pqAll
+                const cq = pq.closingTotal > 0 ? pq : pqAll
+                const sqLabel = pq.settingTotal > 0 ? periodLabel : 'gesamt (90 Tage)'
+                const cqLabel = pq.closingTotal > 0 ? periodLabel : 'gesamt (90 Tage)'
+
+                if (sq.settingTotal === 0 && cq.closingTotal === 0) return null
+
+                // Render a transition bar row
+                const TransitionBar = ({ label, count, total, color }: { label: string; count: number; total: number; color: string }) => {
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 0
+                  const maxCount = total
+                  const widthPct = Math.max((count / maxCount) * 100, 3)
+                  return (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '180px 1fr 45px 45px',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '5px 0',
+                    }}>
+                      <div style={{ fontSize: '12px', color: 'var(--za-fg-2)', fontWeight: 500, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={label}>
+                        {label}
+                      </div>
+                      <div style={{ height: '20px', background: 'rgba(249,249,249,0.04)', borderRadius: '5px', overflow: 'hidden' }}>
+                        <div style={{ width: `${widthPct}%`, height: '100%', background: color, borderRadius: '5px', transition: 'width 0.6s ease', opacity: 0.85 }} />
+                      </div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '14px', fontWeight: 700, color: '#fff', textAlign: 'right' }}>{count}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', textAlign: 'right' }}>{pct}%</div>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="za-panel fade-up" style={{ animationDelay: '490ms', marginBottom: '16px', borderTop: '2px solid var(--za-violet)', padding: '24px' }}>
+                    <div className="panel-head" style={{ marginBottom: '20px' }}>
+                      <div>
+                        <span className="panel-eyebrow" style={{ color: 'var(--za-violet)' }}>Pipeline-Qualit&auml;t</span>
+                        <div className="panel-title" style={{ fontSize: '18px' }}>
+                          Setting &amp; Closing Conversion
+                        </div>
+                      </div>
+                      <span className="panel-sub" style={{ fontFamily: 'var(--za-serif)', fontSize: '13px', color: 'var(--za-fg-3)' }}>
+                        Basierend auf Statuswechseln in Close
+                      </span>
+                    </div>
+
+                    {/* ── SETTING PHASE ── */}
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-info)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+                      Setting-Phase &mdash; {sqLabel} ({sq.settingTotal} Statuswechsel)
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '14px' }}>
+                      {[
+                        { label: '→ Closing', value: `${sq.settingToClosingRate}%`, sub: `${sq.settingToClosingCount} von ${sq.settingTotal}`, color: 'var(--za-success)' },
+                        { label: 'No Show', value: `${sq.settingNoShowRate}%`, sub: `${sq.settingNoShowCount}x`, color: 'var(--za-danger)' },
+                        { label: 'Follow Up', value: `${sq.settingFollowUpRate}%`, sub: `${sq.settingFollowUpCount}x`, color: 'var(--za-gold-2)' },
+                        { label: 'Verloren', value: `${sq.settingLostRate}%`, sub: `${sq.settingLostCount}x`, color: 'var(--za-danger)' },
+                      ].map((kpi, i) => (
+                        <div key={i} style={{ padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: `3px solid ${kpi.color}` }}>
+                          <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>{kpi.label}</div>
+                          <div style={{ fontFamily: 'var(--za-serif)', fontSize: '20px', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', marginTop: '1px' }}>{kpi.sub}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Setting transition bars */}
+                    <div style={{ marginBottom: '24px' }}>
+                      {sq.settingTransitions.map((t, i) => {
+                        const color = t.toLabel.includes('Closing') ? 'var(--za-success)'
+                          : t.toLabel.includes('No Show') ? 'var(--za-danger)'
+                          : t.toLabel.includes('Verloren') ? '#c0392b'
+                          : t.toLabel.includes('Follow') ? 'var(--za-gold-2)'
+                          : t.toLabel.includes('Close') ? 'var(--za-success)'
+                          : 'var(--za-violet)'
+                        return <TransitionBar key={i} label={t.toLabel} count={t.count} total={sq.settingTotal} color={color} />
+                      })}
+                    </div>
+
+                    {/* Calendly Setting Show-Rate */}
+                    {(calActiveSettings + calCanceledSettings) > 0 && (
+                      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--za-fg-4)' }}>Calendly Settings {periodLabel}:</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-success)' }}>{calActiveSettings} aktiv</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-danger)' }}>{calCanceledSettings} abgesagt</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>
+                          Show-Rate: {Math.round((calActiveSettings / (calActiveSettings + calCanceledSettings)) * 100)}%
+                        </span>
+                      </div>
+                    )}
+
+                    {/* ── CLOSING PHASE ── */}
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-violet)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+                      Closing-Phase &mdash; {cqLabel} ({cq.closingTotal} Statuswechsel)
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '14px' }}>
+                      {[
+                        { label: 'Gewonnen', value: `${cq.closingWonRate}%`, sub: `${cq.closingWonCount} Deals`, color: 'var(--za-success)' },
+                        { label: 'No Show', value: `${cq.closingNoShowRate}%`, sub: `${cq.closingNoShowCount}x`, color: 'var(--za-danger)' },
+                        { label: 'Verloren', value: `${cq.closingLostRate}%`, sub: `${cq.closingLostCount}x`, color: 'var(--za-danger)' },
+                        { label: 'Follow Up / CC2', value: `${cq.closingFollowUpRate}%`, sub: `${cq.closingFollowUpCount} FU + ${cq.closingCC2Count} CC2`, color: 'var(--za-gold-2)' },
+                      ].map((kpi, i) => (
+                        <div key={i} style={{ padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: `3px solid ${kpi.color}` }}>
+                          <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>{kpi.label}</div>
+                          <div style={{ fontFamily: 'var(--za-serif)', fontSize: '20px', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', marginTop: '1px' }}>{kpi.sub}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Closing transition bars */}
+                    <div style={{ marginBottom: '24px' }}>
+                      {cq.closingTransitions.map((t, i) => {
+                        const color = t.toLabel.includes('Close') || t.toLabel === 'Close' ? 'var(--za-success)'
+                          : t.toLabel.includes('Verloren') ? '#c0392b'
+                          : t.toLabel.includes('No Show') ? 'var(--za-danger)'
+                          : t.toLabel.includes('Angebot') ? 'var(--za-info)'
+                          : t.toLabel.includes('CC2') ? 'var(--za-info)'
+                          : t.toLabel.includes('Follow') ? 'var(--za-gold-2)'
+                          : 'var(--za-violet)'
+                        return <TransitionBar key={i} label={t.toLabel} count={t.count} total={cq.closingTotal} color={color} />
+                      })}
+                    </div>
+
+                    {/* Calendly Closing Show-Rate */}
+                    {(calActiveClosings + calCanceledClosings) > 0 && (
+                      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--za-fg-4)' }}>Calendly Closings {periodLabel}:</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-success)' }}>{calActiveClosings} aktiv</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-danger)' }}>{calCanceledClosings} abgesagt</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>
+                          Show-Rate: {Math.round((calActiveClosings / (calActiveClosings + calCanceledClosings)) * 100)}%
+                        </span>
+                      </div>
+                    )}
+
+                    {/* ── NO-SHOW RECOVERY ── */}
+                    {pqAll.noShowRecovery.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-gold-2)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                          No-Show Recovery (gesamt)
+                        </div>
+                        {pqAll.noShowRecovery.map((t, i) => (
+                          <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0', fontSize: '12px' }}>
+                            <span style={{ color: 'var(--za-fg-4)', minWidth: '130px', textAlign: 'right' }}>{t.fromLabel}</span>
+                            <span style={{ color: 'var(--za-gold)' }}>&rarr;</span>
+                            <span style={{ color: 'var(--za-fg-2)', fontWeight: 500 }}>{t.toLabel}</span>
+                            <span style={{ fontFamily: 'var(--za-serif)', fontWeight: 700, color: '#fff' }}>{t.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               })()}
@@ -1397,6 +2404,112 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
+              {/* ═══ PIPELINE: NEUKUNDE vs. BESTANDSKUNDE ═══ */}
+              <div className="za-panel fade-up" style={{ animationDelay: '540ms', marginBottom: '16px', borderTop: '2px solid var(--za-success)', padding: '24px' }}>
+                <div className="panel-head" style={{ marginBottom: '16px' }}>
+                  <div>
+                    <span className="panel-eyebrow" style={{ color: 'var(--za-success)' }}>Pipeline &amp; Upsells</span>
+                    <div className="panel-title" style={{ fontSize: '18px' }}>
+                      Neukunden vs. Bestandskunden
+                    </div>
+                  </div>
+                </div>
+
+                {/* KPI row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                  {[
+                    { label: 'Neukunden-Deals', value: `${data.pipelineNeukunde.length}`, sub: fmtEuro(data.pipelineNeukundeValue), color: 'var(--za-info)' },
+                    { label: 'Bestandskunden-Deals', value: `${data.pipelineBestandskunde.length}`, sub: fmtEuro(data.pipelineBestandskundeValue), color: 'var(--za-violet)' },
+                    { label: 'Upsells (Won)', value: `${data.upsellDealsList.length}`, sub: `${fmtEuro(data.upsellDealsList.reduce((s, d) => s + d.value, 0))} Umsatz`, color: 'var(--za-success)' },
+                    { label: 'Upsell-Rate', value: `${data.customerAnalytics.upsellRate}%`, sub: `${data.customerAnalytics.upsellCustomers} von ${data.customerAnalytics.totalCustomers} Kunden`, color: 'var(--za-gold-2)' },
+                  ].map((kpi, i) => (
+                    <div key={i} style={{ padding: '14px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: `3px solid ${kpi.color}` }}>
+                      <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>{kpi.label}</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', marginTop: '1px' }}>{kpi.sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Two columns: Neukunde | Bestandskunde pipeline */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                  {/* Neukunden Pipeline */}
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-info)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                      Neukunden in Pipeline ({data.pipelineNeukunde.length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto' }}>
+                      {data.pipelineNeukunde.length === 0 && <div style={{ fontSize: '12px', color: 'var(--za-fg-4)' }}>Keine aktiven Deals</div>}
+                      {data.pipelineNeukunde.map((d, i) => (
+                        <div key={i} style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          padding: '8px 10px', background: 'rgba(249,249,249,0.03)', borderRadius: '6px',
+                          borderLeft: '3px solid var(--za-info)',
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>{d.leadName}</div>
+                            <div style={{ fontSize: '10px', color: 'var(--za-fg-4)' }}>{d.status}</div>
+                          </div>
+                          <div style={{ fontFamily: 'var(--za-serif)', fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                            {d.value > 0 ? fmtEuro(d.value) : '-'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bestandskunden Pipeline */}
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-violet)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                      Bestandskunden in Pipeline ({data.pipelineBestandskunde.length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto' }}>
+                      {data.pipelineBestandskunde.length === 0 && <div style={{ fontSize: '12px', color: 'var(--za-fg-4)' }}>Keine aktiven Deals</div>}
+                      {data.pipelineBestandskunde.map((d, i) => (
+                        <div key={i} style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          padding: '8px 10px', background: 'rgba(249,249,249,0.03)', borderRadius: '6px',
+                          borderLeft: '3px solid var(--za-violet)',
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>{d.leadName}</div>
+                            <div style={{ fontSize: '10px', color: 'var(--za-fg-4)' }}>{d.status}</div>
+                          </div>
+                          <div style={{ fontFamily: 'var(--za-serif)', fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                            {d.value > 0 ? fmtEuro(d.value) : '-'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upsell History */}
+                {data.upsellDealsList.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-success)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                      Abgeschlossene Upsells
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {data.upsellDealsList.map((d, i) => (
+                        <div key={i} style={{
+                          display: 'grid', gridTemplateColumns: '1fr auto auto',
+                          alignItems: 'center', gap: '12px',
+                          padding: '8px 10px', background: 'rgba(78,138,107,0.06)', borderRadius: '6px',
+                          borderLeft: '3px solid var(--za-success)',
+                        }}>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>{d.leadName}</div>
+                          <div style={{ fontFamily: 'var(--za-serif)', fontSize: '13px', fontWeight: 700, color: 'var(--za-success)' }}>
+                            {fmtEuro(d.value)}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--za-fg-4)' }}>{fmtDate(d.date)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Waterfall KPIs */}
               <div className="kpi-grid">
                 <div className="za-panel fade-up" style={{ animationDelay: '560ms' }}>
@@ -1433,8 +2546,151 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 <BarChart data={data.weeklyCallData.map(w => w.calls)} labels={data.weeklyCallData.map(w => w.week)} />
               </div>
 
+              {/* Weekly Leaderboard with Points */}
+              {(() => {
+                const weekTeam = data.teamPerformanceWeek || []
+                // Build ranked list: 1 Setting = 50 Punkte, 1 Anwahl = 1 Punkt
+                const ranked = [...weekTeam]
+                  .map(m => ({ ...m, punkte: m.settingsGelegt * 50 + m.calls }))
+                  .sort((a, b) => b.punkte - a.punkte)
+                const maxPunkte = Math.max(...ranked.map(m => m.punkte), 1)
+                return (
+                  <div className="za-panel fade-up" style={{ animationDelay: '720ms', marginBottom: '16px' }}>
+                    <div className="panel-head">
+                      <div>
+                        <span className="panel-eyebrow">Leaderboard</span>
+                        <div className="panel-title">Diese Woche &middot; KW {data.currentWeek}</div>
+                      </div>
+                      <span className="panel-sub" style={{ fontSize: '10px', color: 'var(--za-fg-4)' }}>1 Setting = 50 Pkt &middot; 1 Anwahl = 1 Pkt</span>
+                    </div>
+                    {ranked.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '24px', color: 'var(--za-fg-3)', fontSize: '12px' }}>Noch keine Aktivit&auml;ten diese Woche</div>
+                    ) : (
+                      <div style={{ marginTop: '4px' }}>
+                        {ranked.map((m, i) => {
+                          const posClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''
+                          const firstName = m.name.split(' ')[0]
+                          return (
+                            <div key={m.name} className="leaderboard-row" style={{ marginBottom: '8px' }}>
+                              <div className={`leaderboard-pos ${posClass}`} style={i >= 3 ? { background: 'rgba(255,255,255,0.06)', color: 'var(--za-fg-3)' } : undefined}>{i + 1}</div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{firstName}</span>
+                                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginBottom: '1px' }}>Anwahlen</div>
+                                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--za-info)' }}>{m.calls}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginBottom: '1px' }}>Settings</div>
+                                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--za-gold)' }}>{m.settingsGelegt}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center', minWidth: '52px' }}>
+                                      <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginBottom: '1px' }}>Punkte</div>
+                                      <div style={{ fontSize: '15px', fontWeight: 800, color: i === 0 ? 'var(--za-gold-2)' : '#fff' }}>{m.punkte}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div style={{ width: '100%', height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                                  <div className="leaderboard-bar" style={{ width: `${(m.punkte / maxPunkte) * 100}%` }} />
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* Opener Streak Tracker */}
+              {(() => {
+                const openers = data.openerTracking?.openers || []
+                // Also compute streaks from team performance (settings per day) for non-openers
+                const allMembers = data.teamPerformanceWeek || []
+                // For streaks we use opener tracking data (daily log)
+                if (openers.length === 0 && allMembers.length === 0) return null
+                return (
+                  <div className="za-panel fade-up" style={{ animationDelay: '740ms', marginBottom: '16px' }}>
+                    <div className="panel-head">
+                      <div>
+                        <span className="panel-eyebrow">Streak Tracker</span>
+                        <div className="panel-title">Aufeinanderfolgende Arbeitstage mit Terminen</div>
+                      </div>
+                    </div>
+                    {openers.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '24px', color: 'var(--za-fg-3)', fontSize: '12px' }}>
+                        Keine Opener-Tracking-Daten vorhanden. Streaks werden aus der Supabase-Tabelle <em>opener_aufstieg</em> berechnet.
+                      </div>
+                    ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${openers.length}, 1fr)`, gap: '16px' }}>
+                      {openers.map((opener, idx) => {
+                        const sortedLog = [...opener.dailyLog].sort((a, b) => b.date.localeCompare(a.date))
+                        let streak = 0
+                        const today = data.todayISO
+                        let checkDate = new Date(today + 'T12:00:00')
+                        const todayEntry = sortedLog.find(e => e.date === today)
+                        if (!todayEntry || todayEntry.count === 0) {
+                          checkDate = new Date(checkDate.getTime() - 86400000)
+                        }
+                        for (let d = 0; d < 365; d++) {
+                          const dateStr = checkDate.toISOString().split('T')[0]
+                          const dayOfWeek = checkDate.getDay()
+                          if (dayOfWeek === 0 || dayOfWeek === 6) {
+                            checkDate = new Date(checkDate.getTime() - 86400000)
+                            continue
+                          }
+                          const entry = sortedLog.find(e => e.date === dateStr)
+                          if (entry && entry.count > 0) {
+                            streak++
+                            checkDate = new Date(checkDate.getTime() - 86400000)
+                          } else {
+                            break
+                          }
+                        }
+                        let bestStreak = 0
+                        let currentRun = 0
+                        const chronLog = [...opener.dailyLog].sort((a, b) => a.date.localeCompare(b.date))
+                        for (const entry of chronLog) {
+                          const d = new Date(entry.date + 'T12:00:00')
+                          if (d.getDay() === 0 || d.getDay() === 6) continue
+                          if (entry.count > 0) { currentRun++; bestStreak = Math.max(bestStreak, currentRun) }
+                          else { currentRun = 0 }
+                        }
+
+                        const firstName = opener.name.split(' ')[0]
+                        const flameSize = Math.min(streak, 10)
+                        const flames = streak >= 10 ? '\uD83D\uDD25\uD83D\uDD25\uD83D\uDD25' : streak >= 5 ? '\uD83D\uDD25\uD83D\uDD25' : streak >= 1 ? '\uD83D\uDD25' : '\u2744\uFE0F'
+
+                        return (
+                          <div key={idx} style={{ textAlign: 'center', padding: '16px 0' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)', marginBottom: '10px' }}>{firstName}</div>
+                            <div className={streak > 0 ? 'streak-flame' : ''} style={{ fontSize: `${20 + flameSize * 3}px`, lineHeight: 1 }}>
+                              {flames}
+                            </div>
+                            <div style={{ fontSize: '36px', fontWeight: 700, fontFamily: 'var(--za-serif)', color: streak > 0 ? '#fff' : 'var(--za-fg-3)', marginTop: '6px' }}>
+                              {streak}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginTop: '2px' }}>
+                              {streak === 1 ? 'Tag' : 'Tage'} in Folge
+                            </div>
+                            {bestStreak > streak && (
+                              <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginTop: '6px' }}>
+                                Rekord: {bestStreak} Tage
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    )}
+                  </div>
+                )
+              })()}
+
               {/* Won Deals list */}
-              <div className="za-panel fade-up" style={{ animationDelay: '740ms', marginBottom: '16px' }}>
+              <div className="za-panel fade-up" style={{ animationDelay: '760ms', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
                     <span className="panel-eyebrow">Won Deals &middot; {PERIOD_LABELS[period]}</span>
@@ -1874,7 +3130,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   </div>
                 </div>
                 {[
-                  { group: 'T\u00e4glich', tasks: ['Felix LinkedIn', 'Lisa LinkedIn', 'Michael Walter LinkedIn', 'Felix Reels', 'Nils Check-In pr\u00fcfen'] },
+                  { group: 'T\u00e4glich', tasks: ['Felix LinkedIn', 'Lisa LinkedIn', 'Felix Reels', 'Nils Check-In pr\u00fcfen'] },
                   { group: 'W\u00f6chentlich', tasks: ['Wochen-Reviews', 'Content-Vorlauf', 'Finanzen'] },
                   { group: 'Monatlich', tasks: ['USt-Voranmeldung', 'Monatsabschluss', 'SEPA'] },
                 ].map((cat, i) => (
@@ -1942,67 +3198,327 @@ export default function Dashboard({ data }: { data: DashboardData }) {
           {/* ═══════════════════════════════════════════════════
                TAB: MARKETING
              ═══════════════════════════════════════════════════ */}
-          {activeNav === 'marketing' && (
-            <>
-              <div className="kpi-grid">
-                <div className="za-panel fade-up" style={{ animationDelay: '60ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Posts KW</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Diese Woche</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '140ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Impressions</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Reichweite</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Engagement</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Interaktionen</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '300ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Leads</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">via Marketing</span></div>
-                </div>
-              </div>
+          {activeNav === 'marketing' && (() => {
+            const fb = data.facebookMetrics
+            const mk = data.marketingMetrics
+            const t = fb.totals
+            const prev = fb.previousTotals
 
-              {/* Platform cards */}
-              <div className="row-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
-                {[
-                  { name: 'LinkedIn', stats: ['Follower: \u2014', 'Posts/W: \u2014', 'Engagement: \u2014'] },
-                  { name: 'Instagram', stats: ['Follower: \u2014', 'Posts/W: \u2014', 'Reach: \u2014'] },
-                  { name: 'YouTube', stats: ['Subscriber: \u2014', 'Videos: \u2014', 'Views: \u2014'] },
-                ].map((platform, i) => (
-                  <div key={i} className="za-panel fade-up" style={{ animationDelay: `${360 + i * 60}ms` }}>
-                    <div className="panel-head">
-                      <div>
-                        <div className="panel-title">{platform.name}</div>
-                      </div>
-                    </div>
-                    <div style={{ padding: '4px 0' }}>
-                      {platform.stats.map((stat, j) => (
-                        <div key={j} style={{ fontSize: '12px', color: 'var(--za-fg-3)', padding: '4px 0', borderBottom: j < platform.stats.length - 1 ? '1px solid var(--za-border)' : 'none' }}>
-                          {stat}
+            // Delta helper
+            const delta = (current: number, previous: number | undefined) => {
+              if (!previous || previous === 0) return null
+              const pct = ((current - previous) / previous) * 100
+              return pct
+            }
+            const deltaStyle = (d: number | null, invertColor = false) => {
+              if (d === null) return {}
+              const isGood = invertColor ? d < 0 : d > 0
+              return { color: isGood ? 'var(--za-green, #22c55e)' : d === 0 ? 'var(--za-fg-3)' : 'var(--za-red, #ef4444)', fontSize: '11px' }
+            }
+            const fmtDelta = (d: number | null) => d === null ? '' : `${d > 0 ? '+' : ''}${d.toFixed(1)}%`
+
+            // Sort campaigns: active first, then by spend desc
+            const sortedCampaigns = [...fb.campaigns]
+              .filter(c => c.spend > 0)
+              .sort((a, b) => {
+                if (a.status === 'active' && b.status !== 'active') return -1
+                if (b.status === 'active' && a.status !== 'active') return 1
+                return b.spend - a.spend
+              })
+
+            // Webhook platforms
+            const platformLabels: Record<string, string> = {
+              onepage: 'OnePage', perspective: 'Perspective Funnels', copecart: 'CopeCart',
+            }
+
+            return (
+            <>
+              {/* Facebook Ads KPIs */}
+              {fb.available && (
+                <>
+                  <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginBottom: '8px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    Facebook Ads &middot; {fmtDate(fb.period.start)} &ndash; {fmtDate(fb.period.end)}
+                  </div>
+                  <div className="kpi-grid">
+                    {[
+                      { label: 'Ad Spend', value: fmtEuro(t.spend), delta: delta(t.spend, prev?.spend), invert: true },
+                      { label: 'Impressions', value: fmtNum(t.impressions), delta: delta(t.impressions, prev?.impressions) },
+                      { label: 'Reichweite', value: fmtNum(t.reach), delta: delta(t.reach, prev?.reach) },
+                      { label: 'Link-Klicks', value: fmtNum(t.linkClicks), delta: delta(t.linkClicks, prev?.linkClicks) },
+                      { label: 'Leads', value: fmtNum(t.leads), delta: delta(t.leads, prev?.leads) },
+                      { label: 'CPL', value: t.cpl > 0 ? fmtEuro(t.cpl) : '\u2014', delta: delta(t.cpl, prev?.cpl), invert: true },
+                      { label: 'CTR', value: `${t.ctr}%`, delta: delta(t.ctr, prev?.ctr) },
+                      { label: 'LP Views', value: fmtNum(t.landingPageViews), delta: delta(t.landingPageViews, prev?.landingPageViews) },
+                    ].map((kpi, i) => (
+                      <div key={i} className="za-panel fade-up" style={{ animationDelay: `${60 + i * 40}ms` }}>
+                        <div className="kpi-top"><span className="kpi-label">{kpi.label}</span></div>
+                        <div className="kpi-value">{kpi.value}</div>
+                        <div className="kpi-foot">
+                          {kpi.delta !== null && kpi.delta !== undefined ? (
+                            <span style={deltaStyle(kpi.delta, kpi.invert)}>{fmtDelta(kpi.delta)} vs. Vorperiode</span>
+                          ) : (
+                            <span className="kpi-caption">&nbsp;</span>
+                          )}
                         </div>
-                      ))}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Campaign Table — with real Perspective Funnel Leads */}
+                  {(() => {
+                    // Map utm_campaign IDs to Facebook campaign names
+                    const campaignIdMap: Record<string, string> = {
+                      '120242496581910485': 'Cold Traffic I Leads I Erstgespräch',
+                      '120241213207600485': 'Cold Traffic I Leads I Sales Call Aufzeichnung',
+                      '120240917728170485': 'April I Direktansprache auf VSL',
+                      '120241672667400485': 'Cold Traffic I Leads I Erstgespräch',
+                    }
+
+                    // Enrich campaigns with Perspective funnel lead counts
+                    const enriched = sortedCampaigns.map(c => {
+                      // Find matching perspective campaign by name
+                      const matchingPerspective = mk.perspectiveByCampaign.filter(pc => {
+                        const fbName = campaignIdMap[pc.campaignId]
+                        return fbName && c.name.includes(fbName.split(' I ')[0])
+                      })
+                      // Or exact match via campaignIdMap
+                      const exactMatch = mk.perspectiveByCampaign.find(pc => campaignIdMap[pc.campaignId] === c.name)
+
+                      const funnelLeads = exactMatch?.leads || matchingPerspective.reduce((s, p) => s + p.leads, 0)
+                      const funnelConverted = exactMatch?.converted || matchingPerspective.reduce((s, p) => s + p.converted, 0)
+                      const realCPL = funnelLeads > 0 ? Math.round(c.spend / funnelLeads * 100) / 100 : 0
+
+                      return { ...c, funnelLeads, funnelConverted, realCPL }
+                    })
+
+                    // Total funnel leads
+                    const totalFunnelLeads = mk.perspective.totalLeads
+                    const totalAdSpend = t.spend
+                    const realTotalCPL = totalFunnelLeads > 0 ? Math.round(totalAdSpend / totalFunnelLeads * 100) / 100 : 0
+
+                    return (
+                    <div className="za-panel fade-up" style={{ animationDelay: '380ms', marginBottom: '16px' }}>
+                      <div className="panel-head">
+                        <div><div className="panel-title">Kampagnen &rarr; Perspective Funnel Performance</div></div>
+                      </div>
+                      <div style={{ overflow: 'auto' }}>
+                        <table className="za-table" style={{ width: '100%' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ textAlign: 'left' }}>Kampagne</th>
+                              <th>Status</th>
+                              <th style={{ textAlign: 'right' }}>Spend</th>
+                              <th style={{ textAlign: 'right' }}>Reichweite</th>
+                              <th style={{ textAlign: 'right' }}>Klicks</th>
+                              <th style={{ textAlign: 'right' }}>CTR</th>
+                              <th style={{ textAlign: 'right' }}>LP Views</th>
+                              <th style={{ textAlign: 'right', background: 'rgba(34,197,94,0.05)' }}>Funnel Leads</th>
+                              <th style={{ textAlign: 'right', background: 'rgba(34,197,94,0.05)' }}>CPL (real)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {enriched.map((c, i) => {
+                              const cplColor = c.realCPL > 0
+                                ? c.realCPL < 80 ? 'var(--za-green, #22c55e)' : c.realCPL > 200 ? 'var(--za-red, #ef4444)' : 'var(--za-fg-2)'
+                                : 'var(--za-fg-3)'
+                              return (
+                                <tr key={i}>
+                                  <td style={{ fontWeight: 500, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: c.status === 'active' ? 'var(--za-green, #22c55e)' : 'var(--za-fg-4)' }} />
+                                  </td>
+                                  <td style={{ textAlign: 'right' }}>{fmtEuro(c.spend)}</td>
+                                  <td style={{ textAlign: 'right' }}>{fmtNum(c.reach)}</td>
+                                  <td style={{ textAlign: 'right' }}>{fmtNum(c.linkClicks)}</td>
+                                  <td style={{ textAlign: 'right' }}>{c.ctr > 0 ? `${c.ctr.toFixed(1)}%` : '\u2014'}</td>
+                                  <td style={{ textAlign: 'right' }}>{c.landingPageViews > 0 ? fmtNum(c.landingPageViews) : '\u2014'}</td>
+                                  <td style={{ textAlign: 'right', fontWeight: 600, background: 'rgba(34,197,94,0.05)' }}>{c.funnelLeads > 0 ? c.funnelLeads : '\u2014'}</td>
+                                  <td style={{ textAlign: 'right', fontWeight: 600, color: cplColor, background: 'rgba(34,197,94,0.05)' }}>{c.realCPL > 0 ? fmtEuro(c.realCPL) : '\u2014'}</td>
+                                </tr>
+                              )
+                            })}
+                            <tr style={{ borderTop: '2px solid var(--za-border)', fontWeight: 600 }}>
+                              <td>GESAMT</td>
+                              <td></td>
+                              <td style={{ textAlign: 'right' }}>{fmtEuro(totalAdSpend)}</td>
+                              <td style={{ textAlign: 'right' }}>{fmtNum(t.reach)}</td>
+                              <td style={{ textAlign: 'right' }}>{fmtNum(t.linkClicks)}</td>
+                              <td style={{ textAlign: 'right' }}>{t.ctr}%</td>
+                              <td style={{ textAlign: 'right' }}>{fmtNum(t.landingPageViews)}</td>
+                              <td style={{ textAlign: 'right', background: 'rgba(34,197,94,0.05)' }}>{totalFunnelLeads}</td>
+                              <td style={{ textAlign: 'right', background: 'rgba(34,197,94,0.05)' }}>{realTotalCPL > 0 ? fmtEuro(realTotalCPL) : '\u2014'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Performance Analyse */}
+                      {totalFunnelLeads > 0 && (
+                        <div style={{ padding: '12px 0', borderTop: '1px solid var(--za-border)', marginTop: '8px' }}>
+                          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Performance Analyse</div>
+                          {enriched.filter(c => c.funnelLeads > 0).sort((a, b) => a.realCPL - b.realCPL).map((c, i, arr) => {
+                            const isBest = i === 0
+                            const isWorst = i === arr.length - 1 && arr.length > 1
+                            const lpToFunnel = c.landingPageViews > 0 ? Math.round(c.funnelLeads / c.landingPageViews * 1000) / 10 : 0
+                            return (
+                              <div key={i} style={{ fontSize: '12px', color: 'var(--za-fg-3)', padding: '4px 0', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isBest ? 'var(--za-green, #22c55e)' : isWorst ? 'var(--za-red, #ef4444)' : 'var(--za-fg-4)', flexShrink: 0 }} />
+                                <span>
+                                  <strong>{c.name}</strong>: {fmtEuro(c.realCPL)}/Lead, {c.funnelLeads} Leads, LP→Funnel Conv. {lpToFunnel}%
+                                  {isBest && <span style={{ color: 'var(--za-green, #22c55e)', fontWeight: 600 }}> — Top Performer, skalieren!</span>}
+                                  {isWorst && c.realCPL > 200 && <span style={{ color: 'var(--za-red, #ef4444)', fontWeight: 600 }}> — CPL zu hoch, optimieren oder killen</span>}
+                                </span>
+                              </div>
+                            )
+                          })}
+                          <div style={{ fontSize: '12px', color: 'var(--za-fg-3)', padding: '6px 0 2px', marginTop: '4px', borderTop: '1px solid var(--za-border)' }}>
+                            Gesamt: <strong>{fmtEuro(totalAdSpend)}</strong> Adspend &rarr; <strong>{totalFunnelLeads}</strong> Funnel-Leads &rarr; <strong>{fmtEuro(realTotalCPL)}</strong>/Lead
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    )
+                  })()}
+                </>
+              )}
+
+              {/* Perspective Funnels Section */}
+              {mk.perspective.totalLeads > 0 && (
+                <>
+                  <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginBottom: '8px', marginTop: '8px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    Perspective Funnels &middot; {mk.perspective.totalLeads} Leads gesamt
+                  </div>
+
+                  <div className="kpi-grid" style={{ marginBottom: '16px' }}>
+                    <div className="za-panel fade-up" style={{ animationDelay: '420ms' }}>
+                      <div className="kpi-top"><span className="kpi-label">Funnel Leads</span></div>
+                      <div className="kpi-value">{fmtNum(mk.perspective.totalLeads)}</div>
+                      <div className="kpi-foot"><span className="kpi-caption">Gesamt</span></div>
+                    </div>
+                    <div className="za-panel fade-up" style={{ animationDelay: '460ms' }}>
+                      <div className="kpi-top"><span className="kpi-label">Completed</span></div>
+                      <div className="kpi-value">{fmtNum(mk.perspective.completedLeads)}</div>
+                      <div className="kpi-foot"><span className="kpi-caption">Funnel abgeschlossen</span></div>
+                    </div>
+                    <div className="za-panel fade-up" style={{ animationDelay: '500ms' }}>
+                      <div className="kpi-top"><span className="kpi-label">Converted</span></div>
+                      <div className="kpi-value">{fmtNum(mk.perspective.convertedLeads)}</div>
+                      <div className="kpi-foot"><span className="kpi-caption">Kontakt hinterlassen</span></div>
+                    </div>
+                    <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
+                      <div className="kpi-top"><span className="kpi-label">Conv. Rate</span></div>
+                      <div className="kpi-value">{mk.perspective.conversionRate}%</div>
+                      <div className="kpi-foot"><span className="kpi-caption">Lead &rarr; Converted</span></div>
                     </div>
                   </div>
-                ))}
-              </div>
 
-              {/* Empty states */}
-              {['Perspective Funnels', 'CopeCart', 'OnePage'].map((name, i) => (
-                <div key={i} className="za-panel fade-up" style={{ animationDelay: `${540 + i * 60}ms`, marginBottom: '16px' }}>
-                  <EmptyState
-                    icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>}
-                    title={`${name} \u2014 Daten werden bald angebunden`}
-                    subtitle="Integration in Vorbereitung"
-                  />
-                </div>
-              ))}
+                  {/* Funnel breakdown */}
+                  {mk.perspective.funnels.length > 0 && (
+                    <div className="za-panel fade-up" style={{ animationDelay: '560ms', marginBottom: '16px' }}>
+                      <div className="panel-head">
+                        <div><div className="panel-title">Funnel Breakdown</div></div>
+                      </div>
+                      <table className="za-table" style={{ width: '100%' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: 'left' }}>Funnel</th>
+                            <th style={{ textAlign: 'right' }}>Leads</th>
+                            <th style={{ textAlign: 'right' }}>Completed</th>
+                            <th style={{ textAlign: 'right' }}>Converted</th>
+                            <th style={{ textAlign: 'right' }}>Conv. Rate</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {mk.perspective.funnels.map((f, i) => (
+                            <tr key={i}>
+                              <td style={{ fontWeight: 500 }}>{f.name}</td>
+                              <td style={{ textAlign: 'right' }}>{f.leads}</td>
+                              <td style={{ textAlign: 'right' }}>{f.completed}</td>
+                              <td style={{ textAlign: 'right' }}>{f.converted}</td>
+                              <td style={{ textAlign: 'right' }}>{f.leads > 0 ? `${(f.converted / f.leads * 100).toFixed(1)}%` : '\u2014'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Recent Perspective Leads */}
+                  {mk.perspective.recentLeads.length > 0 && (
+                    <div className="za-panel fade-up" style={{ animationDelay: '600ms', marginBottom: '16px' }}>
+                      <div className="panel-head">
+                        <div><div className="panel-title">Letzte Perspective Leads</div></div>
+                      </div>
+                      <div style={{ maxHeight: '250px', overflow: 'auto' }}>
+                        <table className="za-table" style={{ width: '100%' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ textAlign: 'left' }}>Name</th>
+                              <th style={{ textAlign: 'left' }}>Funnel</th>
+                              <th>Status</th>
+                              <th style={{ textAlign: 'right' }}>Zeitpunkt</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {mk.perspective.recentLeads.map((l, i) => (
+                              <tr key={i}>
+                                <td style={{ fontWeight: 500 }}>{l.name || l.email || 'Anonym'}</td>
+                                <td style={{ color: 'var(--za-fg-3)', fontSize: '12px' }}>{l.funnel_name}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span style={{
+                                    display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600,
+                                    background: l.converted ? 'rgba(34,197,94,0.15)' : l.completed ? 'rgba(234,179,8,0.15)' : 'rgba(148,163,184,0.15)',
+                                    color: l.converted ? 'var(--za-green, #22c55e)' : l.completed ? '#eab308' : 'var(--za-fg-3)',
+                                  }}>
+                                    {l.converted ? 'Converted' : l.completed ? 'Completed' : 'Started'}
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'right', color: 'var(--za-fg-3)', fontSize: '11px' }}>{new Date(l.recorded_at).toLocaleString('de-DE')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Webhook Platform Cards (OnePage, CopeCart) */}
+              <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginBottom: '8px', marginTop: fb.available ? '8px' : '0', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                Weitere Tools
+              </div>
+              <div className="row-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '16px' }}>
+                {['onepage', 'copecart'].map((key, i) => {
+                  const p = mk.platforms[key]
+                  const label = platformLabels[key] || key
+                  return (
+                    <div key={key} className="za-panel fade-up" style={{ animationDelay: `${480 + i * 60}ms` }}>
+                      <div className="panel-head">
+                        <div>
+                          <div className="panel-title">{label}</div>
+                          {p && <div style={{ fontSize: '10px', color: 'var(--za-fg-4)' }}>Stand: {new Date(p.recorded_at).toLocaleDateString('de-DE')}</div>}
+                        </div>
+                      </div>
+                      <div style={{ padding: '4px 0' }}>
+                        {p ? Object.entries(p.metrics).map(([k, v], j, arr) => (
+                          <div key={k} style={{ fontSize: '12px', color: 'var(--za-fg-2)', padding: '6px 0', borderBottom: j < arr.length - 1 ? '1px solid var(--za-border)' : 'none', display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--za-fg-3)' }}>{k}</span>
+                            <span style={{ fontWeight: 500 }}>{typeof v === 'number' ? fmtNum(v) : String(v)}</span>
+                          </div>
+                        )) : (
+                          <div style={{ fontSize: '12px', color: 'var(--za-fg-4)', padding: '12px 0', textAlign: 'center' }}>
+                            Webhook: POST /api/marketing-webhook
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </>
-          )}
+            )
+          })()}
 
           {/* ═══════════════════════════════════════════════════
                TAB: FINANZEN
@@ -2025,27 +3541,41 @@ export default function Dashboard({ data }: { data: DashboardData }) {
 
             return (
             <>
-              {/* P&L Hero KPIs */}
+              {/* Cash-In Hero */}
               <div className="kpi-grid">
-                <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '40ms', borderTop: '3px solid var(--za-success, #22c55e)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Cash-In Mai (netto)</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success, #22c55e)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.cashInMonatNetto)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">inkl. Setups &amp; Einmalzahlungen</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '100ms', borderTop: '3px solid var(--za-success, #22c55e)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Cash-In Mai (brutto)</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success, #22c55e)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.cashInMonatBrutto)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">inkl. 19% MwSt.</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '160ms', borderTop: '2px solid var(--za-gold)' }}>
                   <div className="kpi-top"><span className="kpi-label">MRR</span></div>
                   <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.totalMRR)}</div>
                   <div className="kpi-foot"><span className="kpi-caption">{dm.customers.length} aktive Kunden</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '2px solid var(--za-gold)' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Net Profit</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.netProfit)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{netProfitPct}% Nettomarge</span></div>
+                </div>
+              </div>
+
+              {/* P&L Detail KPIs */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '280ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Delivery Cost</span></div>
                   <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(Math.round(dm.totalDeliveryCost))}</div>
                   <div className="kpi-foot"><span className="kpi-caption">{deliveryCostPct}% vom MRR</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '340ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Team Overhead</span></div>
                   <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.totalTeamCost)}</div>
                   <div className="kpi-foot"><span className="kpi-caption">Felix + Lisa + Marcel + Nils</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '300ms', borderTop: '2px solid var(--za-gold)' }}>
-                  <div className="kpi-top"><span className="kpi-label">Net Profit</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.netProfit)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">{netProfitPct}% Nettomarge</span></div>
                 </div>
               </div>
 
@@ -2317,6 +3847,32 @@ export default function Dashboard({ data }: { data: DashboardData }) {
              ═══════════════════════════════════════════════════ */}
           {activeNav === 'kunden' && (
             <>
+              {/* Sub-Tab Navigation */}
+              <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', background: 'rgba(249,249,249,0.03)', borderRadius: '10px', padding: '4px', border: '1px solid rgba(249,249,249,0.06)' }}>
+                {[
+                  { id: 'zahlend' as const, label: 'Zahlende Kunden' },
+                  { id: 'streitfaelle' as const, label: 'Streitfälle' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setKundenSubTab(tab.id)}
+                    style={{
+                      flex: 1, padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                      fontSize: '13px', fontWeight: 600, transition: 'all 0.2s',
+                      background: kundenSubTab === tab.id ? 'linear-gradient(135deg, var(--za-gold), var(--za-gold-2))' : 'transparent',
+                      color: kundenSubTab === tab.id ? '#0a0a0a' : 'var(--za-fg-3)',
+                    }}
+                  >
+                    {tab.label}
+                    {tab.id === 'streitfaelle' && (() => {
+                      const count = data.deliveryMetrics.customers.filter(c => c.paymentStatus === 'streitfall').length
+                      return count > 0 ? <span style={{ marginLeft: '6px', background: 'var(--za-danger)', color: '#fff', borderRadius: '10px', padding: '1px 7px', fontSize: '11px', fontWeight: 700 }}>{count}</span> : null
+                    })()}
+                  </button>
+                ))}
+              </div>
+
+              {kundenSubTab === 'zahlend' && (<>
               {/* KPI Grid Row 1 — gold accent */}
               <div className="kpi-grid">
                 <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
@@ -2365,30 +3921,77 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
-              {/* MRR nach Produkt */}
-              <div className="za-panel fade-up" style={{ animationDelay: '600ms', marginBottom: '16px' }}>
-                <div className="panel-head">
-                  <div>
-                    <span className="panel-eyebrow">MRR nach Produkt</span>
-                    <div className="panel-title">&euro;{fmtNum(data.airtableMetrics.mrr)}/Mo Recurring Revenue</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {data.airtableMetrics.productMix.filter(p => p.mrr > 0).map((p, i) => {
-                    const maxMrr = Math.max(...data.airtableMetrics.productMix.map(x => x.mrr))
-                    const pct = maxMrr > 0 ? (p.mrr / maxMrr) * 100 : 0
-                    return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '160px', flexShrink: 0, fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)' }}>{p.product}</div>
-                        <div style={{ flex: 1, height: '24px', background: 'rgba(249,249,249,0.04)', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
-                          <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, var(--za-gold), var(--za-gold-2))', borderRadius: '6px', transition: 'width 0.8s ease' }} />
-                        </div>
-                        <div style={{ width: '100px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontSize: '13px', fontWeight: 700, color: 'var(--za-gold-2)' }}>&euro;{fmtNum(p.mrr)}/Mo</div>
+              {/* Umsatz nach Kategorie */}
+              {(() => {
+                const categoryMap: Record<string, string> = {
+                  'Coaching 90-Tage': 'Coaching',
+                  'Agentur Champion': 'Coaching',
+                  'Agentur Skalierung': 'Coaching',
+                  'LinkedIn Starter Masterclass': 'Coaching',
+                  'Social Media Management + Sales': 'Social Media',
+                  'Social Media Management': 'Social Media',
+                  'Recruiting': 'Recruiting',
+                  'Recruiting Ads': 'Recruiting',
+                  'DFY LinkedIn': 'D4Y Dienstleistung',
+                  'Done4You LinkedIn Content': 'D4Y Dienstleistung',
+                  'D4Y Leadposts (Reverse Charge)': 'D4Y Dienstleistung',
+                  'Werbeanzeigen / Ads Management': 'Ads / Performance',
+                  'Quiz-Funnel AVGS': 'Ads / Performance',
+                  'Ad SetUp (Videoschnitt + Ads)': 'Ads / Performance',
+                  'LinkedIn Profiloptimierung': 'Profiloptimierung',
+                  'Software-Abo': 'Software',
+                  'Altkunde': 'Altkunde',
+                  'Monatlich': 'Altkunde',
+                }
+                const zahlend = data.deliveryMetrics.customers.filter(c => c.status === 'aktiv' && c.paymentStatus !== 'streitfall')
+                const categories: Record<string, { category: string; cashIn: number; count: number; products: Record<string, { cash: number; count: number }> }> = {}
+                for (const c of zahlend) {
+                  const cat = categoryMap[c.paket] || 'Sonstiges'
+                  if (!categories[cat]) categories[cat] = { category: cat, cashIn: 0, count: 0, products: {} }
+                  const cash = c.cashInMonat || c.rateMonat
+                  categories[cat].cashIn += cash
+                  categories[cat].count++
+                  if (!categories[cat].products[c.paket]) categories[cat].products[c.paket] = { cash: 0, count: 0 }
+                  categories[cat].products[c.paket].cash += cash
+                  categories[cat].products[c.paket].count++
+                }
+                const sorted = Object.values(categories).sort((a, b) => b.cashIn - a.cashIn)
+                const maxCash = Math.max(...sorted.map(c => c.cashIn))
+                const totalCash = sorted.reduce((s, c) => s + c.cashIn, 0)
+                return (
+                  <div className="za-panel fade-up" style={{ animationDelay: '600ms', marginBottom: '16px' }}>
+                    <div className="panel-head">
+                      <div>
+                        <span className="panel-eyebrow">Umsatz nach Kategorie</span>
+                        <div className="panel-title">&euro;{fmtNum(totalCash)}/Mo Cash-in (zahlende Kunden)</div>
                       </div>
-                    )
-                  })}
-                </div>
-              </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {sorted.map((cat, i) => (
+                        <div key={i}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                            <div style={{ width: '160px', flexShrink: 0, fontSize: '13px', fontWeight: 700, color: '#fff' }}>{cat.category}</div>
+                            <div style={{ flex: 1, height: '26px', background: 'rgba(249,249,249,0.04)', borderRadius: '6px', overflow: 'hidden' }}>
+                              <div style={{ width: `${maxCash > 0 ? (cat.cashIn / maxCash) * 100 : 0}%`, height: '100%', background: 'linear-gradient(90deg, var(--za-gold), var(--za-gold-2))', borderRadius: '6px', transition: 'width 0.8s ease' }} />
+                            </div>
+                            <div style={{ width: '120px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontSize: '14px', fontWeight: 700, color: 'var(--za-gold-2)' }}>&euro;{fmtNum(cat.cashIn)}/Mo</div>
+                          </div>
+                          {Object.entries(cat.products).length > 1 && (
+                            <div style={{ paddingLeft: '172px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              {Object.entries(cat.products).sort((a, b) => b[1].cash - a[1].cash).map(([prod, d], j) => (
+                                <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--za-fg-3)' }}>
+                                  <span>{prod} ({d.count}x)</span>
+                                  <span style={{ fontFamily: 'var(--za-serif)', marginRight: '0' }}>&euro;{fmtNum(d.cash)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Aktive Kunden Table */}
               <div className="za-panel fade-up" style={{ animationDelay: '660ms', marginBottom: '16px' }}>
@@ -2410,8 +4013,16 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...data.airtableMetrics.activeList].sort((a, b) => b.monatlicheRate - a.monatlicheRate).map((c, i) => {
-                        const name = c.dealName.replace(/^CL-\d+\s*[-–]\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
+                      {(() => {
+                        const streitfallFirmen = new Set(data.deliveryMetrics.customers.filter(c => c.paymentStatus === 'streitfall').map(c => c.firma.toLowerCase()))
+                        return [...data.airtableMetrics.activeList]
+                          .filter(c => {
+                            const name = c.dealName.replace(/^CL-\d+\s*[-–]?\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
+                            return !streitfallFirmen.has(name.toLowerCase())
+                          })
+                          .sort((a, b) => b.monatlicheRate - a.monatlicheRate)
+                      })().map((c, i) => {
+                        const name = c.dealName.replace(/^CL-\d+\s*[-–]?\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
                         return (
                           <tr key={i}>
                             <td>
@@ -2452,7 +4063,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                     </thead>
                     <tbody>
                       {data.airtableMetrics.churnedList.map((c, i) => {
-                        const name = c.dealName.replace(/^CL-\d+\s*[-–]\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
+                        const name = c.dealName.replace(/^CL-\d+\s*[-–]?\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
                         const reasonColors: Record<string, string> = {
                           'Umsetzung fehlte': '#f59e0b',
                           'Zeitmangel': '#eab308',
@@ -2491,7 +4102,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   </div>
                 </div>
                 {data.airtableMetrics.upsellList.map((c, i) => {
-                  const name = c.dealName.replace(/^CL-\d+\s*[-–]\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
+                  const name = c.dealName.replace(/^CL-\d+\s*[-–]?\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
                   return (
                     <div key={i} className="za-panel" style={{ margin: '8px 0', padding: '12px 16px', background: 'rgba(197,160,89,0.04)', border: '1px solid rgba(197,160,89,0.12)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2511,6 +4122,70 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   )
                 })}
               </div>
+              </>)}
+
+              {kundenSubTab === 'streitfaelle' && (() => {
+                const streitfaelle = data.deliveryMetrics.customers.filter(c => c.paymentStatus === 'streitfall')
+                const totalGesamtOffen = streitfaelle.reduce((s, c) => s + c.streitfallGesamt, 0)
+                return (<>
+                  {/* Streitfälle KPIs */}
+                  <div className="kpi-grid">
+                    <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '3px solid var(--za-danger)' }}>
+                      <div className="kpi-top"><span className="kpi-label">Offene Streitf&auml;lle</span></div>
+                      <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>{streitfaelle.length}</div>
+                      <div className="kpi-foot"><span className="kpi-caption">Kunden mit Zahlungsausfall</span></div>
+                    </div>
+                    <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '3px solid var(--za-danger)' }}>
+                      <div className="kpi-top"><span className="kpi-label">Gesamtforderung offen</span></div>
+                      <div className="kpi-value" style={{ color: 'var(--za-danger)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(totalGesamtOffen)}</div>
+                      <div className="kpi-foot"><span className="kpi-caption">Alle offenen Forderungen beim Anwalt</span></div>
+                    </div>
+                  </div>
+
+                  {/* Streitfälle Tabelle */}
+                  <div className="za-panel fade-up" style={{ animationDelay: '220ms', marginBottom: '16px', borderLeft: '3px solid var(--za-danger)' }}>
+                    <div className="panel-head">
+                      <div>
+                        <span className="panel-eyebrow" style={{ color: 'var(--za-danger)' }}>Streitf&auml;lle</span>
+                        <div className="panel-title">{streitfaelle.length} offene F&auml;lle</div>
+                      </div>
+                    </div>
+                    {streitfaelle.length === 0 ? (
+                      <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--za-fg-3)', fontSize: '13px' }}>Keine offenen Streitf&auml;lle</div>
+                    ) : (
+                      <div className="za-table-wrap">
+                        <table className="za-table">
+                          <thead>
+                            <tr>
+                              <th>Kunde</th>
+                              <th>Paket</th>
+                              <th>Rate/Mo</th>
+                              <th>Gesamt offen</th>
+                              <th>Details</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {streitfaelle.map((c, i) => (
+                              <tr key={i}>
+                                <td>
+                                  <div className="t-co">
+                                    <span className="t-co-mark" style={{ background: 'var(--za-danger)' }}>{c.firma.charAt(0)}</span>
+                                    <span className="t-co-name">{c.firma}</span>
+                                  </div>
+                                </td>
+                                <td><span style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{c.paket}</span></td>
+                                <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600, color: 'var(--za-danger)' }}>{fmtEuro(c.rateMonat)}</td>
+                                <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 700, color: 'var(--za-danger)' }}>{c.streitfallGesamt > 0 ? fmtEuro(c.streitfallGesamt) : '\u2013'}</td>
+                                <td><span style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{c.streitfallDetails}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>)
+              })()}
             </>
           )}
 
@@ -2523,23 +4198,23 @@ export default function Dashboard({ data }: { data: DashboardData }) {
               <div className="kpi-grid">
                 <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
                   <div className="kpi-top"><span className="kpi-label">Bewerbungen</span></div>
-                  <div className="kpi-value">305</div>
-                  <div className="kpi-foot"><span className="kpi-caption">294 Indeed + 11 Instagram</span></div>
+                  <div className="kpi-value">424</div>
+                  <div className="kpi-foot"><span className="kpi-caption">413 Indeed + 11 Instagram</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '2px solid var(--za-gold)' }}>
                   <div className="kpi-top"><span className="kpi-label">Cost per VG</span></div>
-                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>61,98</div>
-                  <div className="kpi-foot"><span className="kpi-caption">26 VG terminiert</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>38,58</div>
+                  <div className="kpi-foot"><span className="kpi-caption">59 VG terminiert</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
                   <div className="kpi-top"><span className="kpi-label">No Show Quote</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>50<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">13 von 26 erschienen</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>30,5<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">27 von 59 erschienen</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '300ms', borderTop: '2px solid var(--za-gold)' }}>
                   <div className="kpi-top"><span className="kpi-label">Eingestellt</span></div>
-                  <div className="kpi-value">0</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Cost per Hire: &mdash;</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>2</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Cost per Hire: &euro;1.138</span></div>
                 </div>
               </div>
 
@@ -2547,23 +4222,23 @@ export default function Dashboard({ data }: { data: DashboardData }) {
               <div className="kpi-grid">
                 <div className="za-panel fade-up" style={{ animationDelay: '360ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Gesamtausgaben</span></div>
-                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>1.611</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Indeed + Instagram</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>2.276</div>
+                  <div className="kpi-foot"><span className="kpi-caption">2.000 Indeed + 276 Instagram</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '420ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Cost/Bewerbung</span></div>
-                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>5,28</div>
-                  <div className="kpi-foot"><span className="kpi-caption">305 Bewerbungen</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>5,37</div>
+                  <div className="kpi-foot"><span className="kpi-caption">424 Bewerbungen</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '480ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">VG &rarr; Probewoche</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>84,6<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">11 von 13 erschienenen</span></div>
+                  <div className="kpi-top"><span className="kpi-label">VG &rarr; Probearbeit</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>55,6<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">15 von 27 Erschienenen vereinbart</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
                   <div className="kpi-top"><span className="kpi-label">Probewoche Quote</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-danger)' }}>9,1<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">1 von 11 durchgezogen</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>66,7<span className="unit">%</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">2 von 3 durchgezogen</span></div>
                 </div>
               </div>
 
@@ -2576,13 +4251,13 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   </div>
                 </div>
                 <FunnelChart stages={[
-                  { name: 'Bewerbungen', value: 305, pct: '100%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
-                  { name: 'VG terminiert', value: 26, pct: '8,5%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
-                  { name: 'VG erschienen', value: 13, pct: '50%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
-                  { name: 'Probewoche term.', value: 11, pct: '84,6%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
-                  { name: 'Probewoche ersch.', value: 2, pct: '18,2%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
-                  { name: 'Durchgezogen', value: 1, pct: '50%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
-                  { name: 'Eingestellt', value: 0, pct: '0%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'Bewerbungen', value: 424, pct: '100%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'VG terminiert', value: 59, pct: '13,9%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'VG erschienen', value: 27, pct: '45,8%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'Probearbeit vereinbart', value: 15, pct: '55,6%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'Probewoche angetreten', value: 3, pct: '20%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'Durchgezogen', value: 2, pct: '66,7%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
+                  { name: 'Eingestellt', value: 2, pct: '100%', color: 'linear-gradient(90deg,#775A19,#C5A059)' },
                 ]} />
               </div>
 
@@ -2598,15 +4273,15 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   <table className="za-table">
                     <thead><tr><th>Metrik</th><th>Indeed</th><th>Instagram</th></tr></thead>
                     <tbody>
-                      <tr><td>Ausgaben</td><td style={{ color: 'var(--za-success)' }}>&euro;1.335</td><td>&euro;276</td></tr>
-                      <tr><td>Bewerbungen</td><td style={{ color: 'var(--za-success)' }}>294</td><td>11</td></tr>
-                      <tr><td>Cost/Bewerbung</td><td style={{ color: 'var(--za-success)' }}>&euro;4,54</td><td>&euro;25,09</td></tr>
-                      <tr><td>VG terminiert</td><td style={{ color: 'var(--za-success)' }}>22</td><td>4</td></tr>
-                      <tr><td>VG erschienen</td><td style={{ color: 'var(--za-success)' }}>12</td><td>1</td></tr>
-                      <tr><td>No Show %</td><td style={{ color: 'var(--za-success)' }}>45%</td><td style={{ color: 'var(--za-danger)' }}>75%</td></tr>
-                      <tr><td>Cost/VG erschienen</td><td style={{ color: 'var(--za-success)' }}>&euro;111,28</td><td>&euro;276</td></tr>
-                      <tr><td>Probewoche</td><td style={{ color: 'var(--za-success)' }}>2</td><td>0</td></tr>
-                      <tr><td>Eingestellt</td><td>0</td><td>0</td></tr>
+                      <tr><td>Ausgaben</td><td style={{ color: 'var(--za-success)' }}>&euro;2.000</td><td>&euro;276</td></tr>
+                      <tr><td>Bewerbungen</td><td style={{ color: 'var(--za-success)' }}>413</td><td>11</td></tr>
+                      <tr><td>Cost/Bewerbung</td><td style={{ color: 'var(--za-success)' }}>&euro;4,84</td><td>&euro;25,09</td></tr>
+                      <tr><td>VG terminiert</td><td style={{ color: 'var(--za-success)' }}>56</td><td>2</td></tr>
+                      <tr><td>VG erschienen</td><td style={{ color: 'var(--za-success)' }}>26</td><td>0</td></tr>
+                      <tr><td>No Show %</td><td style={{ color: 'var(--za-success)' }}>30%</td><td style={{ color: 'var(--za-danger)' }}>100%</td></tr>
+                      <tr><td>Cost/VG erschienen</td><td style={{ color: 'var(--za-success)' }}>&euro;76,92</td><td>&mdash;</td></tr>
+                      <tr><td>Probearbeit vereinbart</td><td style={{ color: 'var(--za-success)' }}>15</td><td>0</td></tr>
+                      <tr><td>Eingestellt</td><td style={{ color: 'var(--za-success)' }}>2</td><td>0</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -2628,10 +4303,10 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                     &#9888;&#65039; 81,8% No-Show bei Probewochen &mdash; Verbindlichkeit erh&ouml;hen
                   </div>
                   <div style={{ padding: '12px 16px', borderLeft: '3px solid #3b82f6', background: 'rgba(59,130,246,0.06)', borderRadius: '6px', fontSize: '13px', color: 'var(--za-fg-2)' }}>
-                    &#128202; Indeed: &euro;111/VG vs Instagram: &euro;276/VG &mdash; Indeed 2,5x effizienter
+                    &#128202; Indeed: &euro;167/VG vs Instagram: &euro;276/VG &mdash; Indeed 1,7x effizienter
                   </div>
                   <div style={{ padding: '12px 16px', borderLeft: '3px solid #22c55e', background: 'rgba(34,197,94,0.06)', borderRadius: '6px', fontSize: '13px', color: 'var(--za-fg-2)' }}>
-                    &#127919; N&auml;chster Hire ben&ouml;tigt ~&euro;3.200 bei aktueller Conversion
+                    &#127919; N&auml;chster Hire ben&ouml;tigt ~&euro;4.550 bei aktueller Conversion
                   </div>
                 </div>
               </div>
@@ -2641,73 +4316,184 @@ export default function Dashboard({ data }: { data: DashboardData }) {
           {/* ═══════════════════════════════════════════════════
                TAB: TEAM
              ═══════════════════════════════════════════════════ */}
-          {activeNav === 'team' && (
+          {activeNav === 'team' && (() => {
+            const ot = data.openerTracking
+            const openers = ot?.openers || []
+            return (
             <>
+              {/* Opener Aufstiegs-Tracker KPIs */}
               <div className="kpi-grid">
-                <div className="za-panel fade-up" style={{ animationDelay: '60ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Offene Tasks</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Aktuell</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '140ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Erledigt KW</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Diese Woche</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '220ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">&Uuml;berf&auml;llig</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Ausstehend</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '300ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Boards</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-fg-3)' }}>&mdash;</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Monday.com</span></div>
-                </div>
-              </div>
-
-              {/* Sales Team */}
-              <div className="za-panel fade-up" style={{ animationDelay: '360ms', marginBottom: '16px' }}>
-                <div className="panel-head">
-                  <div>
-                    <span className="panel-eyebrow">Sales Team</span>
-                    <div className="panel-title">Close CRM</div>
-                  </div>
-                </div>
-                {[
-                  { name: 'Felix Zoepp', role: 'Closer', initial: 'F' },
-                  { name: 'John Santillan', role: 'Opener', initial: 'J' },
-                ].map((member, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: i === 0 ? '1px solid var(--za-border)' : 'none' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--za-gold), var(--za-gold-2))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#000' }}>
-                      {member.initial}
+                {openers.map((opener, idx) => {
+                  const firstName = opener.name.split(' ')[0]
+                  const statusColor = opener.completed ? 'var(--za-success)' : opener.onTrack ? 'var(--za-success)' : 'var(--za-danger)'
+                  return (
+                    <div key={idx} className="za-panel fade-up" style={{ animationDelay: `${60 + idx * 80}ms` }}>
+                      <div className="kpi-top"><span className="kpi-label">{firstName}</span></div>
+                      <div className="kpi-value" style={{ color: statusColor }}>{opener.totalTermine}<span style={{ fontSize: '16px', color: 'var(--za-fg-3)' }}>/{opener.targetTermine}</span></div>
+                      <div className="kpi-foot"><span className="kpi-caption">{opener.completed ? 'Ziel erreicht!' : `${opener.termineRemaining} verbleibend`}</span></div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{member.name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>{member.role}</div>
+                  )
+                })}
+                <div className="za-panel fade-up" style={{ animationDelay: `${60 + openers.length * 80}ms` }}>
+                  <div className="kpi-top"><span className="kpi-label">Gesamt Termine</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-gold)' }}>{openers.reduce((s, o) => s + o.totalTermine, 0)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Alle Opener</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: `${140 + openers.length * 80}ms` }}>
+                  <div className="kpi-top"><span className="kpi-label">Heute</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-info)' }}>{openers.reduce((s, o) => {
+                    const todayEntry = o.dailyLog.find(e => e.date === data.todayISO)
+                    return s + (todayEntry?.count || 0)
+                  }, 0)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Termine heute</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: `${220 + openers.length * 80}ms` }}>
+                  <div className="kpi-top"><span className="kpi-label">Bonus gesamt</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{openers.reduce((s, o) => s + o.totalBonus, 0)}€</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Alle Opener</span></div>
+                </div>
+              </div>
+
+              {/* Per-Opener Aufstiegs-Cards */}
+              {openers.map((opener, idx) => {
+                const firstName = opener.name.split(' ')[0]
+                const deadlineParts = opener.deadlineDate.split('-')
+                const deadlineFmt = `${deadlineParts[2]}.${deadlineParts[1]}.${deadlineParts[0]}`
+                const statusColor = opener.completed ? 'var(--za-success)' : opener.onTrack ? 'var(--za-success)' : 'var(--za-danger)'
+                const statusLabel = opener.completed ? 'Ziel erreicht!' : opener.onTrack ? 'On Track' : 'Behind Schedule'
+                const todayEntry = opener.dailyLog.find(e => e.date === data.todayISO)
+                const todayCount = todayEntry?.count ?? 0
+
+                return (
+                  <div key={idx} className="za-panel fade-up" style={{ animationDelay: `${220 + idx * 100}ms`, marginBottom: '16px' }}>
+                    <div className="panel-head">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--za-gold), var(--za-gold-2))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, color: '#000' }}>
+                          {opener.name.charAt(0)}
+                        </div>
+                        <div>
+                          <span className="panel-eyebrow">Opener Aufstieg</span>
+                          <div className="panel-title">{opener.name}</div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: statusColor, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{statusLabel}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginTop: '2px' }}>Deadline: {deadlineFmt}</div>
+                      </div>
                     </div>
+
+                    {/* Progress Bar */}
+                    <div style={{ margin: '16px 0 12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--za-fg-3)' }}>Fortschritt</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: statusColor }}>{opener.progressPercent}%</span>
+                      </div>
+                      <div style={{ width: '100%', height: '10px', borderRadius: '5px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${opener.progressPercent}%`,
+                          height: '100%',
+                          borderRadius: '5px',
+                          background: opener.completed
+                            ? 'linear-gradient(90deg, var(--za-success), #4ade80)'
+                            : opener.onTrack
+                              ? 'linear-gradient(90deg, var(--za-gold), var(--za-gold-2))'
+                              : 'linear-gradient(90deg, var(--za-danger), #fca5a5)',
+                          transition: 'width 0.6s ease',
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Stats Grid */}
+                    {(() => {
+                      const todayLog = opener.dailyLog.find(e => e.date === data.todayISO)
+                      const todayBonus = todayLog?.bonus
+                      return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', padding: '12px 0', borderTop: '1px solid var(--za-border)', borderBottom: '1px solid var(--za-border)' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--za-info)' }}>{todayCount}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', marginTop: '2px' }}>Heute</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff' }}>{opener.totalTermine}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', marginTop: '2px' }}>Gesamt</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--za-gold)' }}>{opener.termineRemaining}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', marginTop: '2px' }}>Noch offen</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 700, color: opener.completed ? 'var(--za-success)' : 'var(--za-fg)' }}>{opener.completed ? '0' : opener.requiredPerDay}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', marginTop: '2px' }}>/Arbeitstag</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--za-success)' }}>{todayBonus?.total ?? 0}€</div>
+                        <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', marginTop: '2px' }}>
+                          Bonus heute
+                          {todayBonus && todayBonus.total > 0 && (
+                            <span style={{ display: 'block', color: 'var(--za-fg-4)', fontSize: '9px', marginTop: '1px' }}>
+                              {[todayBonus.base > 0 && `${todayBonus.base}€ Staffel`, todayBonus.fruehbonus > 0 && '10€ Früh'].filter(Boolean).join(' + ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                      )
+                    })()}
+
+                    {/* Timeline Info */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 4px', fontSize: '11px', color: 'var(--za-fg-3)' }}>
+                      <span>Tag {opener.daysElapsed} von {opener.maxDays}</span>
+                      <span>{opener.daysRemaining} Tage verbleibend</span>
+                    </div>
+
+                    {/* Daily Log */}
+                    {opener.dailyLog.length > 0 && (
+                      <div style={{ marginTop: '12px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-3)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tages-Log</div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {opener.dailyLog.map((entry, i) => {
+                            const dateParts = entry.date.split('-')
+                            const dayFmt = `${dateParts[2]}.${dateParts[1]}`
+                            const hasBonus = entry.bonus.total > 0
+                            return (
+                              <div key={i} style={{
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                background: entry.count > 0 ? 'rgba(197,160,89,0.12)' : 'rgba(255,255,255,0.04)',
+                                border: `1px solid ${entry.count > 0 ? 'rgba(197,160,89,0.25)' : 'var(--za-border)'}`,
+                                fontSize: '11px',
+                              }}>
+                                <span style={{ color: 'var(--za-fg-3)' }}>{dayFmt}</span>
+                                <span style={{ marginLeft: '6px', fontWeight: 700, color: entry.count > 0 ? 'var(--za-gold)' : 'var(--za-fg-3)' }}>{entry.count}</span>
+                                {hasBonus && <span style={{ marginLeft: '4px', fontWeight: 600, color: 'var(--za-success)', fontSize: '10px' }}>+{entry.bonus.total}€</span>}
+                                {entry.fruehbonus && <span style={{ marginLeft: '2px', fontSize: '9px', color: 'var(--za-info)' }} title="Erster Termin vor 10 Uhr">F</span>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                )
+              })}
 
-              {/* Empty states */}
-              <div className="za-panel fade-up" style={{ animationDelay: '420ms', marginBottom: '16px' }}>
-                <EmptyState
-                  icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>}
-                  title="Monday.com Boards"
-                  subtitle="Integration in Vorbereitung. Projekt-Boards und Task-Status werden hier angezeigt."
-                />
-              </div>
-
-              <div className="za-panel fade-up" style={{ animationDelay: '480ms' }}>
-                <EmptyState
-                  icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>}
-                  title="Team-Auslastung"
-                  subtitle="Integration in Vorbereitung. Kapazit&auml;ten und Workload-Verteilung werden hier angezeigt."
-                />
-              </div>
+              {openers.length === 0 && (
+                <div className="za-panel fade-up" style={{ animationDelay: '200ms' }}>
+                  <EmptyState
+                    icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>}
+                    title="Opener Aufstiegs-Tracker"
+                    subtitle="Keine Opener konfiguriert. Daten werden in Supabase gepflegt."
+                  />
+                </div>
+              )}
             </>
-          )}
+            )
+          })()}
+
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* CALL-ANALYSE TAB                                      */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          {activeNav === 'call-analyse' && <CallAnalysePanel data={data} />}
 
           {/* Footer */}
           <div style={{

@@ -329,9 +329,10 @@ function buildCustomMonthReport(data: any, monthParam: string): string {
   const followUps = activities.filter((a: any) => a.custom_activity_type_id === typeIds.followUp)
   const settingsActs = activities.filter((a: any) => a.custom_activity_type_id === typeIds.setting)
 
-  const anwahlen = coldCalls.length + followUps.length
-  const entscheiderErreicht = coldCalls.filter((a: any) => a[fields.COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
-    + followUps.filter((a: any) => a[fields.FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
+  // Anwahlen = echte Calls aus Close via salesFunnel (falls aktueller Monat) oder Fallback
+  const anwahlen = data.salesFunnel?.month?.anwahlen || 0
+  const entscheiderErreicht = coldCalls.filter((a: any) => a[fields.COLD_CALL_ENTSCHEIDER] && a[fields.COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
+    + followUps.filter((a: any) => a[fields.FOLLOW_UP_NAECHSTER_SCHRITT] && a[fields.FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
   const settingsGelegt = coldCalls.filter((a: any) => a[fields.COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:').length
     + followUps.filter((a: any) => a[fields.FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:').length
   const closingsGelegt = settingsActs.filter((a: any) => a[fields.SETTING_NAECHSTER_SCHRITT] === '2. Closing gelegt auf:').length
@@ -389,12 +390,12 @@ function buildCustomMonthReport(data: any, monthParam: string): string {
     </div>
 
     ${(() => {
-      // Calculate team performance from filtered activities for selected month
+      // Calculate team performance — Calls from teamPerformanceMonth, Settings/Closings from custom activities
       const memberMap: Record<string, { settings: number; closings: number; calls: number }> = {}
-      for (const a of [...coldCalls, ...followUps]) {
-        const name = a.user_name || 'Unbekannt'
-        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
-        memberMap[name].calls++
+      // Use pre-computed team performance data for call counts
+      for (const tp of (data.teamPerformanceMonth || [])) {
+        if (!memberMap[tp.name]) memberMap[tp.name] = { settings: 0, closings: 0, calls: 0 }
+        memberMap[tp.name].calls = tp.calls
       }
       for (const a of coldCalls.filter((x: any) => x[fields.COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:')) {
         const name = a.user_name || 'Unbekannt'
@@ -438,12 +439,12 @@ function buildCustomMonthReport(data: any, monthParam: string): string {
     ${(() => {
       // Calculate outcomes from filtered activities for selected month
       const outcomes: Record<string, number> = {}
-      for (const a of coldCalls.filter((x: any) => x[fields.COLD_CALL_NIEMAND_ERREICHT] !== 'Ja')) {
-        const outcome = a[fields.COLD_CALL_ENTSCHEIDER] || 'Unbekannt'
+      for (const a of coldCalls.filter((x: any) => x[fields.COLD_CALL_ENTSCHEIDER] && x[fields.COLD_CALL_NIEMAND_ERREICHT] !== 'Ja')) {
+        const outcome = a[fields.COLD_CALL_ENTSCHEIDER]
         outcomes[outcome] = (outcomes[outcome] || 0) + 1
       }
-      for (const a of followUps.filter((x: any) => x[fields.FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht')) {
-        const outcome = a[fields.FOLLOW_UP_NAECHSTER_SCHRITT] || 'Unbekannt'
+      for (const a of followUps.filter((x: any) => x[fields.FOLLOW_UP_NAECHSTER_SCHRITT] && x[fields.FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht')) {
+        const outcome = a[fields.FOLLOW_UP_NAECHSTER_SCHRITT]
         outcomes[outcome] = (outcomes[outcome] || 0) + 1
       }
       const entries = Object.entries(outcomes).sort((a: any, b: any) => b[1] - a[1])

@@ -43,6 +43,11 @@ export interface CalendlyMetrics {
   monthClosings: number
   monthOnboardings: number
   monthOther: number
+  // Canceled/no-show counts
+  weekCanceledSettings: number
+  weekCanceledClosings: number
+  monthCanceledSettings: number
+  monthCanceledClosings: number
 }
 
 function categorizeEvent(eventTypeUri: string): CalendlyEvent['category'] {
@@ -104,7 +109,7 @@ async function calendlyFetch(endpoint: string): Promise<any> {
   return res.json()
 }
 
-async function fetchEvents(minTime: string, maxTime: string): Promise<any[]> {
+async function fetchEvents(minTime: string, maxTime: string, status: 'active' | 'canceled' = 'active'): Promise<any[]> {
   const events: any[] = []
   let pageToken: string | null = null
 
@@ -114,7 +119,7 @@ async function fetchEvents(minTime: string, maxTime: string): Promise<any[]> {
       min_start_time: minTime,
       max_start_time: maxTime,
       count: '100',
-      status: 'active',
+      status,
     })
     if (pageToken) params.set('page_token', pageToken)
 
@@ -159,6 +164,10 @@ export async function fetchCalendlyData(): Promise<CalendlyMetrics> {
     monthClosings: 0,
     monthOnboardings: 0,
     monthOther: 0,
+    weekCanceledSettings: 0,
+    weekCanceledClosings: 0,
+    monthCanceledSettings: 0,
+    monthCanceledClosings: 0,
   }
 
   if (!process.env.CALENDLY_API_KEY) {
@@ -170,10 +179,12 @@ export async function fetchCalendlyData(): Promise<CalendlyMetrics> {
     const week = getWeekBounds(now)
     const month = getMonthBounds(now)
 
-    // Fetch week and month events in parallel
-    const [weekRaw, monthRaw] = await Promise.all([
-      fetchEvents(week.start.toISOString(), week.end.toISOString()),
-      fetchEvents(month.start.toISOString(), month.end.toISOString()),
+    // Fetch active + canceled events for week and month in parallel
+    const [weekRaw, monthRaw, weekCanceledRaw, monthCanceledRaw] = await Promise.all([
+      fetchEvents(week.start.toISOString(), week.end.toISOString(), 'active'),
+      fetchEvents(month.start.toISOString(), month.end.toISOString(), 'active'),
+      fetchEvents(week.start.toISOString(), week.end.toISOString(), 'canceled'),
+      fetchEvents(month.start.toISOString(), month.end.toISOString(), 'canceled'),
     ])
 
     const weekEvents = weekRaw.map(mapEvent).sort((a, b) => a.startTime.localeCompare(b.startTime))
@@ -181,6 +192,9 @@ export async function fetchCalendlyData(): Promise<CalendlyMetrics> {
 
     const weekCounts = countByCategory(weekEvents)
     const monthCounts = countByCategory(monthEvents)
+
+    const weekCanceledCounts = countByCategory(weekCanceledRaw.map(mapEvent))
+    const monthCanceledCounts = countByCategory(monthCanceledRaw.map(mapEvent))
 
     return {
       weekEvents,
@@ -193,6 +207,10 @@ export async function fetchCalendlyData(): Promise<CalendlyMetrics> {
       monthClosings: monthCounts.closings,
       monthOnboardings: monthCounts.onboardings,
       monthOther: monthCounts.other,
+      weekCanceledSettings: weekCanceledCounts.settings,
+      weekCanceledClosings: weekCanceledCounts.closings,
+      monthCanceledSettings: monthCanceledCounts.settings,
+      monthCanceledClosings: monthCanceledCounts.closings,
     }
   } catch (err) {
     console.error('Calendly API error:', err)

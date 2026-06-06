@@ -3,6 +3,10 @@ import { fetchCalendlyData, CalendlyMetrics } from './calendly-data'
 import { getNilsMetrics } from './clockodo-data'
 import { getDeliveryMetrics } from './delivery-data'
 import { fetchOutreachData, OutreachMetrics } from './outreach-data'
+import { fetchMarketingData, MarketingMetrics } from './marketing-data'
+import { fetchCallAnalysisData, CallAnalysisMetrics } from './call-analysis-data'
+import { getFacebookMetrics, FacebookMetrics } from './facebook-data'
+import { fetchOpenerTracking, OpenerTrackingData } from './opener-tracking-data'
 
 const CLOSE_API_BASE = 'https://api.close.com/api/v1'
 
@@ -65,6 +69,141 @@ async function closeApiFetch(endpoint: string, options?: RequestInit) {
     throw new Error(`Close API error ${res.status}: ${text}`)
   }
   return res.json()
+}
+
+async function fetchOppStatusChanges(dateGte: string): Promise<any[]> {
+  const changes: any[] = []
+  let hasMore = true
+  let skip = 0
+  const limit = 100
+
+  while (hasMore) {
+    const data = await closeApiFetch(
+      `/activity/status_change/opportunity/?date_created__gte=${dateGte}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,date_created,old_status_id,new_status_id,old_status_label,new_status_label`
+    )
+    changes.push(...data.data)
+    hasMore = data.has_more
+    skip += limit
+  }
+
+  return changes
+}
+
+interface StatusTransition {
+  fromLabel: string
+  toLabel: string
+  count: number
+}
+
+interface PipelineQuality {
+  settingTransitions: StatusTransition[]
+  settingTotal: number
+  settingNoShowCount: number
+  settingNoShowRate: number
+  settingToClosingCount: number
+  settingToClosingRate: number
+  settingLostCount: number
+  settingLostRate: number
+  settingFollowUpCount: number
+  settingFollowUpRate: number
+  closingTransitions: StatusTransition[]
+  closingTotal: number
+  closingNoShowCount: number
+  closingNoShowRate: number
+  closingWonCount: number
+  closingWonRate: number
+  closingLostCount: number
+  closingLostRate: number
+  closingFollowUpCount: number
+  closingFollowUpRate: number
+  closingAngebotCount: number
+  closingCC2Count: number
+  noShowRecovery: StatusTransition[]
+}
+
+function computePipelineQuality(changes: any[]): PipelineQuality {
+  const SETTING_TERMINIERT = 'stat_SJMKmHyG1PUg5y6pcFZiEHKEIWVrFf7IDMpF1O31AgA'
+  const SETTING_NO_SHOW = 'stat_09b2m2xI4kxcxHjgE3Xbb3n7rzE3ygpmBX4zIXR1I5f'
+  const SETTING_FOLLOW_UP = 'stat_esHRwS41irQis8aYyfk55CRjyrV5bhEB6c03qWdU3So'
+  const CLOSING_TERMINIERT = 'stat_G4vinr4M5aNginkr1nNkxS7Mt2sEFFELsmOfrBMGCG4'
+  const CLOSING_NO_SHOW = 'stat_XTjldovdZz1SvfOfi8nzTCbm5o9mUAVDwZ6jdSZ1V3R'
+  const CLOSING_FOLLOW_UP = 'stat_WJks2iEcai6sgu3dokyOSKud5oWTIWKo3IQaDSO9aDZ'
+  const ANGEBOT = 'stat_yIC8eUAp0OBYggJ1qqasmM3iosOh9rnrsEXJEtzSBpe'
+  const CC2 = 'stat_jwxdfe98lRYRhNRE9lPxo0oJ8tJIcJ7lCIVUTnVRzY2'
+  const WON = 'stat_dXsj5FLoE3RoAaop1P5GmYc8uyKn10UGpsd1YBHwew9'
+  const LOST = 'stat_hJ7EJJIKWl55KVG5Kjs91jxOaM1AsP65LSXDd2wh7Fe'
+
+  // Group transitions by from → to
+  function groupTransitions(fromId: string): StatusTransition[] {
+    const map: Record<string, { label: string; count: number }> = {}
+    for (const c of changes) {
+      if (c.old_status_id === fromId) {
+        const key = c.new_status_id
+        if (!map[key]) map[key] = { label: c.new_status_label || 'Unbekannt', count: 0 }
+        map[key].count++
+      }
+    }
+    return Object.values(map)
+      .map(v => ({ fromLabel: '', toLabel: v.label, count: v.count }))
+      .sort((a, b) => b.count - a.count)
+  }
+
+  // Setting transitions
+  const settingChanges = groupTransitions(SETTING_TERMINIERT)
+  const settingTotal = settingChanges.reduce((s, t) => s + t.count, 0)
+  const settingNoShowCount = changes.filter(c => c.old_status_id === SETTING_TERMINIERT && c.new_status_id === SETTING_NO_SHOW).length
+  const settingToClosingCount = changes.filter(c => c.old_status_id === SETTING_TERMINIERT && c.new_status_id === CLOSING_TERMINIERT).length
+  const settingLostCount = changes.filter(c => c.old_status_id === SETTING_TERMINIERT && c.new_status_id === LOST).length
+  const settingFollowUpCount = changes.filter(c => c.old_status_id === SETTING_TERMINIERT && c.new_status_id === SETTING_FOLLOW_UP).length
+
+  // Closing transitions
+  const closingChanges = groupTransitions(CLOSING_TERMINIERT)
+  const closingTotal = closingChanges.reduce((s, t) => s + t.count, 0)
+  const closingNoShowCount = changes.filter(c => c.old_status_id === CLOSING_TERMINIERT && c.new_status_id === CLOSING_NO_SHOW).length
+  const closingWonCount = changes.filter(c => c.old_status_id === CLOSING_TERMINIERT && c.new_status_id === WON).length
+  const closingLostCount = changes.filter(c => c.old_status_id === CLOSING_TERMINIERT && c.new_status_id === LOST).length
+  const closingFollowUpCount = changes.filter(c => c.old_status_id === CLOSING_TERMINIERT && c.new_status_id === CLOSING_FOLLOW_UP).length
+  const closingAngebotCount = changes.filter(c => c.old_status_id === CLOSING_TERMINIERT && c.new_status_id === ANGEBOT).length
+  const closingCC2Count = changes.filter(c => c.old_status_id === CLOSING_TERMINIERT && c.new_status_id === CC2).length
+
+  // No-Show recovery
+  const noShowRecovery: StatusTransition[] = []
+  const settingNoShowRecovery = groupTransitions(SETTING_NO_SHOW)
+  for (const t of settingNoShowRecovery) {
+    noShowRecovery.push({ fromLabel: 'Setting No Show', toLabel: t.toLabel, count: t.count })
+  }
+  const closingNoShowRecovery = groupTransitions(CLOSING_NO_SHOW)
+  for (const t of closingNoShowRecovery) {
+    noShowRecovery.push({ fromLabel: 'Closing No Show', toLabel: t.toLabel, count: t.count })
+  }
+
+  const rate = (n: number, total: number) => total > 0 ? Math.round((n / total) * 1000) / 10 : 0
+
+  return {
+    settingTransitions: settingChanges,
+    settingTotal,
+    settingNoShowCount,
+    settingNoShowRate: rate(settingNoShowCount, settingTotal),
+    settingToClosingCount,
+    settingToClosingRate: rate(settingToClosingCount, settingTotal),
+    settingLostCount,
+    settingLostRate: rate(settingLostCount, settingTotal),
+    settingFollowUpCount,
+    settingFollowUpRate: rate(settingFollowUpCount, settingTotal),
+    closingTransitions: closingChanges,
+    closingTotal,
+    closingNoShowCount,
+    closingNoShowRate: rate(closingNoShowCount, closingTotal),
+    closingWonCount,
+    closingWonRate: rate(closingWonCount, closingTotal),
+    closingLostCount,
+    closingLostRate: rate(closingLostCount, closingTotal),
+    closingFollowUpCount,
+    closingFollowUpRate: rate(closingFollowUpCount, closingTotal),
+    closingAngebotCount,
+    closingCC2Count,
+    noShowRecovery,
+  }
 }
 
 async function fetchAllOpportunities() {
@@ -316,6 +455,7 @@ export async function fetchCloseData() {
     // Custom field IDs for reach detection
     const COLD_CALL_NIEMAND_ERREICHT = 'custom.cf_U3JJwHBkSgOGtEKO4wd7b5EeLbUyv0uBXAQuG3GgEu6' // ❌Niemand erreicht = "Ja"
     const COLD_CALL_ENTSCHEIDER = 'custom.cf_0qd3PlDb9re1MU97cxNV7MJUXjHVYGmuifQc5CsTrN1' // 🔍Entscheider (choices)
+    const COLD_CALL_EINWAND = 'custom.cf_LrfCv9jCiQOAkx4EaBAa3E3rzA5NIfa4CIfWT2rwuhe' // 🛑 Einwand (choices)
     const FOLLOW_UP_NAECHSTER_SCHRITT = 'custom.cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN' // Nächster Schritt (Follow-Up)
     const SETTING_NAECHSTER_SCHRITT = 'custom.cf_xPhL5XUDQ8i4gCcUF4pz5uMaHUoIMwZXB3af8Xv0A6B' // Nächster Schritt (Setting)
 
@@ -331,7 +471,7 @@ export async function fetchCloseData() {
       const limit = 100
       while (hasMore) {
         const data = await closeApiFetch(
-          `/activity/custom/?date_created__gte=${activitiesSince}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
+          `/activity/custom/?date_created__gte=${activitiesSince}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${COLD_CALL_EINWAND},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
         )
         allCustomActivities.push(...data.data)
         hasMore = data.has_more
@@ -341,6 +481,22 @@ export async function fetchCloseData() {
       allCustomActivities = []
     }
 
+    // Fetch opportunity status changes for pipeline quality analysis
+    let allStatusChanges: any[] = []
+    let weekStatusChanges: any[] = []
+    let monthStatusChanges: any[] = []
+    try {
+      allStatusChanges = await fetchOppStatusChanges(activitiesSince)
+      weekStatusChanges = allStatusChanges.filter((c: any) => c.date_created >= weekStartDate)
+      monthStatusChanges = allStatusChanges.filter((c: any) => c.date_created >= monthStart)
+    } catch {
+      allStatusChanges = []
+    }
+
+    const pipelineQualityAllTime = computePipelineQuality(allStatusChanges)
+    const pipelineQualityWeek = computePipelineQuality(weekStatusChanges)
+    const pipelineQualityMonth = computePipelineQuality(monthStatusChanges)
+
     // Helper: filter activities by type and date
     function filterActivities(typeId: string, dateGte: string) {
       return allCustomActivities.filter((a: any) =>
@@ -348,7 +504,7 @@ export async function fetchCloseData() {
       )
     }
 
-    // Count activities by type and period
+    // Count custom activity protocols by type and period (for Entscheider, Settings, Closings)
     const coldCallToday = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, todayDateISO).length
     const coldCallWeek = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, weekStartDate).length
     const coldCallMonth = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, monthStart).length
@@ -356,18 +512,51 @@ export async function fetchCloseData() {
     const followUpWeek = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, weekStartDate).length
     const followUpMonth = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, monthStart).length
 
-    // Anwahlen = Cold Call + Follow-Up custom activities
-    const anwahlenToday = coldCallToday + followUpToday
-    const anwahlenWeek = coldCallWeek + followUpWeek
-    const anwahlenMonth = coldCallMonth + followUpMonth
+    // Anwahlen = ECHTE Calls aus Close via /activity/call/ endpoint
+    // Fetch per period to keep pagination manageable
+    async function fetchCallsForPeriod(dateStart: string): Promise<any[]> {
+      const calls: any[] = []
+      try {
+        let hasMore = true
+        let skip = 0
+        const limit = 100
+        while (hasMore) {
+          const data = await closeApiFetch(
+            `/activity/call/?date_created__gte=${dateStart}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,date_created,user_id,user_name`
+          )
+          calls.push(...data.data)
+          hasMore = data.has_more
+          skip += limit
+        }
+      } catch { /* empty */ }
+      return calls
+    }
 
-    // Entscheider erreicht = Activities wo NICHT "Niemand erreicht"
+    // Fetch all calls for this month (covers today + week + month)
+    const allMonthCalls = await fetchCallsForPeriod(monthStart)
+
+    const anwahlenToday = allMonthCalls.filter((a: any) => a.date_created >= todayDateISO).length
+    const anwahlenWeek = allMonthCalls.filter((a: any) => a.date_created >= weekStartDate).length
+    const anwahlenMonth = allMonthCalls.length
+
+    // Per-user call counts for team performance
+    function countCallsByUser(calls: any[]): Record<string, number> {
+      const byUser: Record<string, number> = {}
+      for (const c of calls) {
+        const name = c.user_name || 'Unbekannt'
+        byUser[name] = (byUser[name] || 0) + 1
+      }
+      return byUser
+    }
+    const callsByUserMonth = countCallsByUser(allMonthCalls)
+
+    // Entscheider erreicht = Cold Calls wo Entscheider-Feld gesetzt ist (nicht leer) UND nicht "Niemand erreicht"
     function countEntscheiderErreicht(typeId: string, dateGte: string): number {
       const acts = filterActivities(typeId, dateGte)
       if (typeId === CUSTOM_ACTIVITY_TYPES.coldCall) {
-        return acts.filter((a: any) => a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
+        return acts.filter((a: any) => a[COLD_CALL_ENTSCHEIDER] && a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
       } else {
-        return acts.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
+        return acts.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] && a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
       }
     }
 
@@ -375,76 +564,174 @@ export async function fetchCloseData() {
     const entscheiderWeekCount = countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.coldCall, weekStartDate) + countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.followUp, weekStartDate)
     const entscheiderMonthCount = countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.coldCall, monthStart) + countEntscheiderErreicht(CUSTOM_ACTIVITY_TYPES.followUp, monthStart)
 
-    // Entscheider outcome breakdown (what happened after reaching decision-maker)
+    // Entscheider outcome breakdown — ALL outcomes so totals match "Entscheider erreicht"
+    const ENTSCHEIDER_SUCCESS = new Set(['Setting vereinbart am:'])
+    const FOLLOWUP_SETTING_SUCCESS = new Set(['2. Setting gelegt am:', '3. Closing gelegt am:'])
+
     function getEntscheiderOutcomes(dateGte: string): Record<string, number> {
       const coldCalls = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, dateGte)
-        .filter((a: any) => a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja')
+        .filter((a: any) => a[COLD_CALL_ENTSCHEIDER] && a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja')
       const followUps = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, dateGte)
-        .filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht')
+        .filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] && a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht')
 
       const outcomes: Record<string, number> = {}
-      // Cold call outcomes from Entscheider field
       for (const a of coldCalls) {
-        const outcome = a[COLD_CALL_ENTSCHEIDER] || 'Unbekannt'
+        const outcome = a[COLD_CALL_ENTSCHEIDER] || 'Nicht erfasst'
         outcomes[outcome] = (outcomes[outcome] || 0) + 1
       }
-      // Follow-up outcomes from Nächster Schritt field
       for (const a of followUps) {
-        const outcome = a[FOLLOW_UP_NAECHSTER_SCHRITT] || 'Unbekannt'
+        const outcome = a[FOLLOW_UP_NAECHSTER_SCHRITT] || 'Nicht erfasst'
         outcomes[outcome] = (outcomes[outcome] || 0) + 1
       }
       return outcomes
     }
 
+    const entscheiderOutcomesToday = getEntscheiderOutcomes(todayDateISO)
+    const entscheiderOutcomesWeek = getEntscheiderOutcomes(weekStartDate)
     const entscheiderOutcomesMonth = getEntscheiderOutcomes(monthStart)
 
-    // Team performance: settings + closings per member
-    function getTeamPerformance(dateGte: string): { name: string; settings: number; closings: number; calls: number }[] {
-      const coldCalls = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, dateGte)
-      const followUps = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, dateGte)
+    // Setting outcome breakdown — ALL outcomes so totals match
+    const SETTING_SUCCESS = new Set(['2. Closing gelegt auf:'])
+
+    function getSettingOutcomes(dateGte: string): Record<string, number> {
       const settings = filterActivities(CUSTOM_ACTIVITY_TYPES.setting, dateGte)
-
-      const memberMap: Record<string, { settings: number; closings: number; calls: number }> = {}
-
-      // Count calls per member
-      for (const a of [...coldCalls, ...followUps]) {
-        const name = a.user_name || 'Unbekannt'
-        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
-        memberMap[name].calls++
+      const outcomes: Record<string, number> = {}
+      for (const a of settings) {
+        const outcome = a[SETTING_NAECHSTER_SCHRITT] || 'Nicht erfasst'
+        outcomes[outcome] = (outcomes[outcome] || 0) + 1
       }
-
-      // Settings gelegt per member (from cold calls)
-      for (const a of coldCalls.filter((a: any) => a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:')) {
-        const name = a.user_name || 'Unbekannt'
-        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
-        memberMap[name].settings++
-      }
-      // Settings from follow-ups
-      for (const a of followUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:')) {
-        const name = a.user_name || 'Unbekannt'
-        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
-        memberMap[name].settings++
-      }
-
-      // Closings gelegt per member (from settings)
-      for (const a of settings.filter((a: any) => a[SETTING_NAECHSTER_SCHRITT] === '2. Closing gelegt auf:')) {
-        const name = a.user_name || 'Unbekannt'
-        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
-        memberMap[name].closings++
-      }
-      // Closings from follow-ups
-      for (const a of followUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] === '3. Closing gelegt am:')) {
-        const name = a.user_name || 'Unbekannt'
-        if (!memberMap[name]) memberMap[name] = { settings: 0, closings: 0, calls: 0 }
-        memberMap[name].closings++
-      }
-
-      return Object.entries(memberMap)
-        .map(([name, stats]) => ({ name, ...stats }))
-        .sort((a, b) => (b.settings + b.closings) - (a.settings + a.closings))
+      return outcomes
     }
 
-    const teamPerformanceMonth = getTeamPerformance(monthStart)
+    const settingOutcomesToday = getSettingOutcomes(todayDateISO)
+    const settingOutcomesWeek = getSettingOutcomes(weekStartDate)
+    const settingOutcomesMonth = getSettingOutcomes(monthStart)
+
+    // Einwand breakdown — what specific objection did the Entscheider have?
+    function getEinwandBreakdown(dateGte: string): Record<string, number> {
+      const coldCalls = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, dateGte)
+      const outcomes: Record<string, number> = {}
+      for (const a of coldCalls) {
+        const einwand = a[COLD_CALL_EINWAND]
+        if (einwand) {
+          outcomes[einwand] = (outcomes[einwand] || 0) + 1
+        }
+      }
+      return outcomes
+    }
+
+    const einwandToday = getEinwandBreakdown(todayDateISO)
+    const einwandWeek = getEinwandBreakdown(weekStartDate)
+    const einwandMonth = getEinwandBreakdown(monthStart)
+
+    // Setting quality metrics
+    const settingProtocolsMonth = filterActivities(CUSTOM_ACTIVITY_TYPES.setting, monthStart).length
+    const settingProtocolsWeek = filterActivities(CUSTOM_ACTIVITY_TYPES.setting, weekStartDate).length
+
+    // Team roles
+    const OPENER_NAMES = ['Taha Keremoglu', 'Johannes Bohn']
+    const SETTER_NAMES = ['Felix Zoepp']
+    const CLOSER_NAMES = ['Felix Zoepp']
+
+    // Extended team performance with opener-specific KPIs
+    interface TeamMemberPerformance {
+      name: string
+      role: 'opener' | 'setter' | 'closer' | 'opener+setter' | 'setter+closer' | 'all'
+      calls: number
+      coldCallProtocols: number
+      followUpProtocols: number
+      entscheiderErreicht: number
+      settingsGelegt: number
+      closingsGelegt: number
+      callsPerEntscheider: number
+      callsPerSetting: number
+    }
+
+    function getTeamPerformance(dateGte: string, callsByUser: Record<string, number>): TeamMemberPerformance[] {
+      const coldCalls = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, dateGte)
+      const followUps = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, dateGte)
+      const settingActs = filterActivities(CUSTOM_ACTIVITY_TYPES.setting, dateGte)
+
+      const memberMap: Record<string, Omit<TeamMemberPerformance, 'callsPerEntscheider' | 'callsPerSetting'>> = {}
+
+      function ensure(name: string) {
+        if (!memberMap[name]) {
+          let role: TeamMemberPerformance['role'] = 'all'
+          const isOpener = OPENER_NAMES.includes(name)
+          const isSetter = SETTER_NAMES.includes(name)
+          const isCloser = CLOSER_NAMES.includes(name)
+          if (isOpener && !isSetter && !isCloser) role = 'opener'
+          else if (isSetter && isCloser) role = 'setter+closer'
+          else if (isSetter) role = 'setter'
+          else if (isCloser) role = 'closer'
+          memberMap[name] = { name, role, calls: 0, coldCallProtocols: 0, followUpProtocols: 0, entscheiderErreicht: 0, settingsGelegt: 0, closingsGelegt: 0 }
+        }
+      }
+
+      // Calls per member
+      for (const [name, count] of Object.entries(callsByUser)) {
+        ensure(name)
+        memberMap[name].calls = count
+      }
+
+      // Cold Call protocols per member
+      for (const a of coldCalls) {
+        const name = a.user_name || 'Unbekannt'
+        ensure(name)
+        memberMap[name].coldCallProtocols++
+        // Entscheider erreicht
+        if (a[COLD_CALL_ENTSCHEIDER] && a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja') {
+          memberMap[name].entscheiderErreicht++
+        }
+        // Settings gelegt from cold calls
+        if (a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:') {
+          memberMap[name].settingsGelegt++
+        }
+      }
+
+      // Follow-Up protocols per member
+      for (const a of followUps) {
+        const name = a.user_name || 'Unbekannt'
+        ensure(name)
+        memberMap[name].followUpProtocols++
+        // Entscheider erreicht from follow-ups
+        if (a[FOLLOW_UP_NAECHSTER_SCHRITT] && a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht') {
+          memberMap[name].entscheiderErreicht++
+        }
+        // Settings from follow-ups
+        if (a[FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:') {
+          memberMap[name].settingsGelegt++
+        }
+        // Closings from follow-ups
+        if (a[FOLLOW_UP_NAECHSTER_SCHRITT] === '3. Closing gelegt am:') {
+          memberMap[name].closingsGelegt++
+        }
+      }
+
+      // Closings from setting protocols
+      for (const a of settingActs.filter((a: any) => a[SETTING_NAECHSTER_SCHRITT] === '2. Closing gelegt auf:')) {
+        const name = a.user_name || 'Unbekannt'
+        ensure(name)
+        memberMap[name].closingsGelegt++
+      }
+
+      return Object.values(memberMap)
+        .map(m => ({
+          ...m,
+          callsPerEntscheider: m.entscheiderErreicht > 0 ? Math.round((m.calls / m.entscheiderErreicht) * 10) / 10 : 0,
+          callsPerSetting: m.settingsGelegt > 0 ? Math.round((m.calls / m.settingsGelegt) * 10) / 10 : 0,
+        }))
+        .sort((a, b) => b.settingsGelegt - a.settingsGelegt || b.calls - a.calls)
+    }
+
+    const teamPerformanceToday = getTeamPerformance(todayDateISO,
+      countCallsByUser(allMonthCalls.filter((a: any) => a.date_created >= todayDateISO))
+    )
+    const teamPerformanceWeek = getTeamPerformance(weekStartDate,
+      countCallsByUser(allMonthCalls.filter((a: any) => a.date_created >= weekStartDate))
+    )
+    const teamPerformanceMonth = getTeamPerformance(monthStart, callsByUserMonth)
+    // teamPerformanceAllTime is computed after year data is fetched (see below)
 
     // Settings gelegt = Cold Call mit Entscheider "Setting vereinbart am:" + Follow-Up mit "2. Setting gelegt am:"
     function countSettingsGelegt(dateGte: string): number {
@@ -474,6 +761,16 @@ export async function fetchCloseData() {
     const closingsGelegtToday = countClosingsGelegt(todayDateISO)
     const closingsGelegtWeek = countClosingsGelegt(weekStartDate)
     const closingsGelegtMonth = countClosingsGelegt(monthStart)
+
+    // Funnel efficiency ratios (month-based)
+    const funnelRatios = {
+      anwahlenProEntscheider: entscheiderMonthCount > 0 ? Math.round((anwahlenMonth / entscheiderMonthCount) * 10) / 10 : 0,
+      anwahlenProSetting: settingsGelegtMonth > 0 ? Math.round((anwahlenMonth / settingsGelegtMonth) * 10) / 10 : 0,
+      settingsProClosing: closingsGelegtMonth > 0 ? Math.round((settingsGelegtMonth / closingsGelegtMonth) * 10) / 10 : 0,
+      closingsProWon: wonThisMonth.length > 0 ? Math.round((closingsGelegtMonth / wonThisMonth.length) * 10) / 10 : 0,
+      anwahlenProWon: wonThisMonth.length > 0 ? Math.round((anwahlenMonth / wonThisMonth.length) * 10) / 10 : 0,
+      entscheiderProSetting: settingsGelegtMonth > 0 ? Math.round((entscheiderMonthCount / settingsGelegtMonth) * 10) / 10 : 0,
+    }
 
     // Won deals for week period
     const weekStartISODate = formatDateISO(getISOWeekStart(currentYear, currentWeek))
@@ -519,6 +816,162 @@ export async function fetchCloseData() {
     const quotenAbschlussQuote = closingsGelegtMonth > 0 ? Math.round((wonThisMonth.length / closingsGelegtMonth) * 1000) / 10 : 0
     const quotenOverall = anwahlenMonth > 0 ? Math.round((wonThisMonth.length / anwahlenMonth) * 1000) / 10 : 0
 
+    // All-time / Year funnel — fetch calls + activities from Jan 1st of current year
+    const yearStartISO_calc = `${currentYear}-01-01`
+
+    // Fetch year activities separately (custom activities beyond 90 days)
+    let yearCustomActivities: any[] = []
+    try {
+      let hasMore = true
+      let skip = 0
+      const limit = 100
+      while (hasMore) {
+        const data = await closeApiFetch(
+          `/activity/custom/?date_created__gte=${yearStartISO_calc}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${COLD_CALL_EINWAND},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
+        )
+        yearCustomActivities.push(...data.data)
+        hasMore = data.has_more
+        skip += limit
+      }
+    } catch {
+      yearCustomActivities = []
+    }
+
+    function filterYearActivities(typeId: string) {
+      return yearCustomActivities.filter((a: any) => a.custom_activity_type_id === typeId)
+    }
+
+    const allTimeCalls = await fetchCallsForPeriod(yearStartISO_calc)
+    const anwahlenAllTime = allTimeCalls.length
+
+    // Entscheider erreicht (year)
+    const yearColdCalls = filterYearActivities(CUSTOM_ACTIVITY_TYPES.coldCall)
+    const yearFollowUps = filterYearActivities(CUSTOM_ACTIVITY_TYPES.followUp)
+    const yearSettings = filterYearActivities(CUSTOM_ACTIVITY_TYPES.setting)
+    const entscheiderAllTime = yearColdCalls.filter((a: any) => a[COLD_CALL_ENTSCHEIDER] && a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
+      + yearFollowUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] && a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
+    const coldCallAllTime = yearColdCalls.length
+    const followUpAllTime = yearFollowUps.length
+
+    // Settings gelegt (year)
+    const settingsGelegtAllTime = yearColdCalls.filter((a: any) => a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:').length
+      + yearFollowUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:').length
+
+    // Closings gelegt (year)
+    const closingsGelegtAllTime = yearSettings.filter((a: any) => a[SETTING_NAECHSTER_SCHRITT] === '2. Closing gelegt auf:').length
+      + yearFollowUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] === '3. Closing gelegt am:').length
+
+    const wonThisYear = wonDeals.filter((o: any) => o.date_won && o.date_won >= yearStartISO_calc)
+    const wonRevenueYear = wonThisYear.reduce((sum: number, o: any) => sum + (o.value || 0), 0) / 100
+
+    const quotenAllTimeErreichquote = anwahlenAllTime > 0 ? Math.round((entscheiderAllTime / anwahlenAllTime) * 1000) / 10 : 0
+    const quotenAllTimeSettingQuote = entscheiderAllTime > 0 ? Math.round((settingsGelegtAllTime / entscheiderAllTime) * 1000) / 10 : 0
+    const quotenAllTimeClosingQuote = settingsGelegtAllTime > 0 ? Math.round((closingsGelegtAllTime / settingsGelegtAllTime) * 1000) / 10 : 0
+    const quotenAllTimeAbschlussQuote = closingsGelegtAllTime > 0 ? Math.round((wonThisYear.length / closingsGelegtAllTime) * 1000) / 10 : 0
+    const quotenAllTimeOverall = anwahlenAllTime > 0 ? Math.round((wonThisYear.length / anwahlenAllTime) * 1000) / 10 : 0
+
+    // Year-level entscheider outcomes (ALL for full transparency)
+    const entscheiderOutcomesYear: Record<string, number> = {}
+    for (const a of yearColdCalls.filter((a: any) => a[COLD_CALL_ENTSCHEIDER] && a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja')) {
+      const outcome = a[COLD_CALL_ENTSCHEIDER] || 'Nicht erfasst'
+      entscheiderOutcomesYear[outcome] = (entscheiderOutcomesYear[outcome] || 0) + 1
+    }
+    for (const a of yearFollowUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] && a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht')) {
+      const outcome = a[FOLLOW_UP_NAECHSTER_SCHRITT] || 'Nicht erfasst'
+      entscheiderOutcomesYear[outcome] = (entscheiderOutcomesYear[outcome] || 0) + 1
+    }
+
+    // Year-level Einwand breakdown
+    const einwandYear: Record<string, number> = {}
+    for (const a of yearColdCalls) {
+      const einwand = a[COLD_CALL_EINWAND]
+      if (einwand) {
+        einwandYear[einwand] = (einwandYear[einwand] || 0) + 1
+      }
+    }
+
+    // Year-level setting outcomes (ALL)
+    const settingOutcomesYear: Record<string, number> = {}
+    for (const a of yearSettings) {
+      const outcome = a[SETTING_NAECHSTER_SCHRITT] || 'Nicht erfasst'
+      settingOutcomesYear[outcome] = (settingOutcomesYear[outcome] || 0) + 1
+    }
+
+    // Alltime team performance (using year data)
+    const teamPerformanceAllTime = (() => {
+      const callsByUser = countCallsByUser(allTimeCalls)
+
+      const memberMap: Record<string, Omit<TeamMemberPerformance, 'callsPerEntscheider' | 'callsPerSetting'>> = {}
+
+      function ensure(name: string) {
+        if (!memberMap[name]) {
+          let role: TeamMemberPerformance['role'] = 'all'
+          const isOpener = OPENER_NAMES.includes(name)
+          const isSetter = SETTER_NAMES.includes(name)
+          const isCloser = CLOSER_NAMES.includes(name)
+          if (isOpener && !isSetter && !isCloser) role = 'opener'
+          else if (isSetter && isCloser) role = 'setter+closer'
+          else if (isSetter) role = 'setter'
+          else if (isCloser) role = 'closer'
+          memberMap[name] = { name, role, calls: 0, coldCallProtocols: 0, followUpProtocols: 0, entscheiderErreicht: 0, settingsGelegt: 0, closingsGelegt: 0 }
+        }
+      }
+
+      for (const [name, count] of Object.entries(callsByUser)) { ensure(name); memberMap[name].calls = count }
+      for (const a of yearColdCalls) {
+        const name = a.user_name || 'Unbekannt'; ensure(name)
+        memberMap[name].coldCallProtocols++
+        if (a[COLD_CALL_ENTSCHEIDER] && a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja') memberMap[name].entscheiderErreicht++
+        if (a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:') memberMap[name].settingsGelegt++
+      }
+      for (const a of yearFollowUps) {
+        const name = a.user_name || 'Unbekannt'; ensure(name)
+        memberMap[name].followUpProtocols++
+        if (a[FOLLOW_UP_NAECHSTER_SCHRITT] && a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht') memberMap[name].entscheiderErreicht++
+        if (a[FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:') memberMap[name].settingsGelegt++
+        if (a[FOLLOW_UP_NAECHSTER_SCHRITT] === '3. Closing gelegt am:') memberMap[name].closingsGelegt++
+      }
+      for (const a of yearSettings.filter((a: any) => a[SETTING_NAECHSTER_SCHRITT] === '2. Closing gelegt auf:')) {
+        const name = a.user_name || 'Unbekannt'; ensure(name)
+        memberMap[name].closingsGelegt++
+      }
+
+      return Object.values(memberMap)
+        .map(m => ({ ...m, callsPerEntscheider: m.entscheiderErreicht > 0 ? Math.round((m.calls / m.entscheiderErreicht) * 10) / 10 : 0, callsPerSetting: m.settingsGelegt > 0 ? Math.round((m.calls / m.settingsGelegt) * 10) / 10 : 0 }))
+        .sort((a, b) => b.settingsGelegt - a.settingsGelegt || b.calls - a.calls)
+    })()
+
+    // Erstdeal vs Upsell breakdown per period
+    // A deal is an upsell if the same lead_name has a PREVIOUS won deal
+    function splitErstdealUpsell(deals: any[]) {
+      // Sort by date to determine first deal per customer
+      const sorted = [...deals].sort((a, b) => (a.date_won || '').localeCompare(b.date_won || ''))
+      const seen = new Set<string>()
+      let erstdeals = 0, upsells = 0, erstdealRevenue = 0, upsellRevenue = 0
+      for (const d of sorted) {
+        const name = d.lead_name || 'Unbekannt'
+        const val = (d.value || 0) / 100
+        // Check if this customer already has a won deal (either in this set or in all wonDeals before this date)
+        const hasEarlierDeal = wonDeals.some((w: any) =>
+          w.lead_name === name && w.status_id === WON_STATUS_ID && w.date_won && d.date_won && w.date_won < d.date_won
+        ) || seen.has(name)
+        if (hasEarlierDeal) {
+          upsells++
+          upsellRevenue += val
+        } else {
+          erstdeals++
+          erstdealRevenue += val
+        }
+        seen.add(name)
+      }
+      const upsellRate = (erstdeals + upsells) > 0 ? Math.round((upsells / (erstdeals + upsells)) * 100) : 0
+      return { erstdeals, upsells, erstdealRevenue, upsellRevenue, upsellRate }
+    }
+
+    const wonWeekSplit = splitErstdealUpsell(wonThisWeek)
+    const wonMonthSplit = splitErstdealUpsell(wonThisMonth)
+    const wonYearSplit = splitErstdealUpsell(wonThisYear)
+
     const salesFunnel = {
       today: {
         anwahlen: anwahlenToday,
@@ -529,6 +982,7 @@ export async function fetchCloseData() {
         closingsGelegt: closingsGelegtToday,
         wonDeals: 0,
         wonRevenue: 0,
+        erstdeals: 0, upsells: 0, erstdealRevenue: 0, upsellRevenue: 0, upsellRate: 0,
       },
       week: {
         anwahlen: anwahlenWeek,
@@ -539,6 +993,7 @@ export async function fetchCloseData() {
         closingsGelegt: closingsGelegtWeek,
         wonDeals: wonThisWeek.length,
         wonRevenue: wonRevenueWeek,
+        ...wonWeekSplit,
       },
       month: {
         anwahlen: anwahlenMonth,
@@ -549,6 +1004,18 @@ export async function fetchCloseData() {
         closingsGelegt: closingsGelegtMonth,
         wonDeals: wonThisMonth.length,
         wonRevenue: wonRevenueMonth,
+        ...wonMonthSplit,
+      },
+      alltime: {
+        anwahlen: anwahlenAllTime,
+        entscheiderErreicht: entscheiderAllTime,
+        coldCalls: coldCallAllTime,
+        followUps: followUpAllTime,
+        settingsGelegt: settingsGelegtAllTime,
+        closingsGelegt: closingsGelegtAllTime,
+        wonDeals: wonThisYear.length,
+        wonRevenue: wonRevenueYear,
+        ...wonYearSplit,
       },
       quoten: {
         erreichquote: quotenErreichquote,
@@ -556,6 +1023,13 @@ export async function fetchCloseData() {
         closingQuote: quotenClosingQuote,
         abschlussQuote: quotenAbschlussQuote,
         overallAnwahlenToWon: quotenOverall,
+      },
+      quotenAllTime: {
+        erreichquote: quotenAllTimeErreichquote,
+        settingQuote: quotenAllTimeSettingQuote,
+        closingQuote: quotenAllTimeClosingQuote,
+        abschlussQuote: quotenAllTimeAbschlussQuote,
+        overallAnwahlenToWon: quotenAllTimeOverall,
       },
       pipeline: pipelineSnapshot,
     }
@@ -777,6 +1251,48 @@ export async function fetchCloseData() {
       pipelineDealsByStatus[key].sort((a, b) => b.value - a.value)
     }
 
+    // Pipeline split: Neukunde vs. Bestandskunde (for active deals)
+    // A deal is "Bestandskunde" if the same lead_name has a previous won deal
+    const wonLeadNames = new Set(wonDeals.map((d: any) => d.lead_name).filter(Boolean))
+
+    const pipelineNeukunde: { leadName: string; status: string; value: number; date: string }[] = []
+    const pipelineBestandskunde: { leadName: string; status: string; value: number; date: string }[] = []
+
+    for (const deal of activeDeals) {
+      const entry = {
+        leadName: deal.lead_name || 'Unbekannt',
+        status: PIPELINE_STATUSES[deal.status_id] || 'Unbekannt',
+        value: (deal.value || 0) / 100,
+        date: deal.date_created || '',
+      }
+      if (wonLeadNames.has(deal.lead_name)) {
+        pipelineBestandskunde.push(entry)
+      } else {
+        pipelineNeukunde.push(entry)
+      }
+    }
+    pipelineNeukunde.sort((a, b) => b.value - a.value)
+    pipelineBestandskunde.sort((a, b) => b.value - a.value)
+
+    const pipelineNeukundeValue = pipelineNeukunde.reduce((s, d) => s + d.value, 0)
+    const pipelineBestandskundeValue = pipelineBestandskunde.reduce((s, d) => s + d.value, 0)
+
+    // Upsell detail list (all won upsell deals with dates)
+    const upsellDealsList: { leadName: string; value: number; date: string }[] = []
+    const seenForUpsell = new Set<string>()
+    const wonSortedForUpsell = [...wonDeals].sort((a: any, b: any) => (a.date_won || '').localeCompare(b.date_won || ''))
+    for (const d of wonSortedForUpsell) {
+      const name = d.lead_name || 'Unbekannt'
+      const hasEarlier = wonDeals.some((w: any) =>
+        w.lead_name === name && w.status_id === WON_STATUS_ID && w.date_won && d.date_won && w.date_won < d.date_won
+      ) || seenForUpsell.has(name)
+      if (hasEarlier) {
+        upsellDealsList.push({ leadName: name, value: (d.value || 0) / 100, date: d.date_won || '' })
+      }
+      seenForUpsell.add(name)
+    }
+    upsellDealsList.sort((a, b) => b.date.localeCompare(a.date))
+
     const formattedDate = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`
 
     return {
@@ -819,8 +1335,28 @@ export async function fetchCloseData() {
       avg3Months,
 
       salesFunnel,
+      entscheiderOutcomesToday,
+      entscheiderOutcomesWeek,
       entscheiderOutcomesMonth,
+      entscheiderOutcomesYear,
+      einwandToday,
+      einwandWeek,
+      einwandMonth,
+      einwandYear,
+      settingOutcomesToday,
+      settingOutcomesWeek,
+      settingOutcomesMonth,
+      settingOutcomesYear,
+      settingProtocolsMonth,
+      settingProtocolsWeek,
+      pipelineQualityAllTime,
+      pipelineQualityWeek,
+      pipelineQualityMonth,
+      teamPerformanceToday,
+      teamPerformanceWeek,
       teamPerformanceMonth,
+      teamPerformanceAllTime,
+      funnelRatios,
       allCustomActivities,
       customActivityTypeIds: CUSTOM_ACTIVITY_TYPES,
       customFieldIds: { COLD_CALL_NIEMAND_ERREICHT, COLD_CALL_ENTSCHEIDER, FOLLOW_UP_NAECHSTER_SCHRITT, SETTING_NAECHSTER_SCHRITT },
@@ -849,6 +1385,11 @@ export async function fetchCloseData() {
       conversionFunnel,
       waterfall,
       pipelineDealsByStatus,
+      pipelineNeukunde,
+      pipelineBestandskunde,
+      pipelineNeukundeValue,
+      pipelineBestandskundeValue,
+      upsellDealsList,
 
       customerAnalytics: {
         customers,
@@ -883,6 +1424,14 @@ export async function fetchCloseData() {
       deliveryMetrics: getDeliveryMetrics(),
 
       outreachMetrics: await fetchOutreachData(),
+
+      marketingMetrics: await fetchMarketingData(),
+
+      facebookMetrics: getFacebookMetrics(),
+
+      callAnalysisMetrics: await fetchCallAnalysisData(),
+
+      openerTracking: await fetchOpenerTracking(),
 
       lastUpdated: new Date().toISOString(),
     }
