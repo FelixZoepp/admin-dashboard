@@ -338,26 +338,16 @@ function computeOpenerKPIs(openerName: string, calls: any[], customActivities: a
 
   const entscheiderGesprochen = coldCallEntscheider + followUpEntscheider
 
-  // Termine gelegt = Cold Calls mit "Setting vereinbart am:" + Follow-Ups mit "2. Setting gelegt am:"
-  const termineFromColdCall = openerActivities.filter((a: any) =>
+  // Termine gelegt = NUR Cold Call Protokolle mit "Setting vereinbart am:" (Follow-Up zählt nicht als neuer Termin)
+  const terminActivities = openerActivities.filter((a: any) =>
     a.custom_activity_type_id === CUSTOM_ACTIVITY_TYPES.coldCall &&
     a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:'
-  ).length
-
-  const termineFromFollowUp = openerActivities.filter((a: any) =>
-    a.custom_activity_type_id === CUSTOM_ACTIVITY_TYPES.followUp &&
-    a[FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:'
-  ).length
-
-  const termineGelegt = termineFromColdCall + termineFromFollowUp
+  )
+  const termineGelegt = terminActivities.length
 
   // Frühbonus: Check if first Termin was before 10:00 CET/CEST
   let fruehbonus = false
   if (termineGelegt > 0) {
-    const terminActivities = openerActivities.filter((a: any) =>
-      (a.custom_activity_type_id === CUSTOM_ACTIVITY_TYPES.coldCall && a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:') ||
-      (a.custom_activity_type_id === CUSTOM_ACTIVITY_TYPES.followUp && a[FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:')
-    )
     if (terminActivities.length > 0) {
       const earliest = terminActivities
         .map((a: any) => new Date(a.date_created).getTime())
