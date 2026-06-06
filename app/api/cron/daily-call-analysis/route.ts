@@ -293,6 +293,7 @@ interface OpenerKPIs {
   protokolle: number
   entscheiderGesprochen: number
   termineGelegt: number
+  fruehbonus: boolean
 }
 
 async function fetchCustomActivitiesForDate(dateStart: string): Promise<any[]> {
@@ -350,7 +351,24 @@ function computeOpenerKPIs(openerName: string, calls: any[], customActivities: a
 
   const termineGelegt = termineFromColdCall + termineFromFollowUp
 
-  return { anwahlen, protokolle, entscheiderGesprochen, termineGelegt }
+  // Frühbonus: Check if first Termin was before 10:00 CET/CEST
+  let fruehbonus = false
+  if (termineGelegt > 0) {
+    const terminActivities = openerActivities.filter((a: any) =>
+      (a.custom_activity_type_id === CUSTOM_ACTIVITY_TYPES.coldCall && a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:') ||
+      (a.custom_activity_type_id === CUSTOM_ACTIVITY_TYPES.followUp && a[FOLLOW_UP_NAECHSTER_SCHRITT] === '2. Setting gelegt am:')
+    )
+    if (terminActivities.length > 0) {
+      const earliest = terminActivities
+        .map((a: any) => new Date(a.date_created).getTime())
+        .sort((a: number, b: number) => a - b)[0]
+      // Convert UTC to CET (UTC+1) / CEST (UTC+2) — use UTC+2 for summer
+      const cetHour = new Date(earliest).getUTCHours() + 2
+      fruehbonus = cetHour < 10
+    }
+  }
+
+  return { anwahlen, protokolle, entscheiderGesprochen, termineGelegt, fruehbonus }
 }
 
 // ── Slack ──────────────────────────────────────────────────
@@ -546,6 +564,24 @@ export async function GET(request: Request) {
         },
         analysis,
       })
+    }
+
+    // 5b. Store opener KPIs in opener_aufstieg for controlling/bonus tracking
+    if (supabase) {
+      for (const [, openerName] of Object.entries(OPENER_IDS)) {
+        const kpi = openerKPIMap[openerName]
+        if (kpi) {
+          await supabase.from('opener_aufstieg').upsert({
+            opener_name: openerName,
+            date: dateISO,
+            termine_count: kpi.termineGelegt,
+            anwahlen: kpi.anwahlen,
+            protokolle: kpi.protokolle,
+            entscheider_gesprochen: kpi.entscheiderGesprochen,
+            fruehbonus: kpi.fruehbonus,
+          }, { onConflict: 'opener_name,date' })
+        }
+      }
     }
 
     // 6. Send Slack summary
