@@ -50,30 +50,30 @@ const FOLLOW_UP_NAECHSTER_SCHRITT = 'custom.cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwN
 
 // ── Helpers ────────────────────────────────────────────────
 function getDateRange(overrideDate?: string): { start: string; end: string; dateISO: string } {
+  let dateISO: string
   if (overrideDate && /^\d{4}-\d{2}-\d{2}$/.test(overrideDate)) {
-    return { start: overrideDate, end: overrideDate, dateISO: overrideDate }
+    dateISO = overrideDate
+  } else {
+    const now = new Date()
+    const year = now.getUTCFullYear()
+    const month = now.getUTCMonth()
+    const day = now.getUTCDate()
+    dateISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
-  const now = new Date()
-  const year = now.getUTCFullYear()
-  const month = now.getUTCMonth()
-  const day = now.getUTCDate()
-  const startUTC = new Date(Date.UTC(year, month, day, 0, 0, 0))
-  const endUTC = new Date(Date.UTC(year, month, day, 23, 59, 59))
-  const dateISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  return {
-    start: startUTC.toISOString().split('T')[0],
-    end: endUTC.toISOString().split('T')[0],
-    dateISO,
-  }
+  // Next day for exclusive upper bound
+  const nextDay = new Date(dateISO + 'T00:00:00Z')
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1)
+  const end = nextDay.toISOString().split('T')[0]
+  return { start: dateISO, end, dateISO }
 }
 
-async function fetchCallsForUser(userId: string, dateStart: string): Promise<any[]> {
+async function fetchCallsForUser(userId: string, dateStart: string, dateEnd: string): Promise<any[]> {
   const calls: any[] = []
   let hasMore = true
   let skip = 0
   while (hasMore) {
     const data = await closeApiFetch(
-      `/activity/call/?user_id=${userId}&date_created__gte=${dateStart}&_skip=${skip}&_limit=100&_order_by=-date_created&_fields=id,date_created,user_id,user_name,duration,recording_url,has_recording,lead_id,status`
+      `/activity/call/?user_id=${userId}&date_created__gte=${dateStart}&date_created__lt=${dateEnd}&_skip=${skip}&_limit=100&_order_by=-date_created&_fields=id,date_created,user_id,user_name,duration,recording_url,has_recording,lead_id,status`
     )
     calls.push(...data.data)
     hasMore = data.has_more
@@ -296,13 +296,13 @@ interface OpenerKPIs {
   fruehbonus: boolean
 }
 
-async function fetchCustomActivitiesForDate(dateStart: string): Promise<any[]> {
+async function fetchCustomActivitiesForDate(dateStart: string, dateEnd: string): Promise<any[]> {
   const activities: any[] = []
   let hasMore = true
   let skip = 0
   while (hasMore) {
     const data = await closeApiFetch(
-      `/activity/custom/?date_created__gte=${dateStart}&_skip=${skip}&_limit=100&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT}`
+      `/activity/custom/?date_created__gte=${dateStart}&date_created__lt=${dateEnd}&_skip=${skip}&_limit=100&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT}`
     )
     activities.push(...data.data)
     hasMore = data.has_more
@@ -413,16 +413,16 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url)
     const dateParam = url.searchParams.get('date') || undefined
-    const { start, dateISO } = getDateRange(dateParam)
+    const { start, end, dateISO } = getDateRange(dateParam)
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null
 
-    // Fetch custom activities for today (for KPI calculation)
+    // Fetch custom activities for the day (for KPI calculation)
     let todayCustomActivities: any[] = []
     try {
-      todayCustomActivities = await fetchCustomActivitiesForDate(start)
+      todayCustomActivities = await fetchCustomActivitiesForDate(start, end)
     } catch (err) {
       console.error('Failed to fetch custom activities:', err)
     }
@@ -432,7 +432,7 @@ export async function GET(request: Request) {
 
     for (const [userId, openerName] of Object.entries(OPENER_IDS)) {
       // 1. Fetch all calls for this opener today
-      const allCalls = await fetchCallsForUser(userId, start)
+      const allCalls = await fetchCallsForUser(userId, start, end)
 
       // Compute daily KPIs for this opener
       openerKPIMap[openerName] = computeOpenerKPIs(openerName, allCalls, todayCustomActivities)
