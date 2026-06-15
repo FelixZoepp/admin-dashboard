@@ -302,7 +302,7 @@ async function fetchCustomActivitiesForDate(dateStart: string, dateEnd: string):
   let skip = 0
   while (hasMore) {
     const data = await closeApiFetch(
-      `/activity/custom/?date_created__gte=${dateStart}&date_created__lt=${dateEnd}&_skip=${skip}&_limit=100&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT}`
+      `/activity/custom/?date_created__gte=${dateStart}&date_created__lt=${dateEnd}&_skip=${skip}&_limit=100&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_id,created_by,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${FOLLOW_UP_NAECHSTER_SCHRITT}`
     )
     activities.push(...data.data)
     hasMore = data.has_more
@@ -311,12 +311,14 @@ async function fetchCustomActivitiesForDate(dateStart: string, dateEnd: string):
   return activities
 }
 
-function computeOpenerKPIs(openerName: string, calls: any[], customActivities: any[]): OpenerKPIs {
+function computeOpenerKPIs(userId: string, calls: any[], customActivities: any[]): OpenerKPIs {
   // Anwahlen = total calls made by this opener
   const anwahlen = calls.length
 
-  // Filter custom activities by this opener
-  const openerActivities = customActivities.filter((a: any) => a.user_name === openerName)
+  // Filter custom activities by this opener (match by user_id or created_by, like internes-salesdashboard)
+  const openerActivities = customActivities.filter((a: any) =>
+    (a.user_id === userId) || (a.created_by === userId)
+  )
 
   // Protokolle = Cold Call Gesprächsprotokolle
   const protokolle = openerActivities.filter((a: any) =>
@@ -425,7 +427,7 @@ export async function GET(request: Request) {
       const allCalls = await fetchCallsForUser(userId, start, end)
 
       // Compute daily KPIs for this opener
-      openerKPIMap[openerName] = computeOpenerKPIs(openerName, allCalls, todayCustomActivities)
+      openerKPIMap[openerName] = computeOpenerKPIs(userId, allCalls, todayCustomActivities)
 
       if (allCalls.length === 0) {
         results.push({ opener: openerName, totalCalls: 0, message: 'Keine Anrufe heute' })
