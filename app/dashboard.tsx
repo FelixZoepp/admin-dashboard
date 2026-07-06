@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 
 // ── Types ──────────────────────────────────────────────────
 interface StatusTransition {
@@ -32,11 +32,14 @@ interface PipelineQuality {
   closingFollowUpRate: number
   closingAngebotCount: number
   closingCC2Count: number
+  angebotWonCount: number
+  cc2WonCount: number
   noShowRecovery: StatusTransition[]
 }
 
 interface FunnelPeriod {
   anwahlen: number
+  gatekeeperErreicht: number
   entscheiderErreicht: number
   coldCalls: number
   followUps: number
@@ -57,6 +60,7 @@ interface TeamMemberPerformance {
   calls: number
   coldCallProtocols: number
   followUpProtocols: number
+  gatekeeperErreicht: number
   entscheiderErreicht: number
   settingsGelegt: number
   closingsGelegt: number
@@ -296,6 +300,7 @@ interface DashboardData {
     month: FunnelPeriod
     alltime: FunnelPeriod
     quoten: {
+      gatekeeperQuote: number
       erreichquote: number
       settingQuote: number
       closingQuote: number
@@ -303,6 +308,7 @@ interface DashboardData {
       overallAnwahlenToWon: number
     }
     quotenAllTime: {
+      gatekeeperQuote: number
       erreichquote: number
       settingQuote: number
       closingQuote: number
@@ -351,6 +357,10 @@ interface DashboardData {
   }
   allWonDeals: { name: string; value: number; date: string; user: string }[]
   allLostDeals: { name: string; value: number; date: string }[]
+  openerRevenue: { name: string; totalRevenue: number; mtdRevenue: number; dealCount: number; mtdDealCount: number; deals: { leadName: string; value: number; date: string }[] }[]
+  openerRevenueTotal: number
+  openerRevenueMTD: number
+  openerQuality: any[]
   allCustomActivities: any[]
   customActivityTypeIds: any
   customFieldIds: any
@@ -366,6 +376,7 @@ interface DashboardData {
       paket: string
       rateMonat: number
       cashInMonat: number
+      billingDay: number
       status: string
       paymentStatus: 'zahlend' | 'streitfall'
       streitfallDetails: string
@@ -390,6 +401,8 @@ interface DashboardData {
     totalHoursMarcel: number
     totalHoursLisa: number
     totalTeamCost: number
+    fixedCosts: { teamInklKK: number; toolsAmex: number; buchhaltung: number; total: number }
+    totalFixedCosts: number
     netProfit: number
     netProfitPercent: number
     cashInMonatNetto: number
@@ -397,24 +410,35 @@ interface DashboardData {
   }
   outreachMetrics: {
     available: boolean
-    totalLeads: number
-    campaigns: { id: string; name: string; status: string; leadsCount: number }[]
-    funnel: {
-      bereitFuerVernetzung: number; vernetzungAusstehend: number; vernetzungAngenommen: number
-      erstnachrichtGesendet: number; fu1Gesendet: number; fu2Gesendet: number; fu3Gesendet: number
-      reagiertWarm: number; positivGeantwortet: number; terminGebucht: number; abgeschlossen: number
+    heyreach: {
+      available: boolean
+      connectionsSent: number; connectionsAccepted: number; connectionAcceptanceRate: number
+      uniqueLeadsContacted: number; messagesSent: number; totalMessageStarted: number
+      totalMessageReplies: number; inmailMessagesSent: number; profileViews: number
+      postLikes: number; follows: number; replyRate: number
+      dailyStats: { date: string; connectionsSent: number; connectionsAccepted: number; messagesSent: number; replies: number; profileViews: number }[]
+      campaigns: { id: number; name: string; status: string; accountIds: number[]; progress: { totalUsers: number; inProgress: number; pending: number; finished: number } }[]
+      accounts: { accountId: number; connectionsSent: number; connectionsAccepted: number; messagesSent: number; replies: number; uniqueLeadsContacted: number; acceptanceRate: number }[]
+    }
+    monday: {
+      available: boolean
+      totalLeads: number
+      totalConnectionsSent: number
+      funnel: Record<string, number>
+      phases: Record<string, number>
+      milestones: { angenommen: number; geantwortet: number; termin: number }
+      members: {
+        name: string; totalLeads: number; anfrageGesendet: number; angenommen: number
+        erstnachrichtGesendet: number; geantwortet: number; callGebucht: number; keinInteresse: number
+      }[]
+      recentActivity: {
+        name: string; company: string | null; status: string; statusColor: string
+        updatedAt: string; assignee: string | null; group: string
+      }[]
     }
     rates: {
-      acceptanceRate: number; messageRate: number; replyRate: number
-      positiveRate: number; bookingRate: number; overallConversion: number
+      acceptanceRate: number; replyRate: number; bookingRate: number; overallConversion: number
     }
-    members: {
-      name: string; connectionsSent: number; connectionsAccepted: number; acceptanceRate: number
-      messagesSent: number; replies: number; replyRate: number; positiveReplies: number
-      appointmentsBooked: number; totalLeads: number
-    }[]
-    tracking: { pageViews: number; videoPlays: number; ctaClicks: number }
-    recentActivity: { name: string; company: string | null; status: string; updatedAt: string }[]
   }
   marketingMetrics: {
     available: boolean
@@ -485,6 +509,33 @@ interface DashboardData {
     }[]
     lastUpdated: string
   }
+  eodReports: {
+    vertriebler: {
+      name: string
+      reports: { date: string; accountable: number | null; performanceSatisfaction: number | null; onTrackWeekly: number | null; onTrackMonthly: number | null; tipsApplied: number | null; gesamtReview: string; reviewCallArt: string; status: string }[]
+      avgAccountable: number
+      avgPerformance: number
+      avgOnTrackWeekly: number
+      avgOnTrackMonthly: number
+      avgTipsApplied: number
+      overallAvg: number
+      trend7d: number
+      totalReports: number
+    }[]
+    lastUpdated: string
+  }
+  airtableCashIn: {
+    nonPaying: { kundenId: string; firma: string; paket: string; rateMonat: number; reason: string; offenerBetrag: number }[]
+    months: {
+      month: number
+      year: number
+      label: string
+      customers: { kundenId: string; firma: string; paket: string; cashInNetto: number; umsatztyp: string; isSetup: boolean }[]
+      totalNetto: number
+      totalBrutto: number
+    }[]
+    lastUpdated: string
+  }
   lastUpdated: string
   error?: string
 }
@@ -509,6 +560,50 @@ const NAV_DASHBOARD = [
   { id: 'team', label: 'Team', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> },
   { id: 'call-analyse', label: 'Call-Analyse', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><path d="M12 19v4"/><path d="M8 23h8"/></svg> },
 ]
+
+// Sub-sections per tab for quick navigation
+const TAB_SECTIONS: Record<string, { id: string; label: string }[]> = {
+  outreach: [
+    { id: 'sec-outreach-funnel', label: 'Funnel' },
+    { id: 'sec-outreach-leaderboard', label: 'Leaderboard' },
+    { id: 'sec-outreach-heyreach', label: 'HeyReach Stats' },
+    { id: 'sec-outreach-activity', label: 'Aktivitäten' },
+  ],
+  sales: [
+    { id: 'sec-sales-funnel', label: 'Sales Funnel' },
+    { id: 'sec-sales-pipeline-quality', label: 'Pipeline-Qualität' },
+    { id: 'sec-sales-calendly', label: 'Calendly Termine' },
+    { id: 'sec-sales-pipeline', label: 'Pipeline & Upsells' },
+    { id: 'sec-sales-leaderboard', label: 'Leaderboard' },
+    { id: 'sec-sales-won', label: 'Won Deals' },
+    { id: 'sec-sales-leads', label: 'Lead Status' },
+    { id: 'sec-sales-revenue', label: 'Revenue & Forecast' },
+  ],
+  fulfillment: [
+    { id: 'sec-fulfillment-clockodo', label: 'Zeiterfassung' },
+    { id: 'sec-fulfillment-monday', label: 'Monday Tasks' },
+    { id: 'sec-fulfillment-analyse', label: 'Analyse' },
+  ],
+  marketing: [
+    { id: 'sec-marketing-facebook', label: 'Facebook Ads' },
+    { id: 'sec-marketing-overview', label: 'Übersicht' },
+  ],
+  finanzen: [
+    { id: 'sec-finanzen-overview', label: 'Übersicht' },
+    { id: 'sec-finanzen-kunden', label: 'Kunden-P&L' },
+    { id: 'sec-finanzen-nichtzahler', label: 'Nicht-Zahler' },
+    { id: 'sec-finanzen-team', label: 'Team-Kosten' },
+  ],
+  kunden: [
+    { id: 'sec-kunden-overview', label: 'Übersicht' },
+  ],
+  team: [
+    { id: 'sec-team-quality', label: 'Opener Qualität' },
+    { id: 'sec-team-umsatz', label: 'Opener Umsatz' },
+    { id: 'sec-team-aufstieg', label: 'Opener Aufstieg' },
+    { id: 'sec-team-eod', label: 'EOD Self-Assessment' },
+  ],
+}
 
 // ══════════════════════════════════════════════════════════════
 // CHART COMPONENTS
@@ -1084,6 +1179,10 @@ function OpenerPerformancePanel({ data }: { data: DashboardData }) {
 
   if (!team || team.length === 0) return null
 
+  const funnel = openerPeriod === 'custom'
+    ? (funnelPeriodMap['month'] || data.salesFunnel.month)
+    : (funnelPeriodMap[openerPeriod] || data.salesFunnel.month)
+
   const openers = team.filter(m => m.role === 'opener')
 
   const roleLabel = (r: string) => {
@@ -1169,18 +1268,65 @@ function OpenerPerformancePanel({ data }: { data: DashboardData }) {
         )}
       </div>
 
+      {/* Funnel Step-by-Step Conversion */}
+      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-gold-2)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+        Funnel-Stufen ({periodLabel})
+      </div>
+      {(() => {
+        const steps = [
+          { label: 'Anwahlen', count: funnel.anwahlen, color: 'var(--za-fg-2)' },
+          { label: 'Gatekeeper', count: funnel.gatekeeperErreicht || 0, color: '#f59e0b' },
+          { label: 'Entscheider', count: funnel.entscheiderErreicht, color: 'var(--za-info)' },
+          { label: 'Settings', count: funnel.settingsGelegt, color: 'var(--za-violet)' },
+          { label: 'Closings', count: funnel.closingsGelegt, color: '#c084fc' },
+          { label: 'Neukunden', count: funnel.erstdeals || 0, color: 'var(--za-success)' },
+        ]
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '24px', flexWrap: 'wrap' }}>
+            {steps.map((step, i) => {
+              const prevCount = i > 0 ? steps[i - 1].count : 0
+              const rate = i > 0 && prevCount > 0 ? Math.round((step.count / prevCount) * 1000) / 10 : null
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {i > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 2px' }}>
+                      <span style={{ fontSize: '14px', color: 'var(--za-fg-4)' }}>&rarr;</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: rate && rate >= 20 ? 'var(--za-success)' : rate && rate >= 10 ? 'var(--za-gold)' : 'var(--za-danger)', marginTop: '-2px' }}>
+                        {rate !== null ? `${rate}%` : '-'}
+                      </span>
+                    </div>
+                  )}
+                  <div style={{
+                    padding: '10px 16px',
+                    borderRadius: '10px',
+                    background: `color-mix(in srgb, ${step.color} 10%, transparent)`,
+                    border: `1px solid color-mix(in srgb, ${step.color} 25%, transparent)`,
+                    textAlign: 'center',
+                    minWidth: '80px',
+                  }}>
+                    <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--za-serif)', color: step.color }}>{fmtNum(step.count)}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--za-fg-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>{step.label}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
+
       {/* Funnel Efficiency Ratios */}
       <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-gold-2)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
-        Funnel-Effizienz ({periodLabel})
+        Effizienz-Kennzahlen ({periodLabel})
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }}>
         {[
-          { label: 'Anwahlen / Entscheider', value: `${fr.anwahlenProEntscheider}x`, sub: 'Calls pro Entscheider', color: 'var(--za-fg-2)' },
-          { label: 'Anwahlen / Setting', value: `${fr.anwahlenProSetting}x`, sub: 'Calls pro Setting', color: 'var(--za-info)' },
-          { label: 'Entscheider / Setting', value: `${fr.entscheiderProSetting}x`, sub: 'Entscheider pro Setting', color: 'var(--za-fg-2)' },
-          { label: 'Settings / Closing', value: `${fr.settingsProClosing}x`, sub: 'Settings pro Closing', color: 'var(--za-violet)' },
-          { label: 'Closings / Won', value: `${fr.closingsProWon}x`, sub: 'Closings pro Abschluss', color: 'var(--za-success)' },
-          { label: 'Anwahlen / Won', value: `${fr.anwahlenProWon}x`, sub: 'Calls pro Abschluss', color: 'var(--za-gold-2)' },
+          { label: 'Gatekeeper-Rate', value: `${funnel.anwahlen > 0 ? Math.round(((funnel.gatekeeperErreicht || 0) / funnel.anwahlen) * 1000) / 10 : 0}%`, sub: 'Jemand hat abgenommen', color: '#f59e0b' },
+          { label: 'Entscheider-Rate', value: `${funnel.anwahlen > 0 ? Math.round((funnel.entscheiderErreicht / funnel.anwahlen) * 1000) / 10 : 0}%`, sub: 'Entscheider am Telefon', color: 'var(--za-info)' },
+          { label: 'Terminierungs-Rate', value: `${funnel.entscheiderErreicht > 0 ? Math.round((funnel.settingsGelegt / funnel.entscheiderErreicht) * 1000) / 10 : 0}%`, sub: 'Entscheider zu Setting', color: 'var(--za-violet)' },
+          { label: 'Calls pro Setting', value: `${fr.anwahlenProSetting}x`, sub: 'Anwahlen pro Termin', color: 'var(--za-fg-2)' },
+          { label: 'Closing-Rate', value: `${funnel.settingsGelegt > 0 ? Math.round((funnel.closingsGelegt / funnel.settingsGelegt) * 1000) / 10 : 0}%`, sub: 'Setting zu Closing', color: '#c084fc' },
+          { label: 'Neukunden-Rate', value: `${funnel.closingsGelegt > 0 ? Math.round(((funnel.erstdeals || 0) / funnel.closingsGelegt) * 1000) / 10 : 0}%`, sub: 'Closing zu Neukunde', color: 'var(--za-success)' },
+          ...(funnel.upsells > 0 ? [{ label: 'Upsells', value: `${funnel.upsells}`, sub: `${funnel.upsellRate || 0}% der Abschlüsse`, color: 'var(--za-gold)' }] : []),
         ].map((kpi, i) => (
           <div key={i} style={{ padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: `3px solid ${kpi.color}` }}>
             <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>{kpi.label}</div>
@@ -1198,7 +1344,7 @@ function OpenerPerformancePanel({ data }: { data: DashboardData }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(249,249,249,0.1)' }}>
-              {['Name', 'Rolle', 'Anwahlen', 'Entscheider', 'Settings', 'Closings', 'Calls/Entsch.', 'Calls/Setting'].map((h, i) => (
+              {['Name', 'Rolle', 'Anwahlen', 'Gatekeeper', 'Entscheider', 'Settings', 'Closings', 'Calls/Entsch.', 'Calls/Setting'].map((h, i) => (
                 <th key={i} style={{ padding: '8px 10px', textAlign: i < 2 ? 'left' : 'right', fontSize: '10px', fontWeight: 700, color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</th>
               ))}
             </tr>
@@ -1213,6 +1359,7 @@ function OpenerPerformancePanel({ data }: { data: DashboardData }) {
                   </span>
                 </td>
                 <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700 }}>{fmtNum(m.calls)}</td>
+                <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: '#f59e0b' }}>{fmtNum(m.gatekeeperErreicht)}</td>
                 <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700 }}>{fmtNum(m.entscheiderErreicht)}</td>
                 <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: 'var(--za-info)' }}>{m.settingsGelegt}</td>
                 <td style={{ padding: '10px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: 'var(--za-violet)' }}>{m.closingsGelegt}</td>
@@ -1237,15 +1384,16 @@ function OpenerPerformancePanel({ data }: { data: DashboardData }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   {[
                     { label: 'Anwahlen', value: fmtNum(op.calls) },
-                    { label: 'Cold Calls', value: fmtNum(op.coldCallProtocols) },
-                    { label: 'Follow-Ups', value: fmtNum(op.followUpProtocols) },
-                    { label: 'Entscheider', value: fmtNum(op.entscheiderErreicht) },
-                    { label: 'Settings gelegt', value: String(op.settingsGelegt) },
+                    { label: 'Gatekeeper', value: fmtNum(op.gatekeeperErreicht), sub: op.calls > 0 ? `${Math.round((op.gatekeeperErreicht / op.calls) * 1000) / 10}%` : '-' },
+                    { label: 'Entscheider', value: fmtNum(op.entscheiderErreicht), sub: op.gatekeeperErreicht > 0 ? `${Math.round((op.entscheiderErreicht / op.gatekeeperErreicht) * 1000) / 10}%` : '-' },
+                    { label: 'Settings gelegt', value: String(op.settingsGelegt), sub: op.entscheiderErreicht > 0 ? `${Math.round((op.settingsGelegt / op.entscheiderErreicht) * 1000) / 10}%` : '-' },
                     { label: 'Calls/Setting', value: op.callsPerSetting > 0 ? `${op.callsPerSetting}x` : '-' },
-                  ].map((stat, j) => (
+                    { label: 'Protokolle', value: `${fmtNum(op.coldCallProtocols)} / ${fmtNum(op.followUpProtocols)}`, sub: 'CC / FU' },
+                  ].map((stat: any, j: number) => (
                     <div key={j}>
                       <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase' }}>{stat.label}</div>
                       <div style={{ fontFamily: 'var(--za-serif)', fontSize: '16px', fontWeight: 700, color: '#fff' }}>{stat.value}</div>
+                      {stat.sub && <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', marginTop: '1px' }}>{stat.sub}</div>}
                     </div>
                   ))}
                 </div>
@@ -1264,6 +1412,7 @@ function OpenerPerformancePanel({ data }: { data: DashboardData }) {
 
 export default function Dashboard({ data }: { data: DashboardData }) {
   const [activeNav, setActiveNav] = useState('sales')
+  const [activeSection, setActiveSection] = useState<string>('sec-sales-funnel')
   const [kundenSubTab, setKundenSubTab] = useState<'zahlend' | 'streitfaelle'>('zahlend')
   const [period, setPeriod] = useState<Period>('month')
   const [customFrom, setCustomFrom] = useState(() => {
@@ -1278,9 +1427,15 @@ export default function Dashboard({ data }: { data: DashboardData }) {
   })
   const [useCustomRange, setUseCustomRange] = useState(false)
 
+  const [finanzMonat, setFinanzMonat] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
+
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set())
   const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set())
   const [expandedLeadStatuses, setExpandedLeadStatuses] = useState<Set<string>>(new Set())
+  const [outreachView, setOutreachView] = useState<'heyreach' | 'monday'>('heyreach')
 
   // Won Deal Celebration
   const [celebrationDeal, setCelebrationDeal] = useState<{ name: string; value: number; user: string; date: string } | null>(null)
@@ -1470,14 +1625,35 @@ export default function Dashboard({ data }: { data: DashboardData }) {
           <div className="sb-section">
             <div className="sb-section-label">Dashboard</div>
             {NAV_DASHBOARD.map(item => (
-              <a
-                key={item.id}
-                className={`sb-item ${activeNav === item.id ? 'is-active' : ''}`}
-                onClick={() => setActiveNav(item.id)}
-              >
-                {item.icon}
-                {item.label}
-              </a>
+              <React.Fragment key={item.id}>
+                <a
+                  className={`sb-item ${activeNav === item.id ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setActiveNav(item.id)
+                    const sections = TAB_SECTIONS[item.id]
+                    setActiveSection(sections ? sections[0].id : '')
+                  }}
+                >
+                  {item.icon}
+                  {item.label}
+                </a>
+                {activeNav === item.id && TAB_SECTIONS[item.id] && (
+                  <div className="sb-subsections">
+                    {TAB_SECTIONS[item.id].map(sec => (
+                      <a
+                        key={sec.id}
+                        className={`sb-subitem ${activeSection === sec.id ? 'is-active' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActiveSection(sec.id)
+                        }}
+                      >
+                        {sec.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </React.Fragment>
             ))}
           </div>
 
@@ -1521,121 +1697,449 @@ export default function Dashboard({ data }: { data: DashboardData }) {
             if (!om?.available) return (
               <div className="za-panel fade-up" style={{ padding: '48px', textAlign: 'center' }}>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>&#128279;</div>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>PitchFirst Outreach nicht verbunden</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>LinkedIn Outreach nicht verbunden</h3>
                 <p style={{ fontSize: '13px', color: 'var(--za-fg-3)', maxWidth: '400px', margin: '0 auto' }}>
-                  Setze <code>PITCHFIRST_SUPABASE_URL</code> und <code>PITCHFIRST_SUPABASE_SERVICE_KEY</code> in den Vercel Environment Variables.
+                  Setze <code>HEYREACH_API_KEY</code> und/oder <code>MONDAY_API_TOKEN</code> in den Vercel Environment Variables.
                 </p>
               </div>
             )
 
-            const funnelSteps = [
-              { label: 'Bereit', value: om.funnel.bereitFuerVernetzung, color: '#94a3b8' },
-              { label: 'Vernetzung gesendet', value: om.funnel.vernetzungAusstehend, color: '#38bdf8' },
-              { label: 'Vernetzt', value: om.funnel.vernetzungAngenommen, color: '#22d3ee' },
-              { label: 'DM gesendet', value: om.funnel.erstnachrichtGesendet, color: '#a78bfa' },
-              { label: 'FU1', value: om.funnel.fu1Gesendet, color: '#c084fc' },
-              { label: 'FU2', value: om.funnel.fu2Gesendet, color: '#e879f9' },
-              { label: 'FU3', value: om.funnel.fu3Gesendet, color: '#f472b6' },
-              { label: 'Geantwortet', value: om.funnel.reagiertWarm, color: '#fb923c' },
-              { label: 'Positiv', value: om.funnel.positivGeantwortet, color: '#4ade80' },
-              { label: 'Termin', value: om.funnel.terminGebucht, color: '#f43f5e' },
-              { label: 'Abgeschlossen', value: om.funnel.abgeschlossen, color: '#fbbf24' },
-            ]
-            const maxFunnel = Math.max(...funnelSteps.map(s => s.value), 1)
+            const hr = om.heyreach
+            const mo = om.monday
 
-            const STATUS_LABELS: Record<string, string> = {
-              'neu': 'Neu', 'bereit_fuer_vernetzung': 'Bereit', 'vernetzung_ausstehend': 'Gesendet',
-              'vernetzung_angenommen': 'Vernetzt', 'erstnachricht_gesendet': 'DM gesendet',
-              'kein_klick_fu_offen': 'FU offen', 'fu1_gesendet': 'FU1', 'fu2_gesendet': 'FU2', 'fu3_gesendet': 'FU3',
-              'reagiert_warm': 'Warm', 'positiv_geantwortet': 'Positiv', 'termin_gebucht': 'Termin', 'abgeschlossen': 'Done',
-            }
-            const STATUS_COLORS: Record<string, string> = {
-              'neu': '#64748b', 'bereit_fuer_vernetzung': '#94a3b8', 'vernetzung_ausstehend': '#38bdf8',
-              'vernetzung_angenommen': '#22d3ee', 'erstnachricht_gesendet': '#a78bfa',
-              'kein_klick_fu_offen': '#f59e0b', 'fu1_gesendet': '#c084fc', 'fu2_gesendet': '#e879f9', 'fu3_gesendet': '#f472b6',
-              'reagiert_warm': '#fb923c', 'positiv_geantwortet': '#4ade80', 'termin_gebucht': '#f43f5e', 'abgeschlossen': '#fbbf24',
-            }
+            // Waterfall funnel — cumulative, each step = leads that reached this stage or beyond
+            const f = mo.funnel
+            const waterfallSteps = [
+              { label: 'Anfrage gesendet', value: mo.totalConnectionsSent, color: '#9d50dd' },
+              { label: 'Angenommen', value: (f['Angenommen'] || 0) + (f['Permission-Ja'] || 0) + (f['Erstnachricht gesendet'] || 0) + (f['Video bereit'] || 0) + (f['Video gesendet'] || 0) + (f['Angeschaut'] || 0) + (f['Geantwortet'] || 0) + (f['Call gebucht'] || 0), color: '#037f4c' },
+              { label: 'Erstnachricht', value: (f['Erstnachricht gesendet'] || 0) + (f['Video bereit'] || 0) + (f['Video gesendet'] || 0) + (f['Angeschaut'] || 0) + (f['Geantwortet'] || 0) + (f['Call gebucht'] || 0), color: '#784bd1' },
+              { label: 'Video gesendet', value: (f['Video gesendet'] || 0) + (f['Angeschaut'] || 0) + (f['Geantwortet'] || 0) + (f['Call gebucht'] || 0), color: '#cab641' },
+              { label: 'Geantwortet', value: (f['Geantwortet'] || 0) + (f['Call gebucht'] || 0), color: '#ffcb00' },
+              { label: 'Call gebucht', value: f['Call gebucht'] || 0, color: '#bb3354' },
+            ]
+            const maxFunnel = waterfallSteps[0]?.value || 1
+
+            // Dropout rows
+            const dropouts = [
+              { label: 'Kein Interesse', value: f['Kein Interesse'] || 0, color: '#ff007f' },
+              { label: 'Abgelehnt nach Erstnachricht', value: f['Abgelehnt nach Erstnachricht'] || 0, color: '#9cd326' },
+            ]
 
             return (
             <>
-              {/* Hero KPIs */}
+              {/* Connection status badges */}
+              <div className="fade-up" style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '4px', background: hr.available ? 'rgba(34,197,94,0.15)' : 'rgba(249,249,249,0.06)', color: hr.available ? '#4ade80' : 'var(--za-fg-3)' }}>
+                  HeyReach {hr.available ? 'verbunden' : 'nicht verbunden'}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '4px', background: mo.available ? 'rgba(34,197,94,0.15)' : 'rgba(249,249,249,0.06)', color: mo.available ? '#4ade80' : 'var(--za-fg-3)' }}>
+                  Monday.com {mo.available ? 'verbunden' : 'nicht verbunden'}
+                </span>
+              </div>
+
+              {/* View switch: HeyReach / Monday */}
+              <div className="view-switch" style={{ marginBottom: '16px' }}>
+                <button className={outreachView === 'heyreach' ? 'is-active' : ''} onClick={() => setOutreachView('heyreach')}>HeyReach</button>
+                <button className={outreachView === 'monday' ? 'is-active' : ''} onClick={() => setOutreachView('monday')}>Monday.com</button>
+              </div>
+
+              {/* ── HeyReach View ── */}
+              {outreachView === 'heyreach' && (
+              <>
+              {/* Hero KPIs — HeyReach */}
+              <div className="kpi-grid">
+                <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Vernetzungen gesendet</span></div>
+                  <div className="kpi-value">{fmtNum(hr.connectionsSent)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">HeyReach Automation</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Angenommen</span></div>
+                  <div className="kpi-value">{fmtNum(hr.connectionsAccepted)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{hr.connectionAcceptanceRate}% Annahmerate</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Nachrichten</span></div>
+                  <div className="kpi-value">{fmtNum(hr.messagesSent)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">letzte 90 Tage</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '300ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Antworten</span></div>
+                  <div className="kpi-value">{fmtNum(hr.totalMessageReplies)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{hr.replyRate}% Antwortrate</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '380ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Leads kontaktiert</span></div>
+                  <div className="kpi-value">{fmtNum(hr.uniqueLeadsContacted)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Unique Leads</span></div>
+                </div>
+              </div>
+
+              <div id="sec-outreach-funnel" style={{ display: activeSection === 'sec-outreach-funnel' || !activeSection ? undefined : 'none' }}>
+              {/* HeyReach Waterfall: Leads → Connections → Accepted → Messages → Replies */}
+              {hr.available && (() => {
+                const hrWaterfallSteps = [
+                  { label: 'Leads kontaktiert', value: hr.uniqueLeadsContacted, color: '#f59e0b' },
+                  { label: 'Vernetzungen', value: hr.connectionsSent, color: '#9d50dd' },
+                  { label: 'Angenommen', value: hr.connectionsAccepted, color: '#037f4c' },
+                  { label: 'Nachrichten', value: hr.messagesSent, color: '#579bfc' },
+                  { label: 'Antworten', value: hr.totalMessageReplies, color: '#4ade80' },
+                ]
+                const hrMaxFunnel = hrWaterfallSteps[0]?.value || 1
+                return (
+                  <div className="za-panel fade-up" style={{ animationDelay: '440ms', marginBottom: '16px' }}>
+                    <div className="panel-head">
+                      <div>
+                        <span className="panel-eyebrow">HeyReach Waterfall</span>
+                        <div className="panel-title">{fmtNum(hr.uniqueLeadsContacted)} Leads &rarr; {fmtNum(hr.connectionsAccepted)} Angenommen &rarr; {hr.totalMessageReplies} Antworten</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {hrWaterfallSteps.map((step, i) => {
+                        const prevValue = i === 0 ? step.value : hrWaterfallSteps[i - 1].value
+                        const convRate = i === 0 ? 100 : (prevValue > 0 ? Math.round((step.value / prevValue) * 1000) / 10 : 0)
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ width: '130px', flexShrink: 0 }}>
+                              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)' }}>{step.label}</div>
+                              {i > 0 && <div style={{ fontSize: '10px', color: convRate >= 50 ? '#4ade80' : convRate >= 20 ? '#fbbf24' : '#f87171' }}>{convRate}% von {hrWaterfallSteps[i - 1].label}</div>}
+                            </div>
+                            <div style={{ flex: 1, height: '32px', position: 'relative' }}>
+                              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(249,249,249,0.04)', borderRadius: '6px' }} />
+                              <div style={{
+                                width: `${Math.max((step.value / hrMaxFunnel) * 100, step.value > 0 ? 3 : 0)}%`,
+                                height: '100%',
+                                background: `linear-gradient(90deg, ${step.color}, ${step.color}cc)`,
+                                borderRadius: '6px',
+                                transition: 'width 0.8s ease',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                position: 'relative',
+                              }}>
+                                {step.value > 0 && <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>{step.value}</span>}
+                              </div>
+                            </div>
+                            <div style={{ width: '55px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontSize: '15px', fontWeight: 700, color: step.color }}>{step.value}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Per-Profile Performance */}
+              {hr.available && hr.accounts.length > 0 && (() => {
+                const sortedAccounts = [...hr.accounts].sort((a, b) => b.connectionsSent - a.connectionsSent)
+                return (
+                  <div className="za-panel fade-up" style={{ animationDelay: '480ms', marginBottom: '16px' }}>
+                    <div className="panel-head">
+                      <div>
+                        <span className="panel-eyebrow">LinkedIn Profile Performance</span>
+                        <div className="panel-title">{sortedAccounts.length} Profile &middot; letzte 90 Tage</div>
+                      </div>
+                    </div>
+                    <div className="za-table-wrap">
+                      <table className="za-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Profil</th>
+                            <th style={{ textAlign: 'right' }}>Connections</th>
+                            <th style={{ textAlign: 'right' }}>Accepted</th>
+                            <th style={{ textAlign: 'right' }}>Annahme%</th>
+                            <th style={{ textAlign: 'right' }}>Nachrichten</th>
+                            <th style={{ textAlign: 'right' }}>Antworten</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedAccounts.map((a, i) => (
+                            <tr key={a.accountId}>
+                              <td style={{ fontWeight: 600, color: 'var(--za-fg-3)' }}>{i + 1}</td>
+                              <td>
+                                <div className="t-co">
+                                  <span className="t-co-mark" style={{ background: 'linear-gradient(135deg, #579bfc, #784bd1)' }}>P</span>
+                                  <span className="t-co-name">Profil {a.accountId}</span>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700 }}>{fmtNum(a.connectionsSent)}</td>
+                              <td style={{ textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700 }}>{fmtNum(a.connectionsAccepted)}</td>
+                              <td style={{ textAlign: 'right' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: a.acceptanceRate >= 10 ? '#4ade80' : a.acceptanceRate >= 5 ? '#fbbf24' : 'var(--za-fg-3)' }}>{a.acceptanceRate}%</span>
+                              </td>
+                              <td style={{ textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700 }}>{fmtNum(a.messagesSent)}</td>
+                              <td style={{ textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700 }}>{fmtNum(a.replies)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+              })()}
+              </div>
+
+              <div id="sec-outreach-heyreach" style={{ display: activeSection === 'sec-outreach-heyreach' || !activeSection ? undefined : 'none' }}>
+              {/* Daily trend + additional stats */}
+              {hr.available ? (
+                <div className="za-panel fade-up" style={{ animationDelay: '560ms', marginBottom: '16px' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">HeyReach Automation</span>
+                      <div className="panel-title">LinkedIn Outreach &middot; letzte 90 Tage</div>
+                    </div>
+                  </div>
+
+                  {/* Daily trend - last 14 days */}
+                  {hr.dailyStats.length > 0 && (() => {
+                    const last14 = hr.dailyStats.slice(-14)
+                    const maxVal = Math.max(...last14.map(d => Math.max(d.connectionsSent, d.messagesSent)), 1)
+                    return (
+                      <div style={{ marginBottom: '16px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--za-fg-2)', marginBottom: '10px' }}>Tagesverlauf (14 Tage)</div>
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', height: '80px' }}>
+                          {last14.map((d, i) => (
+                            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                              <div style={{ width: '100%', background: '#9d50dd', borderRadius: '3px 3px 0 0', height: `${Math.max((d.connectionsSent / maxVal) * 60, 2)}px`, transition: 'height 0.6s ease', position: 'relative' }} title={`${d.date}: ${d.connectionsSent} Connections, ${d.connectionsAccepted} Accepted, ${d.messagesSent} Nachrichten`}>
+                                {d.connectionsAccepted > 0 && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${Math.max((d.connectionsAccepted / maxVal) * 60, 2)}px`, background: '#4ade80', borderRadius: '3px 3px 0 0' }} />}
+                              </div>
+                              <span style={{ fontSize: '9px', color: 'var(--za-fg-3)', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>{d.date.slice(5)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '10px', color: 'var(--za-fg-3)' }}>
+                          <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: '#9d50dd', marginRight: '4px' }} />Connections</span>
+                          <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: '#4ade80', marginRight: '4px' }} />Accepted</span>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Additional stats */}
+                  <div style={{ paddingTop: '16px', borderTop: '1px solid rgba(249,249,249,0.06)' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-fg-3)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Weitere Metriken</div>
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '6px', background: 'rgba(249,249,249,0.06)', color: 'var(--za-fg-2)' }}>
+                        Follows: <strong style={{ color: 'var(--za-fg-1)' }}>{fmtNum(hr.follows)}</strong>
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '6px', background: 'rgba(249,249,249,0.06)', color: 'var(--za-fg-2)' }}>
+                        Post Likes: <strong style={{ color: 'var(--za-fg-1)' }}>{fmtNum(hr.postLikes)}</strong>
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '6px', background: 'rgba(249,249,249,0.06)', color: 'var(--za-fg-2)' }}>
+                        Konversationen gestartet: <strong style={{ color: 'var(--za-fg-1)' }}>{fmtNum(hr.totalMessageStarted)}</strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="za-panel fade-up" style={{ animationDelay: '560ms', marginBottom: '16px', padding: '32px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--za-fg-3)' }}>HeyReach nicht verbunden &mdash; setze <code>HEYREACH_API_KEY</code></div>
+                </div>
+              )}
+              </div>
+
+              <div id="sec-outreach-leaderboard" style={{ display: activeSection === 'sec-outreach-leaderboard' || !activeSection ? undefined : 'none' }}>
+              {/* Campaigns list */}
+              {hr.available && hr.campaigns.length > 0 && (
+                <div className="za-panel fade-up" style={{ animationDelay: '620ms', marginBottom: '16px' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Kampagnen</span>
+                      <div className="panel-title">HeyReach Campaigns &middot; {hr.campaigns.length}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {hr.campaigns.map((c) => {
+                      const p = c.progress
+                      const progressPct = p.totalUsers > 0 ? Math.round((p.inProgress / p.totalUsers) * 100) : 0
+                      const finishedPct = p.totalUsers > 0 ? Math.round((p.finished / p.totalUsers) * 100) : 0
+                      const statusColor = c.status === 'IN_PROGRESS' ? '#4ade80' : c.status === 'PAUSED' ? '#fbbf24' : '#64748b'
+                      const statusBg = c.status === 'IN_PROGRESS' ? 'rgba(34,197,94,0.15)' : c.status === 'PAUSED' ? 'rgba(251,191,36,0.15)' : 'rgba(249,249,249,0.06)'
+                      return (
+                        <div key={c.id} style={{ padding: '12px 16px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span className="t-co-mark" style={{ background: 'linear-gradient(135deg, #9d50dd, #784bd1)', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>{c.name.charAt(0)}</span>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--za-fg-1)' }}>{c.name}</span>
+                            </div>
+                            <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: statusBg, color: statusColor }}>
+                              {c.status}
+                            </span>
+                          </div>
+                          {/* Progress bar */}
+                          <div style={{ height: '6px', background: 'rgba(249,249,249,0.06)', borderRadius: '3px', marginBottom: '8px', overflow: 'hidden', display: 'flex' }}>
+                            <div style={{ width: `${finishedPct}%`, background: '#4ade80', transition: 'width 0.6s ease' }} />
+                            <div style={{ width: `${progressPct}%`, background: '#579bfc', transition: 'width 0.6s ease' }} />
+                          </div>
+                          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '11px', color: 'var(--za-fg-3)' }}>
+                            <span>Total: <strong style={{ color: 'var(--za-fg-1)' }}>{fmtNum(p.totalUsers)}</strong></span>
+                            <span>In Progress: <strong style={{ color: '#579bfc' }}>{fmtNum(p.inProgress)}</strong></span>
+                            <span>Pending: <strong style={{ color: 'var(--za-fg-2)' }}>{fmtNum(p.pending)}</strong></span>
+                            <span>Finished: <strong style={{ color: '#4ade80' }}>{fmtNum(p.finished)}</strong></span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              </div>
+
+              <div id="sec-outreach-activity" style={{ display: activeSection === 'sec-outreach-activity' || !activeSection ? undefined : 'none' }}>
+              {/* Recent Activity from Monday (also shown in HeyReach view) */}
+              <div className="za-panel fade-up" style={{ animationDelay: '680ms', marginBottom: '16px' }}>
+                <div className="panel-head">
+                  <div>
+                    <span className="panel-eyebrow">Letzte Aktivit&auml;ten</span>
+                    <div className="panel-title">Aktuelle Status-&Auml;nderungen &middot; Monday.com</div>
+                  </div>
+                </div>
+                {mo.recentActivity.length > 0 ? (
+                  <div className="za-table-wrap">
+                    <table className="za-table">
+                      <thead>
+                        <tr>
+                          <th>Lead</th>
+                          <th>Firma</th>
+                          <th>Status</th>
+                          <th>Zust&auml;ndig</th>
+                          <th>Letzter Touch</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {mo.recentActivity.map((a, i) => (
+                          <tr key={i}>
+                            <td>
+                              <div className="t-co">
+                                <span className="t-co-mark">{a.name.charAt(0)}</span>
+                                <span className="t-co-name">{a.name}</span>
+                              </div>
+                            </td>
+                            <td style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{a.company || '\u2013'}</td>
+                            <td><span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: `${a.statusColor}20`, color: a.statusColor }}>{a.status}</span></td>
+                            <td style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{a.assignee || '\u2013'}</td>
+                            <td style={{ fontSize: '12px', color: 'var(--za-fg-3)', fontFamily: 'var(--za-serif)' }}>{a.updatedAt}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ padding: '24px', textAlign: 'center', fontSize: '13px', color: 'var(--za-fg-3)' }}>Keine aktuellen Aktivit&auml;ten</div>
+                )}
+              </div>
+              </div>
+              </>
+              )}
+
+              {/* ── Monday.com View ── */}
+              {outreachView === 'monday' && (
+              <>
+              {/* Hero KPIs — Monday */}
               <div className="kpi-grid">
                 <div className="za-panel fade-up" style={{ animationDelay: '60ms', borderTop: '2px solid var(--za-gold)' }}>
                   <div className="kpi-top"><span className="kpi-label">Leads gesamt</span></div>
-                  <div className="kpi-value">{fmtNum(om.totalLeads)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">{om.campaigns.length} Kampagnen</span></div>
+                  <div className="kpi-value">{fmtNum(mo.totalLeads)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Monday.com Pipeline</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '140ms', borderTop: '2px solid var(--za-gold)' }}>
-                  <div className="kpi-top"><span className="kpi-label">Annahmerate</span></div>
-                  <div className="kpi-value" style={{ color: om.rates.acceptanceRate >= 30 ? 'var(--za-success)' : om.rates.acceptanceRate >= 15 ? '#fbbf24' : 'var(--za-danger)' }}>{om.rates.acceptanceRate}<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">Vernetzung &rarr; Angenommen</span></div>
+                  <div className="kpi-top"><span className="kpi-label">Vernetzungen gesendet</span></div>
+                  <div className="kpi-value">{fmtNum(mo.totalConnectionsSent)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Monday Pipeline (kumulativ: Status 5+)</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
-                  <div className="kpi-top"><span className="kpi-label">Antwortrate</span></div>
-                  <div className="kpi-value" style={{ color: om.rates.replyRate >= 20 ? 'var(--za-success)' : '#fbbf24' }}>{om.rates.replyRate}<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">Nachricht &rarr; Antwort</span></div>
+                  <div className="kpi-top"><span className="kpi-label">Angenommen</span></div>
+                  <div className="kpi-value" style={{ color: '#037f4c' }}>{mo.milestones.angenommen}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{om.rates.acceptanceRate}% Annahmerate</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '300ms', borderTop: '2px solid var(--za-gold)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Geantwortet</span></div>
+                  <div className="kpi-value" style={{ color: om.rates.replyRate >= 20 ? 'var(--za-success)' : '#fbbf24' }}>{mo.milestones.geantwortet}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{om.rates.replyRate}% Antwortrate</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '380ms', borderTop: '2px solid var(--za-gold)' }}>
                   <div className="kpi-top"><span className="kpi-label">Termine gebucht</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{om.funnel.terminGebucht}</div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}>{mo.milestones.termin}</div>
                   <div className="kpi-foot"><span className="kpi-caption">{om.rates.overallConversion}% Gesamtkonversion</span></div>
                 </div>
               </div>
 
-              {/* Conversion Rates Row */}
-              <div className="kpi-grid">
-                <div className="za-panel fade-up" style={{ animationDelay: '360ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Nachrichten-Rate</span></div>
-                  <div className="kpi-value">{om.rates.messageRate}<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">Vernetzt &rarr; DM gesendet</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '420ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Positiv-Rate</span></div>
-                  <div className="kpi-value">{om.rates.positiveRate}<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">Geantwortet &rarr; Positiv</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '480ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Page Views</span></div>
-                  <div className="kpi-value">{fmtNum(om.tracking.pageViews)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">{fmtNum(om.tracking.videoPlays)} Videos &middot; {fmtNum(om.tracking.ctaClicks)} CTAs</span></div>
-                </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '540ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Buchungsrate</span></div>
-                  <div className="kpi-value">{om.rates.bookingRate}<span className="unit">%</span></div>
-                  <div className="kpi-foot"><span className="kpi-caption">Positiv &rarr; Termin</span></div>
-                </div>
-              </div>
-
-              {/* Funnel Visualization */}
-              <div className="za-panel fade-up" style={{ animationDelay: '600ms', marginBottom: '16px' }}>
+              <div id="sec-outreach-funnel" style={{ display: activeSection === 'sec-outreach-funnel' || !activeSection ? undefined : 'none' }}>
+              {/* Pipeline Funnel Waterfall */}
+              <div className="za-panel fade-up" style={{ animationDelay: '440ms', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
-                    <span className="panel-eyebrow">LinkedIn Outreach Funnel</span>
-                    <div className="panel-title">{fmtNum(om.totalLeads)} Leads &middot; {om.funnel.terminGebucht} Termine</div>
+                    <span className="panel-eyebrow">Outreach Waterfall</span>
+                    <div className="panel-title">{fmtNum(mo.totalConnectionsSent)} Anfragen &rarr; {waterfallSteps[waterfallSteps.length - 1]?.value || 0} Calls</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {funnelSteps.map((step, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '140px', flexShrink: 0, fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)' }}>{step.label}</div>
-                      <div style={{ flex: 1, height: '28px', background: 'rgba(249,249,249,0.04)', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
-                        <div style={{ width: `${Math.max((step.value / maxFunnel) * 100, step.value > 0 ? 3 : 0)}%`, height: '100%', background: step.color, borderRadius: '6px', transition: 'width 0.8s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {step.value > 0 && <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff' }}>{step.value}</span>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {waterfallSteps.map((step, i) => {
+                    const prevValue = i === 0 ? step.value : waterfallSteps[i - 1].value
+                    const convRate = i === 0 ? 100 : (prevValue > 0 ? Math.round((step.value / prevValue) * 1000) / 10 : 0)
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '130px', flexShrink: 0 }}>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)' }}>{step.label}</div>
+                          {i > 0 && <div style={{ fontSize: '10px', color: convRate >= 50 ? '#4ade80' : convRate >= 20 ? '#fbbf24' : '#f87171' }}>{convRate}% von {waterfallSteps[i - 1].label}</div>}
                         </div>
+                        <div style={{ flex: 1, height: '32px', position: 'relative' }}>
+                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(249,249,249,0.04)', borderRadius: '6px' }} />
+                          <div style={{
+                            width: `${Math.max((step.value / maxFunnel) * 100, step.value > 0 ? 3 : 0)}%`,
+                            height: '100%',
+                            background: `linear-gradient(90deg, ${step.color}, ${step.color}cc)`,
+                            borderRadius: '6px',
+                            transition: 'width 0.8s ease',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            position: 'relative',
+                          }}>
+                            {step.value > 0 && <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>{step.value}</span>}
+                          </div>
+                        </div>
+                        <div style={{ width: '55px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontSize: '15px', fontWeight: 700, color: step.color }}>{step.value}</div>
                       </div>
-                      <div style={{ width: '50px', textAlign: 'right', fontFamily: 'var(--za-serif)', fontSize: '14px', fontWeight: 700, color: step.color }}>{step.value}</div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
+
+                {/* Dropout section */}
+                {dropouts.some(d => d.value > 0) && (
+                  <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(249,249,249,0.06)' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-fg-3)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Abg&auml;nge</div>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      {dropouts.filter(d => d.value > 0).map((d, i) => (
+                        <span key={i} style={{ fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '6px', background: `${d.color}15`, color: d.color }}>
+                          {d.label}: {d.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase breakdown */}
+                {Object.keys(mo.phases).length > 0 && (
+                  <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(249,249,249,0.06)' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--za-fg-3)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monday Phasen</div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {Object.entries(mo.phases).filter(([, v]) => v > 0).map(([phase, count]) => (
+                        <span key={phase} style={{ fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: 'rgba(249,249,249,0.06)', color: 'var(--za-fg-2)' }}>
+                          {phase}: <strong style={{ color: 'var(--za-fg-1)' }}>{count}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               </div>
 
+              <div id="sec-outreach-leaderboard" style={{ display: activeSection === 'sec-outreach-leaderboard' || !activeSection ? undefined : 'none' }}>
               {/* Team Leaderboard */}
-              {om.members.length > 0 && (
-                <div className="za-panel fade-up" style={{ animationDelay: '660ms', marginBottom: '16px' }}>
+              {mo.members.length > 0 && (
+                <div className="za-panel fade-up" style={{ animationDelay: '500ms', marginBottom: '16px' }}>
                   <div className="panel-head">
                     <div>
                       <span className="panel-eyebrow">Team Leaderboard</span>
-                      <div className="panel-title">{om.members.length} Teammitglieder</div>
+                      <div className="panel-title">Felix vs Marcel &middot; Monday.com</div>
                     </div>
                   </div>
                   <div className="za-table-wrap">
@@ -1644,17 +2148,17 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                         <tr>
                           <th>#</th>
                           <th>Name</th>
-                          <th>Vernetzt</th>
-                          <th>Annahme</th>
-                          <th>DMs</th>
-                          <th>Antworten</th>
-                          <th>Antwort%</th>
-                          <th>Positiv</th>
-                          <th>Termine</th>
+                          <th>Leads</th>
+                          <th>Anfragen</th>
+                          <th>Angenommen</th>
+                          <th>Erstnachricht</th>
+                          <th>Geantwortet</th>
+                          <th>Call gebucht</th>
+                          <th>Kein Interesse</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {om.members.map((m, i) => (
+                        {mo.members.map((m, i) => (
                           <tr key={i}>
                             <td style={{ fontWeight: 700, color: i === 0 ? '#fbbf24' : 'var(--za-fg-3)' }}>{i + 1}</td>
                             <td>
@@ -1663,13 +2167,13 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                                 <span className="t-co-name">{m.name}</span>
                               </div>
                             </td>
-                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{m.connectionsSent}</td>
-                            <td style={{ color: m.acceptanceRate >= 30 ? 'var(--za-success)' : m.acceptanceRate >= 15 ? '#fbbf24' : 'var(--za-danger)' }}>{m.acceptanceRate}%</td>
-                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{m.messagesSent}</td>
-                            <td>{m.replies}</td>
-                            <td style={{ color: m.replyRate >= 20 ? 'var(--za-success)' : '#fbbf24' }}>{m.replyRate}%</td>
-                            <td style={{ color: 'var(--za-success)', fontWeight: 700 }}>{m.positiveReplies}</td>
-                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 700, color: m.appointmentsBooked > 0 ? '#f43f5e' : 'var(--za-fg-3)' }}>{m.appointmentsBooked}</td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{m.totalLeads}</td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{m.anfrageGesendet}</td>
+                            <td style={{ color: '#037f4c', fontWeight: 700 }}>{m.angenommen}</td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{m.erstnachrichtGesendet}</td>
+                            <td style={{ fontWeight: 700 }}>{m.geantwortet}</td>
+                            <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 700, color: m.callGebucht > 0 ? '#bb3354' : 'var(--za-fg-3)' }}>{m.callGebucht}</td>
+                            <td style={{ color: '#ff007f' }}>{m.keinInteresse}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1677,71 +2181,100 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   </div>
                 </div>
               )}
-
-              {/* Campaigns Overview */}
-              <div className="za-panel fade-up" style={{ animationDelay: '720ms', marginBottom: '16px' }}>
-                <div className="panel-head">
-                  <div>
-                    <span className="panel-eyebrow">Kampagnen</span>
-                    <div className="panel-title">{om.campaigns.length} Kampagnen</div>
-                  </div>
-                </div>
-                <div className="za-table-wrap">
-                  <table className="za-table">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Status</th>
-                        <th>Leads</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {om.campaigns.map((c, i) => (
-                        <tr key={i}>
-                          <td style={{ fontWeight: 600 }}>{c.name}</td>
-                          <td><span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: c.status === 'active' ? 'rgba(34,197,94,0.15)' : 'rgba(249,249,249,0.06)', color: c.status === 'active' ? '#4ade80' : 'var(--za-fg-3)' }}>{c.status === 'active' ? 'Aktiv' : c.status === 'draft' ? 'Entwurf' : c.status}</span></td>
-                          <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>{c.leadsCount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
               </div>
 
-              {/* Recent Activity */}
-              <div className="za-panel fade-up" style={{ animationDelay: '780ms', marginBottom: '16px' }}>
+              <div id="sec-outreach-heyreach" style={{ display: activeSection === 'sec-outreach-heyreach' || !activeSection ? undefined : 'none' }}>
+              {/* HeyReach Stats summary in Monday view */}
+              {hr.available ? (
+                <div className="za-panel fade-up" style={{ animationDelay: '560ms', marginBottom: '16px' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">HeyReach Automation</span>
+                      <div className="panel-title">LinkedIn Outreach &middot; letzte 90 Tage</div>
+                    </div>
+                  </div>
+                  <div className="kpi-grid" style={{ marginBottom: '16px' }}>
+                    <div style={{ textAlign: 'center', padding: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-3)', marginBottom: '4px' }}>Vernetzungen</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700 }}>{fmtNum(hr.connectionsSent)}</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-3)', marginBottom: '4px' }}>Angenommen</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700 }}>{fmtNum(hr.connectionsAccepted)}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>{hr.connectionAcceptanceRate}%</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-3)', marginBottom: '4px' }}>Nachrichten</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700 }}>{fmtNum(hr.messagesSent)}</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-3)', marginBottom: '4px' }}>Antworten</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700 }}>{fmtNum(hr.totalMessageReplies)}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>{hr.replyRate}%</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-3)', marginBottom: '4px' }}>Leads kontaktiert</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700 }}>{fmtNum(hr.uniqueLeadsContacted)}</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-3)', marginBottom: '4px' }}>Profilaufrufe</div>
+                      <div style={{ fontFamily: 'var(--za-serif)', fontSize: '22px', fontWeight: 700 }}>{fmtNum(hr.profileViews)}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="za-panel fade-up" style={{ animationDelay: '560ms', marginBottom: '16px', padding: '32px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--za-fg-3)' }}>HeyReach nicht verbunden &mdash; setze <code>HEYREACH_API_KEY</code></div>
+                </div>
+              )}
+              </div>
+
+              <div id="sec-outreach-activity" style={{ display: activeSection === 'sec-outreach-activity' || !activeSection ? undefined : 'none' }}>
+              {/* Recent Activity from Monday */}
+              <div className="za-panel fade-up" style={{ animationDelay: '620ms', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
                     <span className="panel-eyebrow">Letzte Aktivit&auml;ten</span>
-                    <div className="panel-title">Aktuelle Status-&Auml;nderungen</div>
+                    <div className="panel-title">Aktuelle Status-&Auml;nderungen &middot; Monday.com</div>
                   </div>
                 </div>
-                <div className="za-table-wrap">
-                  <table className="za-table">
-                    <thead>
-                      <tr>
-                        <th>Lead</th>
-                        <th>Firma</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {om.recentActivity.map((a, i) => (
-                        <tr key={i}>
-                          <td>
-                            <div className="t-co">
-                              <span className="t-co-mark">{a.name.charAt(0)}</span>
-                              <span className="t-co-name">{a.name}</span>
-                            </div>
-                          </td>
-                          <td style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{a.company || '\u2013'}</td>
-                          <td><span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: `${STATUS_COLORS[a.status] || '#64748b'}20`, color: STATUS_COLORS[a.status] || '#64748b' }}>{STATUS_LABELS[a.status] || a.status}</span></td>
+                {mo.recentActivity.length > 0 ? (
+                  <div className="za-table-wrap">
+                    <table className="za-table">
+                      <thead>
+                        <tr>
+                          <th>Lead</th>
+                          <th>Firma</th>
+                          <th>Status</th>
+                          <th>Zust&auml;ndig</th>
+                          <th>Letzter Touch</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {mo.recentActivity.map((a, i) => (
+                          <tr key={i}>
+                            <td>
+                              <div className="t-co">
+                                <span className="t-co-mark">{a.name.charAt(0)}</span>
+                                <span className="t-co-name">{a.name}</span>
+                              </div>
+                            </td>
+                            <td style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{a.company || '\u2013'}</td>
+                            <td><span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: `${a.statusColor}20`, color: a.statusColor }}>{a.status}</span></td>
+                            <td style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{a.assignee || '\u2013'}</td>
+                            <td style={{ fontSize: '12px', color: 'var(--za-fg-3)', fontFamily: 'var(--za-serif)' }}>{a.updatedAt}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ padding: '24px', textAlign: 'center', fontSize: '13px', color: 'var(--za-fg-3)' }}>Keine aktuellen Aktivit&auml;ten</div>
+                )}
               </div>
+              </div>
+              </>
+              )}
             </>
             )
           })()}
@@ -1860,6 +2393,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
               </div>
 
               {/* ═══ SALES FUNNEL — HERO ═══ */}
+              <div id="sec-sales-funnel" style={{ display: activeSection === 'sec-sales-funnel' || !activeSection ? undefined : 'none' }}>
               {(() => {
                 const funnelData = period === 'today' ? data.salesFunnel.today
                   : period === 'week' ? data.salesFunnel.week
@@ -2114,8 +2648,10 @@ export default function Dashboard({ data }: { data: DashboardData }) {
 
               {/* ═══ OPENER PERFORMANCE & FUNNEL RATIOS ═══ */}
               <OpenerPerformancePanel data={data} />
+              </div>
 
               {/* ═══ SETTING- & CLOSING-QUALITÄT (Pipeline-Statuswechsel) ═══ */}
+              <div id="sec-sales-pipeline-quality" style={{ display: activeSection === 'sec-sales-pipeline-quality' || !activeSection ? undefined : 'none' }}>
               {(() => {
                 const isWeek = period === 'today' || period === 'week'
                 const pq: PipelineQuality = isWeek ? data.pipelineQualityWeek : data.pipelineQualityMonth
@@ -2239,6 +2775,20 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                       ))}
                     </div>
 
+                    {/* ── ANGEBOT & CC2 → WON ── */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '14px' }}>
+                      {[
+                        { label: 'Angebot → Won', value: cq.angebotWonCount, sub: cq.closingAngebotCount > 0 ? `${Math.round((cq.angebotWonCount / cq.closingAngebotCount) * 100)}% von ${cq.closingAngebotCount} Angeboten` : 'Keine Angebote', color: 'var(--za-info)' },
+                        { label: 'CC2 → Won', value: cq.cc2WonCount, sub: cq.closingCC2Count > 0 ? `${Math.round((cq.cc2WonCount / cq.closingCC2Count) * 100)}% von ${cq.closingCC2Count} CC2s` : 'Keine CC2s', color: 'var(--za-info)' },
+                      ].map((kpi, i) => (
+                        <div key={i} style={{ padding: '12px', background: 'rgba(249,249,249,0.03)', borderRadius: '8px', borderLeft: `3px solid ${kpi.color}` }}>
+                          <div style={{ fontSize: '10px', color: 'var(--za-fg-4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>{kpi.label}</div>
+                          <div style={{ fontFamily: 'var(--za-serif)', fontSize: '20px', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', marginTop: '1px' }}>{kpi.sub}</div>
+                        </div>
+                      ))}
+                    </div>
+
                     {/* Closing transition bars */}
                     <div style={{ marginBottom: '24px' }}>
                       {cq.closingTransitions.map((t, i) => {
@@ -2285,7 +2835,10 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 )
               })()}
 
-              {/* ═══ CALENDLY TERMINE ═══ */}
+              </div>
+
+              {/* ═══ CALENDLY TERME ═══ */}
+              <div id="sec-sales-calendly" style={{ display: activeSection === 'sec-sales-calendly' || !activeSection ? undefined : 'none' }}>
               {data.calendlyMetrics.weekEvents.length > 0 && (
                 <div className="za-panel fade-up" style={{ animationDelay: '500ms', marginBottom: '16px', borderTop: '2px solid var(--za-info)', padding: '24px' }}>
                   <div className="panel-head" style={{ marginBottom: '16px' }}>
@@ -2404,7 +2957,10 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
+              </div>
+
               {/* ═══ PIPELINE: NEUKUNDE vs. BESTANDSKUNDE ═══ */}
+              <div id="sec-sales-pipeline" style={{ display: activeSection === 'sec-sales-pipeline' || !activeSection ? undefined : 'none' }}>
               <div className="za-panel fade-up" style={{ animationDelay: '540ms', marginBottom: '16px', borderTop: '2px solid var(--za-success)', padding: '24px' }}>
                 <div className="panel-head" style={{ marginBottom: '16px' }}>
                   <div>
@@ -2546,6 +3102,9 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 <BarChart data={data.weeklyCallData.map(w => w.calls)} labels={data.weeklyCallData.map(w => w.week)} />
               </div>
 
+              </div>
+
+              <div id="sec-sales-leaderboard" style={{ display: activeSection === 'sec-sales-leaderboard' || !activeSection ? undefined : 'none' }}>
               {/* Weekly Leaderboard with Points */}
               {(() => {
                 const weekTeam = data.teamPerformanceWeek || []
@@ -2689,6 +3248,9 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 )
               })()}
 
+              </div>
+
+              <div id="sec-sales-won" style={{ display: activeSection === 'sec-sales-won' || !activeSection ? undefined : 'none' }}>
               {/* Won Deals list */}
               <div className="za-panel fade-up" style={{ animationDelay: '760ms', marginBottom: '16px' }}>
                 <div className="panel-head">
@@ -2791,6 +3353,9 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
+              </div>
+
+              <div id="sec-sales-leads" style={{ display: activeSection === 'sec-sales-leads' || !activeSection ? undefined : 'none' }}>
               {/* Lead Status drill-down */}
               <div className="za-panel fade-up" style={{ animationDelay: '860ms', marginBottom: '16px' }}>
                 <div className="panel-head">
@@ -2848,6 +3413,9 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 })}
               </div>
 
+              </div>
+
+              <div id="sec-sales-revenue" style={{ display: activeSection === 'sec-sales-revenue' || !activeSection ? undefined : 'none' }}>
               {/* Month-to-Date card */}
               <div className="za-panel fade-up" style={{ animationDelay: '900ms', marginBottom: '16px' }}>
                 <div className="panel-head">
@@ -2935,6 +3503,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   <div className="kpi-foot"><span className="kpi-caption">Letzte 8 Wochen</span></div>
                 </div>
               </div>
+              </div>
 
             </>
           )}
@@ -2944,6 +3513,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
              ═══════════════════════════════════════════════════ */}
           {activeNav === 'fulfillment' && (
             <>
+              <div id="sec-fulfillment-clockodo" style={{ display: activeSection === 'sec-fulfillment-clockodo' || !activeSection ? undefined : 'none' }}>
               {/* ── Nils Holland — Stundenkonto (Hero Panel) ── */}
               <div className="za-panel fade-up" style={{ animationDelay: '20ms', borderTop: '2px solid var(--za-gold, #d4a843)', marginBottom: '16px' }}>
                 <div className="panel-head">
@@ -3100,6 +3670,8 @@ export default function Dashboard({ data }: { data: DashboardData }) {
               </div>
 
               {/* Team Overview — Lisa vs Nils */}
+              </div>
+              <div id="sec-fulfillment-monday" style={{ display: activeSection === 'sec-fulfillment-monday' || !activeSection ? undefined : 'none' }}>
               <div className="za-panel fade-up" style={{ animationDelay: '360ms', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
@@ -3169,6 +3741,8 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 ))}
               </div>
 
+              </div>
+              <div id="sec-fulfillment-analyse" style={{ display: activeSection === 'sec-fulfillment-analyse' || !activeSection ? undefined : 'none' }}>
               {/* Insights */}
               <div className="za-panel fade-up" style={{ animationDelay: '540ms', marginBottom: '16px' }}>
                 <div className="panel-head">
@@ -3191,6 +3765,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                     <span>{'\uD83D\uDCCA'}</span><span>Board zuletzt aktualisiert: Lisa 14.04, Nils 19.04</span>
                   </div>
                 </div>
+              </div>
               </div>
             </>
           )}
@@ -3233,6 +3808,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
 
             return (
             <>
+              <div id="sec-marketing-facebook" style={{ display: activeSection === 'sec-marketing-facebook' || !activeSection ? undefined : 'none' }}>
               {/* Facebook Ads KPIs */}
               {fb.available && (
                 <>
@@ -3382,6 +3958,8 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 </>
               )}
 
+              </div>
+              <div id="sec-marketing-overview" style={{ display: activeSection === 'sec-marketing-overview' || !activeSection ? undefined : 'none' }}>
               {/* Perspective Funnels Section */}
               {mk.perspective.totalLeads > 0 && (
                 <>
@@ -3516,6 +4094,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   )
                 })}
               </div>
+              </div>
             </>
             )
           })()}
@@ -3526,7 +4105,6 @@ export default function Dashboard({ data }: { data: DashboardData }) {
           {activeNav === 'finanzen' && (() => {
             const dm = data.deliveryMetrics
             const deliveryCostPct = dm.totalMRR > 0 ? (dm.totalDeliveryCost / dm.totalMRR * 100).toFixed(1) : '0'
-            const netProfitPct = dm.totalMRR > 0 ? (dm.netProfit / dm.totalMRR * 100).toFixed(1) : '0'
             const overheadPct = dm.totalMRR > 0 ? (dm.totalTeamCost / dm.totalMRR * 100).toFixed(1) : '0'
             const customersSorted = [...dm.customers].sort((a, b) => b.delivery.marginEuro - a.delivery.marginEuro)
             const top5 = customersSorted.slice(0, 5)
@@ -3539,74 +4117,151 @@ export default function Dashboard({ data }: { data: DashboardData }) {
               { name: 'Lisa', role: 'Operations', hours: dm.totalHoursLisa, maxHours: 160, cost: 2500 },
             ]
 
+            // Airtable Cash-In Monatsauswahl
+            const cashInMonths = data.airtableCashIn?.months || []
+            const [selYear, selMonth] = finanzMonat.split('-').map(Number)
+            const selectedCashIn = cashInMonths.find(m => m.year === selYear && m.month === selMonth)
+            const cashInNetto = selectedCashIn?.totalNetto ?? dm.cashInMonatNetto
+            const cashInBrutto = selectedCashIn?.totalBrutto ?? dm.cashInMonatBrutto
+            const cashInCustomers = selectedCashIn?.customers || []
+            const cashInLabel = selectedCashIn?.label || finanzMonat
+            const fc = dm.fixedCosts || { teamInklKK: 15000, toolsAmex: 10000, buchhaltung: 2500, total: 27500 }
+            const totalFixedCosts = fc.total || dm.totalFixedCosts || 27500
+            const netProfit = cashInNetto - totalFixedCosts
+            const netProfitPct = cashInNetto > 0 ? (netProfit / cashInNetto * 100).toFixed(1) : '0'
+
             return (
             <>
+              <div id="sec-finanzen-overview" style={{ display: activeSection === 'sec-finanzen-overview' || !activeSection ? undefined : 'none' }}>
+
+              {/* Monats-Picker */}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                {cashInMonths.map((m) => {
+                  const key = `${m.year}-${String(m.month).padStart(2, '0')}`
+                  const isActive = key === finanzMonat
+                  return (
+                    <button key={key} onClick={() => setFinanzMonat(key)} style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: isActive ? '1px solid var(--za-gold)' : '1px solid rgba(249,249,249,0.1)',
+                      background: isActive ? 'rgba(197,160,89,0.15)' : 'rgba(249,249,249,0.04)',
+                      color: isActive ? 'var(--za-gold)' : 'var(--za-fg-3)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}>
+                      {m.label.split(' ')[0].slice(0, 3)} {m.year}
+                    </button>
+                  )
+                })}
+              </div>
+
               {/* Cash-In Hero */}
               <div className="kpi-grid">
                 <div className="za-panel fade-up" style={{ animationDelay: '40ms', borderTop: '3px solid var(--za-success, #22c55e)' }}>
-                  <div className="kpi-top"><span className="kpi-label">Cash-In Mai (netto)</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-success, #22c55e)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.cashInMonatNetto)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">inkl. Setups &amp; Einmalzahlungen</span></div>
+                  <div className="kpi-top"><span className="kpi-label">Cash-In {cashInLabel} (netto)</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success, #22c55e)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(cashInNetto)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">{cashInCustomers.length} Positionen</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '100ms', borderTop: '3px solid var(--za-success, #22c55e)' }}>
-                  <div className="kpi-top"><span className="kpi-label">Cash-In Mai (brutto)</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-success, #22c55e)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.cashInMonatBrutto)}</div>
+                  <div className="kpi-top"><span className="kpi-label">Cash-In {cashInLabel} (brutto)</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-success, #22c55e)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(cashInBrutto)}</div>
                   <div className="kpi-foot"><span className="kpi-caption">inkl. 19% MwSt.</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '160ms', borderTop: '2px solid var(--za-gold)' }}>
-                  <div className="kpi-top"><span className="kpi-label">MRR</span></div>
-                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.totalMRR)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">{dm.customers.length} aktive Kunden</span></div>
+                  <div className="kpi-top"><span className="kpi-label">Fixkosten gesamt</span></div>
+                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(totalFixedCosts)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">Team {fmtNum(fc.teamInklKK)} + Tools {fmtNum(fc.toolsAmex)} + BH {fmtNum(fc.buchhaltung)}</span></div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: '2px solid var(--za-gold)' }}>
+                <div className="za-panel fade-up" style={{ animationDelay: '220ms', borderTop: `2px solid ${netProfit >= 0 ? 'var(--za-success)' : 'var(--za-danger)'}` }}>
                   <div className="kpi-top"><span className="kpi-label">Net Profit</span></div>
-                  <div className="kpi-value" style={{ color: 'var(--za-success)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.netProfit)}</div>
+                  <div className="kpi-value" style={{ color: netProfit >= 0 ? 'var(--za-success)' : 'var(--za-danger)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(netProfit)}</div>
                   <div className="kpi-foot"><span className="kpi-caption">{netProfitPct}% Nettomarge</span></div>
                 </div>
               </div>
 
-              {/* P&L Detail KPIs */}
-              <div className="kpi-grid">
-                <div className="za-panel fade-up" style={{ animationDelay: '280ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Delivery Cost</span></div>
-                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(Math.round(dm.totalDeliveryCost))}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">{deliveryCostPct}% vom MRR</span></div>
+              {/* Cash-In Kunden-Tabelle für gewählten Monat */}
+              {cashInCustomers.length > 0 && (
+                <div className="za-panel fade-up" style={{ animationDelay: '280ms', marginBottom: '16px' }}>
+                  <div className="panel-head">
+                    <div>
+                      <span className="panel-eyebrow">Cash-In Detail</span>
+                      <div className="panel-title">{cashInLabel} &middot; {cashInCustomers.length} Positionen &middot; &euro;{fmtNum(cashInNetto)} netto</div>
+                    </div>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="za-table" style={{ width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left' }}>Kunde</th>
+                          <th style={{ textAlign: 'left' }}>Paket</th>
+                          <th style={{ textAlign: 'left' }}>Typ</th>
+                          <th style={{ textAlign: 'right' }}>Netto</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cashInCustomers.map((c, i) => (
+                          <tr key={i}>
+                            <td style={{ fontWeight: 600 }}>{c.firma}</td>
+                            <td style={{ color: 'var(--za-fg-3)', fontSize: '12px' }}>{c.paket}</td>
+                            <td>
+                              <span style={{
+                                fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                                padding: '2px 8px', borderRadius: '4px',
+                                background: c.isSetup ? 'rgba(139,92,246,0.12)' : c.umsatztyp === 'Einmalig' ? 'rgba(59,130,246,0.12)' : 'rgba(34,197,94,0.12)',
+                                color: c.isSetup ? '#a78bfa' : c.umsatztyp === 'Einmalig' ? 'var(--za-info)' : 'var(--za-success)',
+                              }}>
+                                {c.umsatztyp}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: 'var(--za-gold)' }}>&euro;{fmtNum(c.cashInNetto)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-                <div className="za-panel fade-up" style={{ animationDelay: '340ms' }}>
-                  <div className="kpi-top"><span className="kpi-label">Team Overhead</span></div>
-                  <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(dm.totalTeamCost)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">Felix + Lisa + Marcel + Nils</span></div>
-                </div>
-              </div>
+              )}
 
               {/* Revenue vs Cost Bar */}
+              {cashInNetto > 0 && (
               <div className="za-panel fade-up" style={{ animationDelay: '360ms', marginBottom: '16px' }}>
                 <div className="panel-head">
                   <div>
                     <span className="panel-eyebrow">P&amp;L Aufschl&uuml;sselung</span>
-                    <div className="panel-title">Revenue vs. Kosten &middot; &euro;{fmtNum(dm.totalMRR)} MRR</div>
+                    <div className="panel-title">{cashInLabel} &middot; &euro;{fmtNum(cashInNetto)} Cash-In</div>
                   </div>
                 </div>
                 <div style={{ marginBottom: '12px' }}>
                   <div style={{ display: 'flex', height: '40px', borderRadius: '8px', overflow: 'hidden', background: 'rgba(249,249,249,0.04)' }}>
-                    <div style={{ width: `${(dm.netProfit / dm.totalMRR) * 100}%`, background: 'linear-gradient(90deg, #22c55e, #16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', minWidth: '60px' }}>
-                      {(dm.netProfit / dm.totalMRR * 100).toFixed(1)}%
+                    {netProfit > 0 && (
+                    <div style={{ width: `${(netProfit / cashInNetto) * 100}%`, background: 'linear-gradient(90deg, #22c55e, #16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', minWidth: '50px' }}>
+                      {(netProfit / cashInNetto * 100).toFixed(0)}%
                     </div>
-                    <div style={{ width: `${(dm.totalTeamCost / dm.totalMRR) * 100}%`, background: 'linear-gradient(90deg, #f59e0b, #d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', minWidth: '60px' }}>
-                      {overheadPct}%
+                    )}
+                    <div style={{ width: `${(fc.teamInklKK / cashInNetto) * 100}%`, background: 'linear-gradient(90deg, #f59e0b, #d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#fff', minWidth: '40px' }}>
+                      Team
                     </div>
-                    <div style={{ width: `${(dm.totalDeliveryCost / dm.totalMRR) * 100}%`, background: 'linear-gradient(90deg, #ef4444, #dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', minWidth: '40px' }}>
-                      {deliveryCostPct}%
+                    <div style={{ width: `${(fc.toolsAmex / cashInNetto) * 100}%`, background: 'linear-gradient(90deg, #8b5cf6, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#fff', minWidth: '40px' }}>
+                      Tools
+                    </div>
+                    <div style={{ width: `${(fc.buchhaltung / cashInNetto) * 100}%`, background: 'linear-gradient(90deg, #6366f1, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#fff', minWidth: '30px' }}>
+                      BH
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '20px', marginTop: '10px', fontSize: '12px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#22c55e', display: 'inline-block' }} />Net Profit &euro;{fmtNum(dm.netProfit)}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} />Team Overhead &euro;{fmtNum(dm.totalTeamCost)}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#ef4444', display: 'inline-block' }} />Delivery Cost &euro;{fmtNum(Math.round(dm.totalDeliveryCost))}</span>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '10px', fontSize: '12px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#22c55e', display: 'inline-block' }} />Net Profit &euro;{fmtNum(netProfit)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} />Team &euro;{fmtNum(fc.teamInklKK)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#8b5cf6', display: 'inline-block' }} />Tools/Amex &euro;{fmtNum(fc.toolsAmex)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#6366f1', display: 'inline-block' }} />Buchhaltung &euro;{fmtNum(fc.buchhaltung)}</span>
                   </div>
                 </div>
               </div>
+              )}
 
+              </div>
+              <div id="sec-finanzen-kunden" style={{ display: activeSection === 'sec-finanzen-kunden' || !activeSection ? undefined : 'none' }}>
               {/* Customer Profitability Table */}
               <div className="za-panel fade-up" style={{ animationDelay: '420ms', marginBottom: '16px' }}>
                 <div className="panel-head">
@@ -3656,6 +4311,113 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 </div>
               </div>
 
+              </div>
+
+              {/* ── Nicht-Zahler ─────────────────────────────────── */}
+              <div id="sec-finanzen-nichtzahler" style={{ display: activeSection === 'sec-finanzen-nichtzahler' || !activeSection ? undefined : 'none' }}>
+              {(() => {
+                const nonPaying = data.airtableCashIn?.nonPaying || []
+                const streitfaelle = nonPaying.filter(c => c.reason.includes('Streitfall'))
+                const inaktive = nonPaying.filter(c => !c.reason.includes('Streitfall'))
+                const totalOffen = streitfaelle.reduce((s, c) => s + c.offenerBetrag, 0)
+                const totalEntgangenMRR = nonPaying.reduce((s, c) => s + c.rateMonat, 0)
+
+                return (
+                  <>
+                    {/* KPIs */}
+                    <div className="kpi-grid">
+                      <div className="za-panel fade-up" style={{ animationDelay: '40ms', borderTop: '3px solid var(--za-danger)' }}>
+                        <div className="kpi-top"><span className="kpi-label">Offene Forderungen</span></div>
+                        <div className="kpi-value" style={{ color: 'var(--za-danger)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(totalOffen)}</div>
+                        <div className="kpi-foot"><span className="kpi-caption">{streitfaelle.length} Streitf&auml;lle beim Anwalt</span></div>
+                      </div>
+                      <div className="za-panel fade-up" style={{ animationDelay: '100ms', borderTop: '2px solid var(--za-gold)' }}>
+                        <div className="kpi-top"><span className="kpi-label">Entgangener MRR</span></div>
+                        <div className="kpi-value"><span className="kpi-unit-prefix">&euro;</span>{fmtNum(totalEntgangenMRR)}</div>
+                        <div className="kpi-foot"><span className="kpi-caption">{nonPaying.length} nicht-zahlende Kunden</span></div>
+                      </div>
+                      <div className="za-panel fade-up" style={{ animationDelay: '160ms' }}>
+                        <div className="kpi-top"><span className="kpi-label">Nicht-Zahler</span></div>
+                        <div className="kpi-value">{nonPaying.length}</div>
+                        <div className="kpi-foot"><span className="kpi-caption">{streitfaelle.length} Streitf&auml;lle &middot; {inaktive.length} Inaktive</span></div>
+                      </div>
+                    </div>
+
+                    {/* Streitfälle */}
+                    {streitfaelle.length > 0 && (
+                      <div className="za-panel fade-up" style={{ animationDelay: '200ms', marginBottom: '16px' }}>
+                        <div className="panel-head">
+                          <div>
+                            <span className="panel-eyebrow">Beim Anwalt</span>
+                            <div className="panel-title">Streitf&auml;lle &middot; &euro;{fmtNum(totalOffen)} offen</div>
+                          </div>
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className="za-table" style={{ width: '100%' }}>
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: 'left' }}>Kunde</th>
+                                <th style={{ textAlign: 'left' }}>Paket</th>
+                                <th style={{ textAlign: 'right' }}>Rate/Mo</th>
+                                <th style={{ textAlign: 'right' }}>Offen</th>
+                                <th style={{ textAlign: 'left' }}>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {streitfaelle.sort((a, b) => b.offenerBetrag - a.offenerBetrag).map((c, i) => (
+                                <tr key={i}>
+                                  <td style={{ fontWeight: 600 }}>{c.firma}</td>
+                                  <td style={{ color: 'var(--za-fg-3)', fontSize: '12px' }}>{c.paket}</td>
+                                  <td style={{ textAlign: 'right', fontFamily: 'var(--za-serif)' }}>&euro;{fmtNum(c.rateMonat)}</td>
+                                  <td style={{ textAlign: 'right', fontFamily: 'var(--za-serif)', fontWeight: 700, color: 'var(--za-danger)' }}>&euro;{fmtNum(c.offenerBetrag)}</td>
+                                  <td><span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 8px', borderRadius: '4px', background: 'rgba(239,68,68,0.12)', color: 'var(--za-danger)' }}>Streitfall</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inaktive / Sonstige */}
+                    {inaktive.length > 0 && (
+                      <div className="za-panel fade-up" style={{ animationDelay: '300ms' }}>
+                        <div className="panel-head">
+                          <div>
+                            <span className="panel-eyebrow">Inaktiv / Sonstige</span>
+                            <div className="panel-title">{inaktive.length} nicht-zahlende Kunden</div>
+                          </div>
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className="za-table" style={{ width: '100%' }}>
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: 'left' }}>Kunde</th>
+                                <th style={{ textAlign: 'left' }}>Paket</th>
+                                <th style={{ textAlign: 'right' }}>Letzte Rate</th>
+                                <th style={{ textAlign: 'left' }}>Grund</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {inaktive.sort((a, b) => b.rateMonat - a.rateMonat).map((c, i) => (
+                                <tr key={i}>
+                                  <td style={{ fontWeight: 600 }}>{c.firma}</td>
+                                  <td style={{ color: 'var(--za-fg-3)', fontSize: '12px' }}>{c.paket}</td>
+                                  <td style={{ textAlign: 'right', fontFamily: 'var(--za-serif)' }}>&euro;{fmtNum(c.rateMonat)}</td>
+                                  <td><span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 8px', borderRadius: '4px', background: 'rgba(249,249,249,0.08)', color: 'var(--za-fg-3)' }}>{c.reason}</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+              </div>
+
+              <div id="sec-finanzen-team" style={{ display: activeSection === 'sec-finanzen-team' || !activeSection ? undefined : 'none' }}>
               {/* Team Auslastung Panel */}
               <div className="za-panel fade-up" style={{ animationDelay: '480ms', marginBottom: '16px' }}>
                 <div className="panel-head">
@@ -3838,6 +4600,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   </div>
                 </div>
               </div>
+              </div>
             </>
             )
           })()}
@@ -3847,6 +4610,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
              ═══════════════════════════════════════════════════ */}
           {activeNav === 'kunden' && (
             <>
+              <div id="sec-kunden-overview" style={{ display: activeSection === 'sec-kunden-overview' || !activeSection ? undefined : 'none' }}>
               {/* Sub-Tab Navigation */}
               <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', background: 'rgba(249,249,249,0.03)', borderRadius: '10px', padding: '4px', border: '1px solid rgba(249,249,249,0.06)' }}>
                 {[
@@ -3992,7 +4756,6 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   </div>
                 )
               })()}
-
               {/* Aktive Kunden Table */}
               <div className="za-panel fade-up" style={{ animationDelay: '660ms', marginBottom: '16px' }}>
                 <div className="panel-head">
@@ -4008,6 +4771,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                         <th>Kunde</th>
                         <th>Produkt</th>
                         <th>Rate/Mo</th>
+                        <th>Abrechnungstag</th>
                         <th>Laufzeit</th>
                         <th>Endet am</th>
                       </tr>
@@ -4023,6 +4787,13 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                           .sort((a, b) => b.monatlicheRate - a.monatlicheRate)
                       })().map((c, i) => {
                         const name = c.dealName.replace(/^CL-\d+\s*[-–]?\s*/, '').replace(/\s*[-–]\s*.*$/, '') || c.dealName
+                        const configCustomer = data.deliveryMetrics.customers.find(dc => dc.clId === c.kundenId)
+                        const billingDay = c.vertragsbeginn ? parseInt(c.vertragsbeginn.split('-')[2]) : (configCustomer?.billingDay || 0)
+                        const today = new Date()
+                        const todayDay = today.getDate()
+                        const daysUntil = billingDay > 0 ? (billingDay >= todayDay ? billingDay - todayDay : billingDay + (new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()) - todayDay) : -1
+                        const isUrgent = daysUntil >= 0 && daysUntil <= 3
+                        const isSoon = daysUntil >= 0 && daysUntil <= 7
                         return (
                           <tr key={i}>
                             <td>
@@ -4033,6 +4804,25 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                             </td>
                             <td><span style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{c.produkt}</span></td>
                             <td style={{ fontFamily: 'var(--za-serif)', fontWeight: 600 }}>&euro;{fmtNum(c.monatlicheRate)}</td>
+                            <td>
+                              {billingDay > 0 ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{
+                                    fontSize: '12px', fontWeight: 700,
+                                    padding: '2px 8px', borderRadius: '4px',
+                                    background: isUrgent ? 'rgba(239,68,68,0.12)' : isSoon ? 'rgba(245,158,11,0.12)' : 'rgba(249,249,249,0.06)',
+                                    color: isUrgent ? 'var(--za-danger)' : isSoon ? '#f59e0b' : 'var(--za-fg-2)',
+                                  }}>
+                                    {billingDay}.
+                                  </span>
+                                  {daysUntil === 0 && <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--za-danger)' }}>heute</span>}
+                                  {daysUntil === 1 && <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--za-danger)' }}>morgen</span>}
+                                  {daysUntil > 1 && daysUntil <= 7 && <span style={{ fontSize: '10px', color: '#f59e0b' }}>in {daysUntil}d</span>}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '12px', color: 'var(--za-fg-4)' }}>Altkunde</span>
+                              )}
+                            </td>
                             <td>{c.vertragslaufzeit ? `${c.vertragslaufzeit} Mo` : '\u2013'}</td>
                             <td style={{ fontSize: '12px', color: 'var(--za-fg-3)' }}>{c.vertragsende ? fmtDate(c.vertragsende) : '\u2013'}</td>
                           </tr>
@@ -4186,6 +4976,7 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   </div>
                 </>)
               })()}
+              </div>
             </>
           )}
 
@@ -4319,8 +5110,308 @@ export default function Dashboard({ data }: { data: DashboardData }) {
           {activeNav === 'team' && (() => {
             const ot = data.openerTracking
             const openers = ot?.openers || []
+            const openerRev = data.openerRevenue || []
+            const oq: any[] = data.openerQuality || []
             return (
             <>
+              <div id="sec-team-quality" style={{ display: activeSection === 'sec-team-quality' || !activeSection ? undefined : 'none' }}>
+              {oq.length > 0 && (() => {
+                const best = (field: string, higherBetter = true) => {
+                  const vals = oq.map((o: any) => o[field])
+                  const target = higherBetter ? Math.max(...vals) : Math.min(...vals.filter((v: number) => v > 0))
+                  return oq.find((o: any) => o[field] === target)?.name || ''
+                }
+                const rateColor = (val: number, good: number, bad: number) =>
+                  val <= good ? 'var(--za-success)' : val >= bad ? 'var(--za-danger)' : 'var(--za-gold)'
+                const rateColorHigh = (val: number, good: number, bad: number) =>
+                  val >= good ? 'var(--za-success)' : val <= bad ? 'var(--za-danger)' : 'var(--za-gold)'
+
+                return (
+                <>
+                  {/* KPI Overview */}
+                  <div className="kpi-grid" style={{ marginBottom: '20px' }}>
+                    {oq.map((o: any, idx: number) => {
+                      const firstName = o.name.split(' ')[0]
+                      return (
+                        <div key={idx} className="za-panel fade-up" style={{ animationDelay: `${60 + idx * 80}ms` }}>
+                          <div className="kpi-top"><span className="kpi-label">{firstName} — Monat</span></div>
+                          <div className="kpi-value" style={{ fontSize: '28px' }}>{o.settingsMonth}<span className="unit" style={{ fontSize: '14px', color: 'var(--za-fg-3)' }}> Settings</span></div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Calls: <span style={{ color: 'var(--za-fg)' }}>{o.callsMonth.toLocaleString('de-DE')}</span></div>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Calls/Setting: <span style={{ color: rateColor(o.callsPerSetting, 100, 200) }}>{o.callsPerSetting > 0 ? o.callsPerSetting.toFixed(0) : '–'}</span></div>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Entscheider: <span style={{ color: 'var(--za-fg)' }}>{o.entscheiderMonth}</span></div>
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Protokolle: <span style={{ color: 'var(--za-fg)' }}>{o.coldCallProtocolsMonth.toLocaleString('de-DE')}</span></div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {/* Total Card */}
+                    <div className="za-panel fade-up" style={{ animationDelay: `${60 + oq.length * 80}ms` }}>
+                      <div className="kpi-top"><span className="kpi-label">Gesamt — Monat</span></div>
+                      <div className="kpi-value" style={{ fontSize: '28px' }}>{oq.reduce((s: number, o: any) => s + o.settingsMonth, 0)}<span className="unit" style={{ fontSize: '14px', color: 'var(--za-fg-3)' }}> Settings</span></div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Calls: <span style={{ color: 'var(--za-fg)' }}>{oq.reduce((s: number, o: any) => s + o.callsMonth, 0).toLocaleString('de-DE')}</span></div>
+                        <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Entscheider: <span style={{ color: 'var(--za-fg)' }}>{oq.reduce((s: number, o: any) => s + o.entscheiderMonth, 0)}</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Opener Comparison Table */}
+                  <div className="za-panel fade-up" style={{ animationDelay: '140ms' }}>
+                    <div className="panel-head">
+                      <div>
+                        <span className="panel-eyebrow">Opener Report</span>
+                        <div className="panel-title">Qualitätsvergleich</div>
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>Letzte 90 Tage · via Pipeline Status-Transitions</div>
+                    </div>
+
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--za-border)' }}>
+                            <th style={{ textAlign: 'left', padding: '10px 12px', color: 'var(--za-fg-3)', fontWeight: 600, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Kennzahl</th>
+                            {oq.map((o: any, idx: number) => (
+                              <th key={idx} style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--za-fg-2)', fontWeight: 600, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{o.name.split(' ')[0]}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { label: 'Calls (Monat)', field: 'callsMonth', fmt: (v: number) => v.toLocaleString('de-DE') },
+                            { label: 'Protokolle (Monat)', field: 'coldCallProtocolsMonth', fmt: (v: number) => v.toLocaleString('de-DE') },
+                            { label: 'Entscheider (Monat)', field: 'entscheiderMonth', fmt: (v: number) => String(v) },
+                            { label: 'Settings (Monat)', field: 'settingsMonth', fmt: (v: number) => String(v), highlight: true },
+                            { label: 'Calls/Setting (Monat)', field: 'callsPerSetting', fmt: (v: number) => v > 0 ? v.toFixed(0) : '–', lower: true },
+                            { label: 'Settings (All-Time)', field: 'settingsAllTime', fmt: (v: number) => String(v) },
+                            { label: 'Calls/Setting (All-Time)', field: 'callsPerSettingAllTime', fmt: (v: number) => v > 0 ? v.toFixed(0) : '–', lower: true },
+                            { label: '', field: '', fmt: () => '', divider: true },
+                            { label: 'Setting → Closing', field: 'settingToCLosing', fmt: (v: number) => String(v), sub: 'settingToClosingRate' },
+                            { label: 'Setting → No-Show', field: 'settingNoShow', fmt: (v: number) => String(v), sub: 'settingNoShowRate', danger: true },
+                            { label: 'Setting → Follow-Up', field: 'settingFollowUp', fmt: (v: number) => String(v) },
+                            { label: 'Setting → Lost', field: 'settingLost', fmt: (v: number) => String(v) },
+                            { label: '', field: '', fmt: () => '', divider: true },
+                            { label: 'Closing → Won', field: 'closingWon', fmt: (v: number) => String(v), sub: 'closingWonRate', success: true },
+                            { label: 'Closing → No-Show', field: 'closingNoShow', fmt: (v: number) => String(v), sub: 'closingNoShowRate', danger: true },
+                            { label: 'Closing → Lost', field: 'closingLost', fmt: (v: number) => String(v) },
+                            { label: 'Closing → Angebot', field: 'closingAngebot', fmt: (v: number) => String(v) },
+                            { label: 'Closing → CC2', field: 'closingCC2', fmt: (v: number) => String(v) },
+                            { label: 'Closing → Follow-Up', field: 'closingFollowUp', fmt: (v: number) => String(v) },
+                            { label: '', field: '', fmt: () => '', divider: true },
+                            { label: 'Setting No-Show Recovery', field: 'noShowRecoveredSetting', fmt: (v: number) => String(v), sub: 'noShowRecoveryRateSetting' },
+                            { label: 'Closing No-Show Recovery', field: 'noShowRecoveredClosing', fmt: (v: number) => String(v), sub: 'noShowRecoveryRateClosing' },
+                            { label: '', field: '', fmt: () => '', divider: true },
+                            { label: 'Setting → Won (End-to-End)', field: 'settingToWonRate', fmt: (v: number) => v > 0 ? v.toFixed(1) + '%' : '–', highlight: true },
+                            { label: 'Umsatz (All-Time)', field: 'totalRevenue', fmt: (v: number) => v > 0 ? Math.round(v).toLocaleString('de-DE') + '€' : '–' },
+                            { label: 'Umsatz (MTD)', field: 'mtdRevenue', fmt: (v: number) => v > 0 ? Math.round(v).toLocaleString('de-DE') + '€' : '–' },
+                            { label: 'Deals (All-Time)', field: 'dealCount', fmt: (v: number) => String(v) },
+                          ].map((row: any, ri: number) => {
+                            if (row.divider) {
+                              return <tr key={ri}><td colSpan={oq.length + 1} style={{ padding: '4px', borderBottom: '1px solid var(--za-border)' }}></td></tr>
+                            }
+                            return (
+                              <tr key={ri} style={{ borderBottom: '1px solid rgba(249,249,249,0.03)' }}>
+                                <td style={{ padding: '8px 12px', color: row.highlight ? 'var(--za-gold)' : 'var(--za-fg-2)', fontWeight: row.highlight ? 600 : 400 }}>{row.label}</td>
+                                {oq.map((o: any, ci: number) => {
+                                  const val = o[row.field]
+                                  const subVal = row.sub ? o[row.sub] : null
+                                  const isBest = row.field && oq.length > 1 && (
+                                    row.lower
+                                      ? val > 0 && val <= Math.min(...oq.map((x: any) => x[row.field]).filter((v: number) => v > 0))
+                                      : val > 0 && val >= Math.max(...oq.map((x: any) => x[row.field]))
+                                  )
+                                  return (
+                                    <td key={ci} style={{ textAlign: 'right', padding: '8px 12px', fontWeight: isBest ? 700 : 400, color: row.success ? 'var(--za-success)' : row.danger && val > 0 ? 'var(--za-danger)' : isBest ? 'var(--za-gold)' : 'var(--za-fg)' }}>
+                                      {row.fmt(val)}
+                                      {subVal != null && subVal > 0 && <span style={{ fontSize: '10px', color: row.danger ? 'rgba(232,116,103,0.6)' : row.success ? 'rgba(127,194,155,0.6)' : 'var(--za-fg-3)', marginLeft: '4px' }}>({subVal}%)</span>}
+                                    </td>
+                                  )
+                                })}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Visual No-Show Breakdown */}
+                  <div className="row-2-equal" style={{ marginTop: '20px' }}>
+                    {oq.map((o: any, idx: number) => {
+                      const firstName = o.name.split(' ')[0]
+                      const settingItems = [
+                        { label: 'Closing', count: o.settingToCLosing, color: 'var(--za-success)' },
+                        { label: 'No-Show', count: o.settingNoShow, color: 'var(--za-danger)' },
+                        { label: 'Follow-Up', count: o.settingFollowUp, color: 'var(--za-info)' },
+                        { label: 'Lost', count: o.settingLost, color: 'var(--za-fg-3)' },
+                      ]
+                      const closingItems = [
+                        { label: 'Won', count: o.closingWon, color: 'var(--za-success)' },
+                        { label: 'No-Show', count: o.closingNoShow, color: 'var(--za-danger)' },
+                        { label: 'Lost', count: o.closingLost, color: 'var(--za-fg-3)' },
+                        { label: 'Angebot', count: o.closingAngebot, color: 'var(--za-gold)' },
+                        { label: 'CC2', count: o.closingCC2, color: 'var(--za-info)' },
+                        { label: 'Follow-Up', count: o.closingFollowUp, color: 'var(--za-violation)' },
+                      ]
+
+                      const renderBar = (items: { label: string; count: number; color: string }[], total: number) => {
+                        if (total === 0) return <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', padding: '8px 0' }}>Keine Daten</div>
+                        return (
+                          <>
+                            <div style={{ display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' }}>
+                              {items.filter(i => i.count > 0).map((item, i) => (
+                                <div key={i} style={{ width: `${(item.count / total) * 100}%`, background: item.color, minWidth: '3px' }} />
+                              ))}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                              {items.filter(i => i.count > 0).map((item, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: item.color }} />
+                                  <span style={{ color: 'var(--za-fg-3)' }}>{item.label}</span>
+                                  <span style={{ color: 'var(--za-fg)', fontWeight: 600 }}>{item.count}</span>
+                                  <span style={{ color: 'var(--za-fg-4)', fontSize: '10px' }}>({Math.round((item.count / total) * 100)}%)</span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )
+                      }
+
+                      return (
+                        <div key={idx} className="za-panel fade-up" style={{ animationDelay: `${200 + idx * 80}ms` }}>
+                          <div className="panel-head">
+                            <div>
+                              <span className="panel-eyebrow">{firstName}</span>
+                              <div className="panel-title">Pipeline-Qualität</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--za-gold)' }}>{o.settingToWonRate > 0 ? o.settingToWonRate.toFixed(1) + '%' : '–'}</div>
+                              <div style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>Setting → Won</div>
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: '16px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', marginBottom: '8px' }}>
+                              Settings ({o.settingTotal})
+                              {o.settingNoShowRate > 0 && <span style={{ color: 'var(--za-danger)', marginLeft: '8px' }}>No-Show: {o.settingNoShowRate}%</span>}
+                            </div>
+                            {renderBar(settingItems, o.settingTotal)}
+                          </div>
+
+                          <div style={{ marginTop: '20px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', marginBottom: '8px' }}>
+                              Closings ({o.closingTotal})
+                              {o.closingWonRate > 0 && <span style={{ color: 'var(--za-success)', marginLeft: '8px' }}>Won: {o.closingWonRate}%</span>}
+                            </div>
+                            {renderBar(closingItems, o.closingTotal)}
+                          </div>
+
+                          <div style={{ marginTop: '20px', padding: '12px', borderRadius: '8px', background: 'rgba(249,249,249,0.02)', border: '1px solid var(--za-border)' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--za-fg-2)', marginBottom: '8px' }}>No-Show Recovery</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                              <div>
+                                <div style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>Setting</div>
+                                <div style={{ fontSize: '16px', fontWeight: 700, color: o.noShowRecoveryRateSetting > 0 ? 'var(--za-success)' : 'var(--za-fg-4)' }}>
+                                  {o.noShowRecoveredSetting}/{o.noShowTotalSetting}
+                                  {o.noShowRecoveryRateSetting > 0 && <span style={{ fontSize: '11px', marginLeft: '4px' }}>({o.noShowRecoveryRateSetting}%)</span>}
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>Closing</div>
+                                <div style={{ fontSize: '16px', fontWeight: 700, color: o.noShowRecoveryRateClosing > 0 ? 'var(--za-success)' : 'var(--za-fg-4)' }}>
+                                  {o.noShowRecoveredClosing}/{o.noShowTotalClosing}
+                                  {o.noShowRecoveryRateClosing > 0 && <span style={{ fontSize: '11px', marginLeft: '4px' }}>({o.noShowRecoveryRateClosing}%)</span>}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', background: 'rgba(197,160,89,0.05)', border: '1px solid rgba(197,160,89,0.15)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                              <div>
+                                <div style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>Umsatz (All-Time)</div>
+                                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--za-gold)' }}>{o.totalRevenue > 0 ? Math.round(o.totalRevenue).toLocaleString('de-DE') + '€' : '–'}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '10px', color: 'var(--za-fg-3)' }}>Umsatz (MTD)</div>
+                                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--za-success)' }}>{o.mtdRevenue > 0 ? Math.round(o.mtdRevenue).toLocaleString('de-DE') + '€' : '–'}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+                )
+              })()}
+              </div>
+
+              <div id="sec-team-umsatz" style={{ display: activeSection === 'sec-team-umsatz' || !activeSection ? undefined : 'none' }}>
+              {/* Opener Umsatz-Attribution */}
+              {openerRev.length > 0 && (
+                <>
+                  <div className="za-panel fade-up" style={{ animationDelay: '60ms' }}>
+                    <div className="panel-head">
+                      <div>
+                        <span className="panel-eyebrow">Revenue Attribution</span>
+                        <div className="panel-title">Umsatz pro Opener</div>
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '11px', color: 'var(--za-fg-3)' }}>
+                        Zuordnung via erstem Cold Call Protokoll
+                      </div>
+                    </div>
+
+                    {/* KPI Row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${openerRev.length + 1}, 1fr)`, gap: '16px', padding: '16px 0', borderBottom: '1px solid var(--za-border)' }}>
+                      {openerRev.map((o: any, idx: number) => (
+                        <div key={idx} style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginBottom: '4px' }}>{o.name.split(' ')[0]}</div>
+                          <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--za-gold)' }}>{Math.round(o.totalRevenue).toLocaleString('de-DE')}€</div>
+                          <div style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginTop: '2px' }}>{o.dealCount} Deals</div>
+                          <div style={{ fontSize: '11px', color: 'var(--za-success)', marginTop: '2px' }}>MTD: {Math.round(o.mtdRevenue).toLocaleString('de-DE')}€ ({o.mtdDealCount})</div>
+                        </div>
+                      ))}
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginBottom: '4px' }}>Gesamt</div>
+                        <div style={{ fontSize: '22px', fontWeight: 700, color: '#fff' }}>{Math.round(data.openerRevenueTotal || 0).toLocaleString('de-DE')}€</div>
+                        <div style={{ fontSize: '11px', color: 'var(--za-fg-3)', marginTop: '2px' }}>{openerRev.reduce((s: number, o: any) => s + o.dealCount, 0)} Deals</div>
+                        <div style={{ fontSize: '11px', color: 'var(--za-success)', marginTop: '2px' }}>MTD: {Math.round(data.openerRevenueMTD || 0).toLocaleString('de-DE')}€</div>
+                      </div>
+                    </div>
+
+                    {/* Deal List per Opener */}
+                    {openerRev.map((o: any, idx: number) => (
+                      <div key={idx} style={{ marginTop: '16px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--za-fg-2)', marginBottom: '8px' }}>{o.name} — letzte Deals</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {o.deals.slice(0, 5).map((d: any, i: number) => {
+                            const dateParts = d.date.split('-')
+                            const dateFmt = dateParts.length === 3 ? `${dateParts[2]}.${dateParts[1]}.${dateParts[0]}` : d.date
+                            return (
+                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--za-border)' }}>
+                                <span style={{ fontSize: '12px', color: 'var(--za-fg-2)' }}>{d.leadName}</span>
+                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '11px', color: 'var(--za-fg-3)' }}>{dateFmt}</span>
+                                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--za-gold)' }}>{Math.round(d.value).toLocaleString('de-DE')}€</span>
+                                </div>
+                              </div>
+                            )
+                          })}
+                          {o.deals.length > 5 && (
+                            <div style={{ fontSize: '11px', color: 'var(--za-fg-4)', textAlign: 'center', padding: '4px' }}>
+                              +{o.deals.length - 5} weitere Deals
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              </div>
+              <div id="sec-team-aufstieg" style={{ display: activeSection === 'sec-team-aufstieg' || !activeSection ? undefined : 'none' }}>
               {/* Opener Aufstiegs-Tracker KPIs */}
               <div className="kpi-grid">
                 {openers.map((opener, idx) => {
@@ -4486,6 +5577,153 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                   />
                 </div>
               )}
+              </div>
+
+              {/* ── EOD Self-Assessment ────────────────────────────── */}
+              <div id="sec-team-eod" style={{ display: activeSection === 'sec-team-eod' || !activeSection ? undefined : 'none' }}>
+              {(() => {
+                const eod = data.eodReports
+                const vts = eod?.vertriebler || []
+                if (vts.length === 0) return (
+                  <div className="za-panel fade-up" style={{ animationDelay: '200ms' }}>
+                    <EmptyState
+                      icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>}
+                      title="EOD Self-Assessment"
+                      subtitle="Noch keine EOD Reports synchronisiert. Daten werden automatisch von Monday.com gezogen."
+                    />
+                  </div>
+                )
+
+                const DIMS = [
+                  { key: 'avgAccountable' as const, label: 'Accountable' },
+                  { key: 'avgPerformance' as const, label: 'Performance' },
+                  { key: 'avgOnTrackWeekly' as const, label: 'Wochenziel' },
+                  { key: 'avgOnTrackMonthly' as const, label: 'Monatsziel' },
+                  { key: 'avgTipsApplied' as const, label: 'Tipps umgesetzt' },
+                ]
+
+                return (
+                  <>
+                    {/* KPI Cards per Vertriebler */}
+                    <div className="kpi-grid">
+                      {vts.map((v, idx) => {
+                        const firstName = v.name.split(' ')[0]
+                        const trendColor = v.trend7d > 0 ? 'var(--za-success)' : v.trend7d < 0 ? 'var(--za-danger)' : 'var(--za-fg-3)'
+                        const trendArrow = v.trend7d > 0 ? '\u25B2' : v.trend7d < 0 ? '\u25BC' : '\u25CF'
+                        return (
+                          <div key={idx} className="za-panel fade-up" style={{ animationDelay: `${60 + idx * 80}ms` }}>
+                            <div className="kpi-top"><span className="kpi-label">{firstName}</span></div>
+                            <div className="kpi-value" style={{ color: 'var(--za-gold)' }}>
+                              {v.overallAvg.toFixed(1)}
+                              <span style={{ fontSize: '14px', color: 'var(--za-fg-3)' }}>/10</span>
+                            </div>
+                            <div className="kpi-foot">
+                              <span className="kpi-caption" style={{ color: trendColor }}>
+                                {trendArrow} {v.trend7d > 0 ? '+' : ''}{v.trend7d.toFixed(1)} (7d)
+                              </span>
+                              <span className="kpi-caption" style={{ marginLeft: '8px' }}>{v.totalReports} Reports</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                      <div className="za-panel fade-up" style={{ animationDelay: `${60 + vts.length * 80}ms` }}>
+                        <div className="kpi-top"><span className="kpi-label">Team-Schnitt</span></div>
+                        <div className="kpi-value" style={{ color: '#fff' }}>
+                          {vts.length > 0 ? (vts.reduce((s, v) => s + v.overallAvg, 0) / vts.length).toFixed(1) : '—'}
+                          <span style={{ fontSize: '14px', color: 'var(--za-fg-3)' }}>/10</span>
+                        </div>
+                        <div className="kpi-foot"><span className="kpi-caption">Alle Vertriebler</span></div>
+                      </div>
+                    </div>
+
+                    {/* Dimensions Breakdown Table */}
+                    <div className="za-panel fade-up" style={{ animationDelay: '200ms' }}>
+                      <div className="panel-head">
+                        <div>
+                          <span className="panel-eyebrow">Dimensionen</span>
+                          <div className="panel-title">Self-Assessment Breakdown</div>
+                        </div>
+                      </div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table className="za-table" style={{ width: '100%' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ textAlign: 'left' }}>Vertriebler</th>
+                              {DIMS.map(d => <th key={d.key} style={{ textAlign: 'center' }}>{d.label}</th>)}
+                              <th style={{ textAlign: 'center' }}>Gesamt</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {vts.map((v, idx) => (
+                              <tr key={idx}>
+                                <td style={{ fontWeight: 600 }}>{v.name.split(' ')[0]}</td>
+                                {DIMS.map(d => {
+                                  const val = v[d.key]
+                                  const color = val >= 8 ? 'var(--za-success)' : val >= 5 ? 'var(--za-gold)' : 'var(--za-danger)'
+                                  return <td key={d.key} style={{ textAlign: 'center', color, fontWeight: 600 }}>{val.toFixed(1)}</td>
+                                })}
+                                <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--za-gold)' }}>{v.overallAvg.toFixed(1)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Recent Reviews per Vertriebler */}
+                    {vts.map((v, idx) => {
+                      const recentReports = [...v.reports].reverse().slice(0, 5)
+                      if (recentReports.length === 0) return null
+                      const firstName = v.name.split(' ')[0]
+                      return (
+                        <div key={idx} className="za-panel fade-up" style={{ animationDelay: `${300 + idx * 100}ms` }}>
+                          <div className="panel-head">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--za-gold), var(--za-gold-2))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#000' }}>
+                                {v.name.charAt(0)}
+                              </div>
+                              <div>
+                                <span className="panel-eyebrow">Letzte Reviews</span>
+                                <div className="panel-title">{firstName}</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {recentReports.map((r, i) => {
+                              const dateParts = r.date.split('-')
+                              const dateFmt = dateParts.length === 3 ? `${dateParts[2]}.${dateParts[1]}.${dateParts[0]}` : r.date
+                              const dims = [r.accountable, r.performanceSatisfaction, r.onTrackWeekly, r.onTrackMonthly, r.tipsApplied].filter((n): n is number => n !== null)
+                              const dayAvg = dims.length > 0 ? (dims.reduce((a, b) => a + b, 0) / dims.length) : 0
+                              const statusColor = r.status === 'Erledigt' ? 'var(--za-success)' : r.status === 'Gestoppt' ? 'var(--za-danger)' : 'var(--za-gold)'
+                              return (
+                                <div key={i} style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--za-border)' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: r.gesamtReview ? '6px' : 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <span style={{ fontSize: '12px', color: 'var(--za-fg-3)' }}>{dateFmt}</span>
+                                      <span style={{ fontSize: '13px', fontWeight: 700, color: dayAvg >= 8 ? 'var(--za-success)' : dayAvg >= 5 ? 'var(--za-gold)' : 'var(--za-danger)' }}>{dayAvg.toFixed(1)}/10</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      {r.status && (
+                                        <span style={{ fontSize: '10px', fontWeight: 600, color: statusColor, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '2px 8px', borderRadius: '4px', background: `color-mix(in srgb, ${statusColor} 12%, transparent)` }}>
+                                          {r.status}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {r.gesamtReview && (
+                                    <div style={{ fontSize: '12px', color: 'var(--za-fg-2)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{r.gesamtReview}</div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </>
+                )
+              })()}
+              </div>
             </>
             )
           })()}

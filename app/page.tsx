@@ -1,7 +1,7 @@
 import Dashboard from './dashboard'
 import { fetchCloseData } from './data'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 300  // Cache for 5 minutes
 
 export default async function Page() {
   const data = await fetchCloseData()

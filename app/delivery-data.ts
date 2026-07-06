@@ -7,6 +7,7 @@ export interface DeliveryCustomer {
   paket: string
   rateMonat: number
   cashInMonat: number
+  billingDay: number
   status: string
   paymentStatus: 'zahlend' | 'streitfall'
   streitfallDetails: string
@@ -23,6 +24,13 @@ export interface DeliveryCustomer {
   }
 }
 
+export interface FixedCosts {
+  teamInklKK: number
+  toolsAmex: number
+  buchhaltung: number
+  total: number
+}
+
 export interface DeliveryMetrics {
   team: { name: string; role: string; hourlyRate: number; monthlyHours: number; monthlyCost: number }[]
   customers: DeliveryCustomer[]
@@ -35,6 +43,8 @@ export interface DeliveryMetrics {
   totalHoursMarcel: number
   totalHoursLisa: number
   totalTeamCost: number
+  fixedCosts: FixedCosts
+  totalFixedCosts: number
   netProfit: number
   netProfitPercent: number
   cashInMonatNetto: number
@@ -54,12 +64,13 @@ export function getDeliveryMetrics(): DeliveryMetrics {
     monthlyCost: t.monthly_cost,
   }))
 
-  const customers: DeliveryCustomer[] = config.customers.map((c: any) => ({
+  const allCustomers: DeliveryCustomer[] = config.customers.map((c: any) => ({
     clId: c.cl_id,
     firma: c.firma,
     paket: c.paket,
     rateMonat: c.rate_monat,
     cashInMonat: c.cash_in_monat || c.rate_monat,
+    billingDay: c.billing_day || 0,
     status: c.status,
     paymentStatus: c.payment_status || 'zahlend',
     streitfallDetails: c.streitfall_details || '',
@@ -76,21 +87,31 @@ export function getDeliveryMetrics(): DeliveryMetrics {
     },
   }))
 
+  // Filter out gekündigt customers
+  const customers = allCustomers.filter(c => c.status === 'aktiv')
+
   const summary = config.summary
 
-  // Team overhead: use JSON values except Nils = €4.800 actual
-  const nilsActualCost = 4800
-  const felixCost = 5000
-  const lisaCost = 2500
-  const marcelCost = 1250
-  const totalTeamCost = felixCost + lisaCost + marcelCost + nilsActualCost // 13550
+  // Fixed costs from config
+  const fc = config.delivery_config.fixed_costs || {}
+  const fixedCosts: FixedCosts = {
+    teamInklKK: fc.team_inkl_kk || 15000,
+    toolsAmex: fc.tools_amex || 10000,
+    buchhaltung: fc.buchhaltung || 2500,
+    total: fc.total || 27500,
+  }
+  const totalTeamCost = fixedCosts.teamInklKK
+  const totalFixedCosts = fixedCosts.total
 
-  const totalMRR = summary.total_active_mrr
+  // Dynamisch berechnen statt statischer summary
+  const totalMRR = customers
+    .filter((c: DeliveryCustomer) => c.paymentStatus !== 'streitfall' && c.rateMonat > 0)
+    .reduce((s: number, c: DeliveryCustomer) => s + c.rateMonat, 0)
 
-  const cashInMonatNetto = summary.cash_in_monat || customers.reduce((s: number, c: any) => s + (c.cashInMonat || c.rateMonat), 0)
+  const cashInMonatNetto = customers.reduce((s: number, c: any) => s + (c.cashInMonat || c.rateMonat), 0)
   const cashInMonatBrutto = Math.round(cashInMonatNetto * 1.19)
 
-  const netProfit = cashInMonatNetto - totalTeamCost
+  const netProfit = cashInMonatNetto - totalFixedCosts
   const netProfitPercent = cashInMonatNetto > 0 ? Math.round((netProfit / cashInMonatNetto) * 1000) / 10 : 0
 
   return {
@@ -105,6 +126,8 @@ export function getDeliveryMetrics(): DeliveryMetrics {
     totalHoursMarcel: summary.total_delivery_hours_marcel,
     totalHoursLisa: summary.total_delivery_hours_lisa,
     totalTeamCost,
+    fixedCosts,
+    totalFixedCosts,
     netProfit,
     netProfitPercent,
     cashInMonatNetto,

@@ -7,6 +7,8 @@ import { fetchMarketingData, MarketingMetrics } from './marketing-data'
 import { fetchCallAnalysisData, CallAnalysisMetrics } from './call-analysis-data'
 import { getFacebookMetrics, FacebookMetrics } from './facebook-data'
 import { fetchOpenerTracking, OpenerTrackingData } from './opener-tracking-data'
+import { fetchMondayEodData, EodReportData } from './monday-eod-data'
+import { fetchAirtableCashIn, AirtableCashInData } from './airtable-cashin-data'
 
 const CLOSE_API_BASE = 'https://api.close.com/api/v1'
 
@@ -62,7 +64,7 @@ async function closeApiFetch(endpoint: string, options?: RequestInit) {
       Authorization: getAuthHeader(),
       ...options?.headers,
     },
-    cache: 'no-store',
+    next: { revalidate: 300 },
   })
   if (!res.ok) {
     const text = await res.text()
@@ -79,7 +81,7 @@ async function fetchOppStatusChanges(dateGte: string): Promise<any[]> {
 
   while (hasMore) {
     const data = await closeApiFetch(
-      `/activity/status_change/opportunity/?date_created__gte=${dateGte}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,date_created,old_status_id,new_status_id,old_status_label,new_status_label`
+      `/activity/status_change/opportunity/?date_created__gte=${dateGte}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,date_created,old_status_id,new_status_id,old_status_label,new_status_label,lead_id,opportunity_id`
     )
     changes.push(...data.data)
     hasMore = data.has_more
@@ -118,6 +120,8 @@ interface PipelineQuality {
   closingFollowUpRate: number
   closingAngebotCount: number
   closingCC2Count: number
+  angebotWonCount: number
+  cc2WonCount: number
   noShowRecovery: StatusTransition[]
 }
 
@@ -166,6 +170,10 @@ function computePipelineQuality(changes: any[]): PipelineQuality {
   const closingAngebotCount = changes.filter(c => c.old_status_id === CLOSING_TERMINIERT && c.new_status_id === ANGEBOT).length
   const closingCC2Count = changes.filter(c => c.old_status_id === CLOSING_TERMINIERT && c.new_status_id === CC2).length
 
+  // Angebot → Won and CC2 → Won
+  const angebotWonCount = changes.filter(c => c.old_status_id === ANGEBOT && c.new_status_id === WON).length
+  const cc2WonCount = changes.filter(c => c.old_status_id === CC2 && c.new_status_id === WON).length
+
   // No-Show recovery
   const noShowRecovery: StatusTransition[] = []
   const settingNoShowRecovery = groupTransitions(SETTING_NO_SHOW)
@@ -202,6 +210,8 @@ function computePipelineQuality(changes: any[]): PipelineQuality {
     closingFollowUpRate: rate(closingFollowUpCount, closingTotal),
     closingAngebotCount,
     closingCC2Count,
+    angebotWonCount,
+    cc2WonCount,
     noShowRecovery,
   }
 }
@@ -213,7 +223,7 @@ async function fetchAllOpportunities() {
   const limit = 100
 
   while (hasMore) {
-    const data = await closeApiFetch(`/opportunity/?_skip=${skip}&_limit=${limit}&_fields=id,status_id,value,lead_name,date_won,date_created,date_lost,user_name,confidence`)
+    const data = await closeApiFetch(`/opportunity/?_skip=${skip}&_limit=${limit}&_fields=id,status_id,value,lead_name,lead_id,date_won,date_created,date_lost,user_name,confidence`)
     opportunities.push(...data.data)
     hasMore = data.has_more
     skip += limit
@@ -270,8 +280,103 @@ export async function fetchCloseData() {
     const currentDay = now.getDate()
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
 
-    // Fetch opportunities
-    const opportunities = await fetchAllOpportunities()
+    // Pre-compute date strings needed by parallel fetches
+    const monthStart = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`
+    const todayDateISO = formatDateISO(now)
+    const weekStartDate = formatDateISO(getISOWeekStart(currentYear, currentWeek))
+    const activitiesSince = formatDateISO(new Date(now.getTime() - 90 * 86400000))
+
+    // Custom field IDs for reach detection (needed by custom activities fetch)
+    const COLD_CALL_NIEMAND_ERREICHT = 'custom.cf_U3JJwHBkSgOGtEKO4wd7b5EeLbUyv0uBXAQuG3GgEu6' // Niemand erreicht = "Ja"
+    const COLD_CALL_ENTSCHEIDER = 'custom.cf_0qd3PlDb9re1MU97cxNV7MJUXjHVYGmuifQc5CsTrN1' // Entscheider (choices)
+    const COLD_CALL_EINWAND = 'custom.cf_LrfCv9jCiQOAkx4EaBAa3E3rzA5NIfa4CIfWT2rwuhe' // Einwand (choices)
+    const FOLLOW_UP_NAECHSTER_SCHRITT = 'custom.cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN' // Nächster Schritt (Follow-Up)
+    const SETTING_NAECHSTER_SCHRITT = 'custom.cf_xPhL5XUDQ8i4gCcUF4pz5uMaHUoIMwZXB3af8Xv0A6B' // Nächster Schritt (Setting)
+
+    // Anwahlen = ECHTE Calls aus Close via /activity/call/ endpoint
+    async function fetchCallsForPeriod(dateStart: string): Promise<any[]> {
+      const calls: any[] = []
+      try {
+        let hasMore = true
+        let skip = 0
+        const limit = 100
+        while (hasMore) {
+          const data = await closeApiFetch(
+            `/activity/call/?date_created__gte=${dateStart}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,date_created,user_id,user_name`
+          )
+          calls.push(...data.data)
+          hasMore = data.has_more
+          skip += limit
+        }
+      } catch { /* empty */ }
+      return calls
+    }
+
+    // Fetch all independent Close CRM data in parallel
+    const [opportunities, totalLeadsResult, allCustomActivitiesResult, allStatusChangesResult, allMonthCalls, weeklyCallData] = await Promise.all([
+      // 1. Fetch opportunities
+      fetchAllOpportunities(),
+      // 2. Total leads count
+      closeApiFetch('/data/search/', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'lead',
+          query: { type: 'and', queries: [] },
+          results_limit: 0,
+          include_counts: true,
+        }),
+      }).catch(() => ({ total_results: 0 })),
+      // 3. Custom activities for last 90 days (paginated)
+      (async () => {
+        const activities: any[] = []
+        try {
+          let hasMore = true
+          let skip = 0
+          const limit = 100
+          while (hasMore) {
+            const data = await closeApiFetch(
+              `/activity/custom/?date_created__gte=${activitiesSince}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,lead_id,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${COLD_CALL_EINWAND},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
+            )
+            activities.push(...data.data)
+            hasMore = data.has_more
+            skip += limit
+          }
+        } catch { /* empty */ }
+        return activities
+      })(),
+      // 4. Opportunity status changes
+      fetchOppStatusChanges(activitiesSince).catch(() => []),
+      // 5. Monthly calls (covers today + week + month)
+      fetchCallsForPeriod(monthStart),
+      // 6. Weekly call data (8 parallel requests)
+      (async () => {
+        const weeksBack = 8
+        const weeklyCallPromises = Array.from({ length: weeksBack }, (_, i) => {
+          const w = weeksBack - 1 - i
+          const wStart = getISOWeekStart(currentYear, currentWeek - w)
+          const wEnd = new Date(wStart.getTime() + 7 * 86400000)
+          const weekNum = currentWeek - w
+          return closeApiFetch('/report/activity/overview/', {
+            method: 'POST',
+            body: JSON.stringify({
+              date_start: formatDateISO(wStart),
+              date_end: formatDateISO(wEnd),
+            }),
+          }).then(weekActivity => ({
+            week: `KW${weekNum > 0 ? weekNum : weekNum + 52}`,
+            calls: weekActivity?.aggregations?.calls_made || 0,
+          })).catch(() => ({
+            week: `KW${weekNum > 0 ? weekNum : weekNum + 52}`,
+            calls: 0,
+          }))
+        })
+        return Promise.all(weeklyCallPromises)
+      })(),
+    ])
+
+    const totalLeads = totalLeadsResult.total_results || 0
+    let allCustomActivities = allCustomActivitiesResult
+    let allStatusChanges = allStatusChangesResult
 
     // Process opportunities
     const wonDeals = opportunities.filter((o: any) => o.status_id === WON_STATUS_ID)
@@ -281,7 +386,6 @@ export async function fetchCloseData() {
     )
 
     // Won deals this month
-    const monthStart = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`
     const wonThisMonth = wonDeals
       .filter((o: any) => o.date_won && o.date_won >= monthStart)
       .sort((a: any, b: any) => (b.value || 0) - (a.value || 0))
@@ -352,26 +456,8 @@ export async function fetchCloseData() {
       ? Math.round(last3Months.reduce((sum, [, val]) => sum + val, 0) / last3Months.length)
       : 0
 
-    // Fetch lead counts via search API
-    let leadStatusCounts: { label: string; count: number; color: string }[] = []
-    let totalLeads = 0
-
-    try {
-      const searchResult = await closeApiFetch('/data/search/', {
-        method: 'POST',
-        body: JSON.stringify({
-          type: 'lead',
-          query: { type: 'and', queries: [] },
-          results_limit: 0,
-          include_counts: true,
-        }),
-      })
-      totalLeads = searchResult.total_results || 0
-    } catch {
-      totalLeads = 0
-    }
-
     // Fetch counts per lead status in parallel
+    let leadStatusCounts: { label: string; count: number; color: string }[] = []
     const countPromises = LEAD_DISPLAY_ORDER.map(async (status) => {
       try {
         const result = await closeApiFetch('/data/search/', {
@@ -410,37 +496,6 @@ export async function fetchCloseData() {
 
     leadStatusCounts = await Promise.all(countPromises)
 
-    // Fetch weekly call activity for last 8 weeks
-    const weeksBack = 8
-    const weeklyCallData: { week: string; calls: number }[] = []
-
-    for (let w = weeksBack - 1; w >= 0; w--) {
-      const wStart = getISOWeekStart(currentYear, currentWeek - w)
-      const wEnd = new Date(wStart.getTime() + 7 * 86400000)
-      const weekNum = currentWeek - w
-
-      try {
-        const weekActivity = await closeApiFetch('/report/activity/overview/', {
-          method: 'POST',
-          body: JSON.stringify({
-            date_start: formatDateISO(wStart),
-            date_end: formatDateISO(wEnd),
-          }),
-        })
-
-        const calls = weekActivity?.aggregations?.calls_made || 0
-        weeklyCallData.push({
-          week: `KW${weekNum > 0 ? weekNum : weekNum + 52}`,
-          calls,
-        })
-      } catch {
-        weeklyCallData.push({
-          week: `KW${weekNum > 0 ? weekNum : weekNum + 52}`,
-          calls: 0,
-        })
-      }
-    }
-
     // === Custom Activity Counts (Sales Funnel) ===
     const CUSTOM_ACTIVITY_TYPES = {
       coldCall: 'actitype_1opHQI1ygoGZjsIG0z7SkR',    // Gesprächsprotokoll (Cold Call)
@@ -452,46 +507,9 @@ export async function fetchCloseData() {
     const weekStartISO_full = getISOWeekStart(currentYear, currentWeek).toISOString()
     const nowISO_full = now.toISOString()
 
-    // Custom field IDs for reach detection
-    const COLD_CALL_NIEMAND_ERREICHT = 'custom.cf_U3JJwHBkSgOGtEKO4wd7b5EeLbUyv0uBXAQuG3GgEu6' // ❌Niemand erreicht = "Ja"
-    const COLD_CALL_ENTSCHEIDER = 'custom.cf_0qd3PlDb9re1MU97cxNV7MJUXjHVYGmuifQc5CsTrN1' // 🔍Entscheider (choices)
-    const COLD_CALL_EINWAND = 'custom.cf_LrfCv9jCiQOAkx4EaBAa3E3rzA5NIfa4CIfWT2rwuhe' // 🛑 Einwand (choices)
-    const FOLLOW_UP_NAECHSTER_SCHRITT = 'custom.cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN' // Nächster Schritt (Follow-Up)
-    const SETTING_NAECHSTER_SCHRITT = 'custom.cf_xPhL5XUDQ8i4gCcUF4pz5uMaHUoIMwZXB3af8Xv0A6B' // Nächster Schritt (Setting)
-
-    // Fetch ALL custom activities for last 90 days (covers current + previous months for reports)
-    const todayDateISO = formatDateISO(now)
-    const weekStartDate = formatDateISO(getISOWeekStart(currentYear, currentWeek))
-    const activitiesSince = formatDateISO(new Date(now.getTime() - 90 * 86400000))
-
-    let allCustomActivities: any[] = []
-    try {
-      let hasMore = true
-      let skip = 0
-      const limit = 100
-      while (hasMore) {
-        const data = await closeApiFetch(
-          `/activity/custom/?date_created__gte=${activitiesSince}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${COLD_CALL_EINWAND},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
-        )
-        allCustomActivities.push(...data.data)
-        hasMore = data.has_more
-        skip += limit
-      }
-    } catch {
-      allCustomActivities = []
-    }
-
-    // Fetch opportunity status changes for pipeline quality analysis
-    let allStatusChanges: any[] = []
-    let weekStatusChanges: any[] = []
-    let monthStatusChanges: any[] = []
-    try {
-      allStatusChanges = await fetchOppStatusChanges(activitiesSince)
-      weekStatusChanges = allStatusChanges.filter((c: any) => c.date_created >= weekStartDate)
-      monthStatusChanges = allStatusChanges.filter((c: any) => c.date_created >= monthStart)
-    } catch {
-      allStatusChanges = []
-    }
+    // Compute pipeline quality from status changes
+    const weekStatusChanges = allStatusChanges.filter((c: any) => c.date_created >= weekStartDate)
+    const monthStatusChanges = allStatusChanges.filter((c: any) => c.date_created >= monthStart)
 
     const pipelineQualityAllTime = computePipelineQuality(allStatusChanges)
     const pipelineQualityWeek = computePipelineQuality(weekStatusChanges)
@@ -512,29 +530,6 @@ export async function fetchCloseData() {
     const followUpWeek = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, weekStartDate).length
     const followUpMonth = filterActivities(CUSTOM_ACTIVITY_TYPES.followUp, monthStart).length
 
-    // Anwahlen = ECHTE Calls aus Close via /activity/call/ endpoint
-    // Fetch per period to keep pagination manageable
-    async function fetchCallsForPeriod(dateStart: string): Promise<any[]> {
-      const calls: any[] = []
-      try {
-        let hasMore = true
-        let skip = 0
-        const limit = 100
-        while (hasMore) {
-          const data = await closeApiFetch(
-            `/activity/call/?date_created__gte=${dateStart}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,date_created,user_id,user_name`
-          )
-          calls.push(...data.data)
-          hasMore = data.has_more
-          skip += limit
-        }
-      } catch { /* empty */ }
-      return calls
-    }
-
-    // Fetch all calls for this month (covers today + week + month)
-    const allMonthCalls = await fetchCallsForPeriod(monthStart)
-
     const anwahlenToday = allMonthCalls.filter((a: any) => a.date_created >= todayDateISO).length
     const anwahlenWeek = allMonthCalls.filter((a: any) => a.date_created >= weekStartDate).length
     const anwahlenMonth = allMonthCalls.length
@@ -549,6 +544,16 @@ export async function fetchCloseData() {
       return byUser
     }
     const callsByUserMonth = countCallsByUser(allMonthCalls)
+
+    // Gatekeeper erreicht = Cold Calls wo NICHT "Niemand erreicht" (jemand hat abgenommen, egal ob Gatekeeper oder Entscheider)
+    function countGatekeeperErreicht(dateGte: string): number {
+      const coldCalls = filterActivities(CUSTOM_ACTIVITY_TYPES.coldCall, dateGte)
+      return coldCalls.filter((a: any) => a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
+    }
+
+    const gatekeeperTodayCount = countGatekeeperErreicht(todayDateISO)
+    const gatekeeperWeekCount = countGatekeeperErreicht(weekStartDate)
+    const gatekeeperMonthCount = countGatekeeperErreicht(monthStart)
 
     // Entscheider erreicht = Cold Calls wo Entscheider-Feld gesetzt ist (nicht leer) UND nicht "Niemand erreicht"
     function countEntscheiderErreicht(typeId: string, dateGte: string): number {
@@ -640,6 +645,7 @@ export async function fetchCloseData() {
       calls: number
       coldCallProtocols: number
       followUpProtocols: number
+      gatekeeperErreicht: number
       entscheiderErreicht: number
       settingsGelegt: number
       closingsGelegt: number
@@ -664,7 +670,7 @@ export async function fetchCloseData() {
           else if (isSetter && isCloser) role = 'setter+closer'
           else if (isSetter) role = 'setter'
           else if (isCloser) role = 'closer'
-          memberMap[name] = { name, role, calls: 0, coldCallProtocols: 0, followUpProtocols: 0, entscheiderErreicht: 0, settingsGelegt: 0, closingsGelegt: 0 }
+          memberMap[name] = { name, role, calls: 0, coldCallProtocols: 0, followUpProtocols: 0, gatekeeperErreicht: 0, entscheiderErreicht: 0, settingsGelegt: 0, closingsGelegt: 0 }
         }
       }
 
@@ -679,6 +685,10 @@ export async function fetchCloseData() {
         const name = a.user_name || 'Unbekannt'
         ensure(name)
         memberMap[name].coldCallProtocols++
+        // Gatekeeper erreicht (jemand hat abgenommen)
+        if (a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja') {
+          memberMap[name].gatekeeperErreicht++
+        }
         // Entscheider erreicht
         if (a[COLD_CALL_ENTSCHEIDER] && a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja') {
           memberMap[name].entscheiderErreicht++
@@ -810,11 +820,12 @@ export async function fetchCloseData() {
     const totalClosingsGelegt = pipelineSnapshot.closingTerminiert + pipelineSnapshot.closingNoShow + pipelineSnapshot.closingFollowUp + pipelineSnapshot.angebotVerschickt + pipelineSnapshot.cc2Terminiert
 
     // Conversion rates (month-based, using custom activity data)
+    const quotenGatekeeperQuote = anwahlenMonth > 0 ? Math.round((gatekeeperMonthCount / anwahlenMonth) * 1000) / 10 : 0
     const quotenErreichquote = anwahlenMonth > 0 ? Math.round((entscheiderMonthCount / anwahlenMonth) * 1000) / 10 : 0
     const quotenSettingQuote = entscheiderMonthCount > 0 ? Math.round((settingsGelegtMonth / entscheiderMonthCount) * 1000) / 10 : 0
     const quotenClosingQuote = settingsGelegtMonth > 0 ? Math.round((closingsGelegtMonth / settingsGelegtMonth) * 1000) / 10 : 0
-    const quotenAbschlussQuote = closingsGelegtMonth > 0 ? Math.round((wonThisMonth.length / closingsGelegtMonth) * 1000) / 10 : 0
-    const quotenOverall = anwahlenMonth > 0 ? Math.round((wonThisMonth.length / anwahlenMonth) * 1000) / 10 : 0
+    let quotenAbschlussQuote = 0
+    let quotenOverall = 0
 
     // All-time / Year funnel — fetch calls + activities from Jan 1st of current year
     const yearStartISO_calc = `${currentYear}-01-01`
@@ -827,7 +838,7 @@ export async function fetchCloseData() {
       const limit = 100
       while (hasMore) {
         const data = await closeApiFetch(
-          `/activity/custom/?date_created__gte=${yearStartISO_calc}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${COLD_CALL_EINWAND},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
+          `/activity/custom/?date_created__gte=${yearStartISO_calc}&_skip=${skip}&_limit=${limit}&_order_by=-date_created&_fields=id,custom_activity_type_id,date_created,user_name,lead_id,${COLD_CALL_NIEMAND_ERREICHT},${COLD_CALL_ENTSCHEIDER},${COLD_CALL_EINWAND},${FOLLOW_UP_NAECHSTER_SCHRITT},${SETTING_NAECHSTER_SCHRITT}`
         )
         yearCustomActivities.push(...data.data)
         hasMore = data.has_more
@@ -848,6 +859,7 @@ export async function fetchCloseData() {
     const yearColdCalls = filterYearActivities(CUSTOM_ACTIVITY_TYPES.coldCall)
     const yearFollowUps = filterYearActivities(CUSTOM_ACTIVITY_TYPES.followUp)
     const yearSettings = filterYearActivities(CUSTOM_ACTIVITY_TYPES.setting)
+    const gatekeeperAllTime = yearColdCalls.filter((a: any) => a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
     const entscheiderAllTime = yearColdCalls.filter((a: any) => a[COLD_CALL_ENTSCHEIDER] && a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja').length
       + yearFollowUps.filter((a: any) => a[FOLLOW_UP_NAECHSTER_SCHRITT] && a[FOLLOW_UP_NAECHSTER_SCHRITT] !== '5. Nicht erreicht').length
     const coldCallAllTime = yearColdCalls.length
@@ -864,11 +876,12 @@ export async function fetchCloseData() {
     const wonThisYear = wonDeals.filter((o: any) => o.date_won && o.date_won >= yearStartISO_calc)
     const wonRevenueYear = wonThisYear.reduce((sum: number, o: any) => sum + (o.value || 0), 0) / 100
 
+    const quotenAllTimeGatekeeperQuote = anwahlenAllTime > 0 ? Math.round((gatekeeperAllTime / anwahlenAllTime) * 1000) / 10 : 0
     const quotenAllTimeErreichquote = anwahlenAllTime > 0 ? Math.round((entscheiderAllTime / anwahlenAllTime) * 1000) / 10 : 0
     const quotenAllTimeSettingQuote = entscheiderAllTime > 0 ? Math.round((settingsGelegtAllTime / entscheiderAllTime) * 1000) / 10 : 0
     const quotenAllTimeClosingQuote = settingsGelegtAllTime > 0 ? Math.round((closingsGelegtAllTime / settingsGelegtAllTime) * 1000) / 10 : 0
-    const quotenAllTimeAbschlussQuote = closingsGelegtAllTime > 0 ? Math.round((wonThisYear.length / closingsGelegtAllTime) * 1000) / 10 : 0
-    const quotenAllTimeOverall = anwahlenAllTime > 0 ? Math.round((wonThisYear.length / anwahlenAllTime) * 1000) / 10 : 0
+    let quotenAllTimeAbschlussQuote = 0
+    let quotenAllTimeOverall = 0
 
     // Year-level entscheider outcomes (ALL for full transparency)
     const entscheiderOutcomesYear: Record<string, number> = {}
@@ -913,7 +926,7 @@ export async function fetchCloseData() {
           else if (isSetter && isCloser) role = 'setter+closer'
           else if (isSetter) role = 'setter'
           else if (isCloser) role = 'closer'
-          memberMap[name] = { name, role, calls: 0, coldCallProtocols: 0, followUpProtocols: 0, entscheiderErreicht: 0, settingsGelegt: 0, closingsGelegt: 0 }
+          memberMap[name] = { name, role, calls: 0, coldCallProtocols: 0, followUpProtocols: 0, gatekeeperErreicht: 0, entscheiderErreicht: 0, settingsGelegt: 0, closingsGelegt: 0 }
         }
       }
 
@@ -921,6 +934,7 @@ export async function fetchCloseData() {
       for (const a of yearColdCalls) {
         const name = a.user_name || 'Unbekannt'; ensure(name)
         memberMap[name].coldCallProtocols++
+        if (a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja') memberMap[name].gatekeeperErreicht++
         if (a[COLD_CALL_ENTSCHEIDER] && a[COLD_CALL_NIEMAND_ERREICHT] !== 'Ja') memberMap[name].entscheiderErreicht++
         if (a[COLD_CALL_ENTSCHEIDER] === 'Setting vereinbart am:') memberMap[name].settingsGelegt++
       }
@@ -972,9 +986,16 @@ export async function fetchCloseData() {
     const wonMonthSplit = splitErstdealUpsell(wonThisMonth)
     const wonYearSplit = splitErstdealUpsell(wonThisYear)
 
+    // Neukunden-basierte Quoten (Erstdeals, ohne Upsells)
+    quotenAbschlussQuote = closingsGelegtMonth > 0 ? Math.round((wonMonthSplit.erstdeals / closingsGelegtMonth) * 1000) / 10 : 0
+    quotenOverall = anwahlenMonth > 0 ? Math.round((wonMonthSplit.erstdeals / anwahlenMonth) * 1000) / 10 : 0
+    quotenAllTimeAbschlussQuote = closingsGelegtAllTime > 0 ? Math.round((wonYearSplit.erstdeals / closingsGelegtAllTime) * 1000) / 10 : 0
+    quotenAllTimeOverall = anwahlenAllTime > 0 ? Math.round((wonYearSplit.erstdeals / anwahlenAllTime) * 1000) / 10 : 0
+
     const salesFunnel = {
       today: {
         anwahlen: anwahlenToday,
+        gatekeeperErreicht: gatekeeperTodayCount,
         entscheiderErreicht: entscheiderTodayCount,
         coldCalls: coldCallToday,
         followUps: followUpToday,
@@ -986,6 +1007,7 @@ export async function fetchCloseData() {
       },
       week: {
         anwahlen: anwahlenWeek,
+        gatekeeperErreicht: gatekeeperWeekCount,
         entscheiderErreicht: entscheiderWeekCount,
         coldCalls: coldCallWeek,
         followUps: followUpWeek,
@@ -997,6 +1019,7 @@ export async function fetchCloseData() {
       },
       month: {
         anwahlen: anwahlenMonth,
+        gatekeeperErreicht: gatekeeperMonthCount,
         entscheiderErreicht: entscheiderMonthCount,
         coldCalls: coldCallMonth,
         followUps: followUpMonth,
@@ -1008,6 +1031,7 @@ export async function fetchCloseData() {
       },
       alltime: {
         anwahlen: anwahlenAllTime,
+        gatekeeperErreicht: gatekeeperAllTime,
         entscheiderErreicht: entscheiderAllTime,
         coldCalls: coldCallAllTime,
         followUps: followUpAllTime,
@@ -1018,6 +1042,7 @@ export async function fetchCloseData() {
         ...wonYearSplit,
       },
       quoten: {
+        gatekeeperQuote: quotenGatekeeperQuote,
         erreichquote: quotenErreichquote,
         settingQuote: quotenSettingQuote,
         closingQuote: quotenClosingQuote,
@@ -1025,6 +1050,7 @@ export async function fetchCloseData() {
         overallAnwahlenToWon: quotenOverall,
       },
       quotenAllTime: {
+        gatekeeperQuote: quotenAllTimeGatekeeperQuote,
         erreichquote: quotenAllTimeErreichquote,
         settingQuote: quotenAllTimeSettingQuote,
         closingQuote: quotenAllTimeClosingQuote,
@@ -1293,7 +1319,272 @@ export async function fetchCloseData() {
     }
     upsellDealsList.sort((a, b) => b.date.localeCompare(a.date))
 
+    // === Opener Revenue Attribution ===
+    // For each lead, find the FIRST cold call protocol with "Setting vereinbart am:" by an Opener → that Opener "owns" the lead's revenue
+    const leadToOpener: Record<string, string> = {} // lead_id → opener name
+
+    // Use year activities (covers all relevant data) sorted by date ascending
+    const yearColdCallsSorted = [...yearColdCalls].sort((a: any, b: any) =>
+      (a.date_created || '').localeCompare(b.date_created || '')
+    )
+    for (const a of yearColdCallsSorted) {
+      const leadId = a.lead_id
+      const userName = a.user_name || ''
+      if (!leadId || !OPENER_NAMES.includes(userName)) continue
+      // Only cold calls with "Setting vereinbart am:" count
+      if (a[COLD_CALL_ENTSCHEIDER] !== 'Setting vereinbart am:') continue
+      // Only the FIRST setting-conversion per lead counts
+      if (!leadToOpener[leadId]) {
+        leadToOpener[leadId] = userName
+      }
+    }
+
+    // Build opener revenue data
+    interface OpenerRevenue {
+      name: string
+      totalRevenue: number
+      mtdRevenue: number
+      dealCount: number
+      mtdDealCount: number
+      deals: { leadName: string; value: number; date: string }[]
+    }
+
+    const openerRevenueMap: Record<string, OpenerRevenue> = {}
+    for (const name of OPENER_NAMES) {
+      openerRevenueMap[name] = { name, totalRevenue: 0, mtdRevenue: 0, dealCount: 0, mtdDealCount: 0, deals: [] }
+    }
+
+    for (const deal of wonDeals) {
+      const leadId = deal.lead_id
+      if (!leadId) continue
+      const opener = leadToOpener[leadId]
+      if (!opener || !openerRevenueMap[opener]) continue
+      const value = (deal.value || 0) / 100
+      openerRevenueMap[opener].totalRevenue += value
+      openerRevenueMap[opener].dealCount++
+      openerRevenueMap[opener].deals.push({
+        leadName: deal.lead_name || 'Unbekannt',
+        value,
+        date: deal.date_won || deal.date_created || '',
+      })
+      if (deal.date_won && deal.date_won >= monthStart) {
+        openerRevenueMap[opener].mtdRevenue += value
+        openerRevenueMap[opener].mtdDealCount++
+      }
+    }
+
+    // Sort deals by date desc
+    for (const entry of Object.values(openerRevenueMap)) {
+      entry.deals.sort((a, b) => b.date.localeCompare(a.date))
+    }
+
+    const openerRevenue = Object.values(openerRevenueMap).sort((a, b) => b.totalRevenue - a.totalRevenue)
+    const openerRevenueTotal = openerRevenue.reduce((s, o) => s + o.totalRevenue, 0)
+    const openerRevenueMTD = openerRevenue.reduce((s, o) => s + o.mtdRevenue, 0)
+
+    // === Opener Quality Report ===
+    // Build opp_id → lead_id map from opportunities
+    const oppToLead: Record<string, string> = {}
+    for (const opp of opportunities) {
+      if (opp.id && opp.lead_id) oppToLead[opp.id] = opp.lead_id
+    }
+
+    // Also build a broader leadToOpener: any opener who made a cold call protocol for a lead (not just setting ones)
+    const leadToOpenerBroad: Record<string, string> = {}
+    for (const a of yearColdCallsSorted) {
+      const leadId = a.lead_id
+      const userName = a.user_name || ''
+      if (!leadId || !OPENER_NAMES.includes(userName)) continue
+      if (!leadToOpenerBroad[leadId]) {
+        leadToOpenerBroad[leadId] = userName
+      }
+    }
+    // Merge: prefer the setting-based attribution, fall back to broad
+    const leadToOpenerFull: Record<string, string> = { ...leadToOpenerBroad, ...leadToOpener }
+
+    interface OpenerQualityMetrics {
+      name: string
+      // Performance (from teamPerformance)
+      callsMonth: number
+      coldCallProtocolsMonth: number
+      entscheiderMonth: number
+      settingsMonth: number
+      callsPerSetting: number
+      callsAllTime: number
+      settingsAllTime: number
+      callsPerSettingAllTime: number
+      // Pipeline quality
+      settingTotal: number
+      settingNoShow: number
+      settingNoShowRate: number
+      settingToCLosing: number
+      settingToClosingRate: number
+      settingFollowUp: number
+      settingLost: number
+      closingTotal: number
+      closingNoShow: number
+      closingNoShowRate: number
+      closingWon: number
+      closingWonRate: number
+      closingLost: number
+      closingFollowUp: number
+      closingAngebot: number
+      closingCC2: number
+      // Recovery
+      noShowRecoveredSetting: number
+      noShowRecoveredClosing: number
+      noShowTotalSetting: number
+      noShowTotalClosing: number
+      noShowRecoveryRateSetting: number
+      noShowRecoveryRateClosing: number
+      // Revenue
+      totalRevenue: number
+      mtdRevenue: number
+      dealCount: number
+      // Derived
+      settingToWonRate: number
+    }
+
+    const OQ_SETTING_TERMINIERT = 'stat_SJMKmHyG1PUg5y6pcFZiEHKEIWVrFf7IDMpF1O31AgA'
+    const OQ_SETTING_NO_SHOW = 'stat_09b2m2xI4kxcxHjgE3Xbb3n7rzE3ygpmBX4zIXR1I5f'
+    const OQ_SETTING_FOLLOW_UP = 'stat_esHRwS41irQis8aYyfk55CRjyrV5bhEB6c03qWdU3So'
+    const OQ_CLOSING_TERMINIERT = 'stat_G4vinr4M5aNginkr1nNkxS7Mt2sEFFELsmOfrBMGCG4'
+    const OQ_CLOSING_NO_SHOW = 'stat_XTjldovdZz1SvfOfi8nzTCbm5o9mUAVDwZ6jdSZ1V3R'
+    const OQ_CLOSING_FOLLOW_UP = 'stat_WJks2iEcai6sgu3dokyOSKud5oWTIWKo3IQaDSO9aDZ'
+    const OQ_ANGEBOT = 'stat_yIC8eUAp0OBYggJ1qqasmM3iosOh9rnrsEXJEtzSBpe'
+    const OQ_CC2 = 'stat_jwxdfe98lRYRhNRE9lPxo0oJ8tJIcJ7lCIVUTnVRzY2'
+
+    function computeOpenerQuality(): OpenerQualityMetrics[] {
+      const rate = (n: number, total: number) => total > 0 ? Math.round((n / total) * 1000) / 10 : 0
+
+      const metrics: OpenerQualityMetrics[] = OPENER_NAMES.map(name => {
+        // Get team performance data
+        const monthPerf = teamPerformanceMonth.find((t: any) => t.name === name)
+        const allTimePerf = teamPerformanceAllTime.find((t: any) => t.name === name)
+
+        // Find all status changes for this opener's leads
+        const openerLeadIds = new Set(
+          Object.entries(leadToOpenerFull)
+            .filter(([, opener]) => opener === name)
+            .map(([leadId]) => leadId)
+        )
+
+        // Filter status changes to this opener's leads
+        const openerChanges = allStatusChanges.filter((c: any) => {
+          const leadId = c.lead_id || (c.opportunity_id ? oppToLead[c.opportunity_id] : null)
+          return leadId && openerLeadIds.has(leadId)
+        })
+
+        // Setting transitions
+        const settingChanges = openerChanges.filter((c: any) => c.old_status_id === OQ_SETTING_TERMINIERT)
+        const settingTotal = settingChanges.length
+        const settingNoShow = settingChanges.filter((c: any) => c.new_status_id === OQ_SETTING_NO_SHOW).length
+        const settingToCLosing = settingChanges.filter((c: any) => c.new_status_id === OQ_CLOSING_TERMINIERT).length
+        const settingFollowUp = settingChanges.filter((c: any) => c.new_status_id === OQ_SETTING_FOLLOW_UP).length
+        const settingLost = settingChanges.filter((c: any) => c.new_status_id === LOST_STATUS_ID).length
+
+        // Closing transitions
+        const closingChanges = openerChanges.filter((c: any) => c.old_status_id === OQ_CLOSING_TERMINIERT)
+        const closingTotal = closingChanges.length
+        const closingNoShow = closingChanges.filter((c: any) => c.new_status_id === OQ_CLOSING_NO_SHOW).length
+        const closingWon = closingChanges.filter((c: any) => c.new_status_id === WON_STATUS_ID).length
+        const closingLost = closingChanges.filter((c: any) => c.new_status_id === LOST_STATUS_ID).length
+        const closingFollowUp = closingChanges.filter((c: any) => c.new_status_id === OQ_CLOSING_FOLLOW_UP).length
+        const closingAngebot = closingChanges.filter((c: any) => c.new_status_id === OQ_ANGEBOT).length
+        const closingCC2 = closingChanges.filter((c: any) => c.new_status_id === OQ_CC2).length
+
+        // No-show recovery
+        const settingNoShowRecovery = openerChanges.filter((c: any) =>
+          c.old_status_id === OQ_SETTING_NO_SHOW && c.new_status_id !== LOST_STATUS_ID
+        ).length
+        const settingNoShowTotal = openerChanges.filter((c: any) => c.old_status_id === OQ_SETTING_NO_SHOW).length
+        const closingNoShowRecovery = openerChanges.filter((c: any) =>
+          c.old_status_id === OQ_CLOSING_NO_SHOW && c.new_status_id !== LOST_STATUS_ID
+        ).length
+        const closingNoShowTotal = openerChanges.filter((c: any) => c.old_status_id === OQ_CLOSING_NO_SHOW).length
+
+        // Revenue from openerRevenueMap
+        const rev = openerRevenueMap[name] || { totalRevenue: 0, mtdRevenue: 0, dealCount: 0 }
+
+        return {
+          name,
+          callsMonth: monthPerf?.calls || 0,
+          coldCallProtocolsMonth: monthPerf?.coldCallProtocols || 0,
+          entscheiderMonth: monthPerf?.entscheiderErreicht || 0,
+          settingsMonth: monthPerf?.settingsGelegt || 0,
+          callsPerSetting: monthPerf?.callsPerSetting || 0,
+          callsAllTime: allTimePerf?.calls || 0,
+          settingsAllTime: allTimePerf?.settingsGelegt || 0,
+          callsPerSettingAllTime: allTimePerf?.callsPerSetting || 0,
+          settingTotal,
+          settingNoShow,
+          settingNoShowRate: rate(settingNoShow, settingTotal),
+          settingToCLosing,
+          settingToClosingRate: rate(settingToCLosing, settingTotal),
+          settingFollowUp,
+          settingLost,
+          closingTotal,
+          closingNoShow,
+          closingNoShowRate: rate(closingNoShow, closingTotal),
+          closingWon,
+          closingWonRate: rate(closingWon, closingTotal),
+          closingLost,
+          closingFollowUp,
+          closingAngebot,
+          closingCC2,
+          noShowRecoveredSetting: settingNoShowRecovery,
+          noShowRecoveredClosing: closingNoShowRecovery,
+          noShowTotalSetting: settingNoShowTotal,
+          noShowTotalClosing: closingNoShowTotal,
+          noShowRecoveryRateSetting: rate(settingNoShowRecovery, settingNoShowTotal),
+          noShowRecoveryRateClosing: rate(closingNoShowRecovery, closingNoShowTotal),
+          totalRevenue: rev.totalRevenue,
+          mtdRevenue: rev.mtdRevenue,
+          dealCount: rev.dealCount,
+          settingToWonRate: rate(closingWon, settingTotal),
+        }
+      })
+
+      return metrics.sort((a, b) => b.settingsMonth - a.settingsMonth)
+    }
+
+    const openerQuality = computeOpenerQuality()
+
     const formattedDate = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`
+
+    // Fetch all external data sources and remaining Close API calls in parallel
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+
+    const [totalCallsLast90Days, callsPerMonth, calendlyMetrics, outreachMetrics, marketingMetrics, callAnalysisMetrics, openerTracking, eodReports, airtableCashIn] = await Promise.all([
+      // Total calls for the last 90 days from activity overview
+      (async () => {
+        try {
+          const res = await closeApiFetch('/report/activity/overview/', {
+            method: 'POST',
+            body: JSON.stringify({ date_start: activitiesSince, date_end: formatDateISO(now) }),
+          })
+          return res?.aggregations?.calls_made || 0
+        } catch { return 0 }
+      })(),
+      // Calls per month (last month)
+      (async () => {
+        try {
+          const res = await closeApiFetch('/report/activity/overview/', {
+            method: 'POST',
+            body: JSON.stringify({ date_start: formatDateISO(lastMonthStart), date_end: formatDateISO(lastMonthEnd) }),
+          })
+          return { lastMonth: res?.aggregations?.calls_made || 0, lastMonthStart: formatDateISO(lastMonthStart), lastMonthEnd: formatDateISO(lastMonthEnd) }
+        } catch { return { lastMonth: 0, lastMonthStart: '', lastMonthEnd: '' } }
+      })(),
+      fetchCalendlyData(),
+      fetchOutreachData(),
+      fetchMarketingData(),
+      fetchCallAnalysisData(),
+      fetchOpenerTracking(),
+      fetchMondayEodData(),
+      fetchAirtableCashIn(),
+    ])
 
     return {
       currentWeek,
@@ -1360,28 +1651,8 @@ export async function fetchCloseData() {
       allCustomActivities,
       customActivityTypeIds: CUSTOM_ACTIVITY_TYPES,
       customFieldIds: { COLD_CALL_NIEMAND_ERREICHT, COLD_CALL_ENTSCHEIDER, FOLLOW_UP_NAECHSTER_SCHRITT, SETTING_NAECHSTER_SCHRITT },
-      // Total calls for the last 90 days from activity overview
-      totalCallsLast90Days: await (async () => {
-        try {
-          const res = await closeApiFetch('/report/activity/overview/', {
-            method: 'POST',
-            body: JSON.stringify({ date_start: activitiesSince, date_end: formatDateISO(now) }),
-          })
-          return res?.aggregations?.calls_made || 0
-        } catch { return 0 }
-      })(),
-      callsPerMonth: await (async () => {
-        // Get calls for last month and current month separately
-        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
-        try {
-          const res = await closeApiFetch('/report/activity/overview/', {
-            method: 'POST',
-            body: JSON.stringify({ date_start: formatDateISO(lastMonthStart), date_end: formatDateISO(lastMonthEnd) }),
-          })
-          return { lastMonth: res?.aggregations?.calls_made || 0, lastMonthStart: formatDateISO(lastMonthStart), lastMonthEnd: formatDateISO(lastMonthEnd) }
-        } catch { return { lastMonth: 0, lastMonthStart: '', lastMonthEnd: '' } }
-      })(),
+      totalCallsLast90Days,
+      callsPerMonth,
       conversionFunnel,
       waterfall,
       pipelineDealsByStatus,
@@ -1415,23 +1686,22 @@ export async function fetchCloseData() {
       monthStartISO: monthStart,
       yearStartISO,
 
+      openerRevenue,
+      openerRevenueTotal,
+      openerRevenueMTD,
+      openerQuality,
+
       airtableMetrics: getAirtableMetrics(),
-
-      calendlyMetrics: await fetchCalendlyData(),
-
+      calendlyMetrics,
       nilsMetrics: getNilsMetrics(),
-
       deliveryMetrics: getDeliveryMetrics(),
-
-      outreachMetrics: await fetchOutreachData(),
-
-      marketingMetrics: await fetchMarketingData(),
-
+      outreachMetrics,
+      marketingMetrics,
       facebookMetrics: getFacebookMetrics(),
-
-      callAnalysisMetrics: await fetchCallAnalysisData(),
-
-      openerTracking: await fetchOpenerTracking(),
+      callAnalysisMetrics,
+      openerTracking,
+      eodReports,
+      airtableCashIn,
 
       lastUpdated: new Date().toISOString(),
     }
