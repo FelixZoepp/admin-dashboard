@@ -33,7 +33,6 @@ async function closeApiFetch(endpoint: string, options?: RequestInit) {
 
 // ── Constants ──────────────────────────────────────────────
 const OPENER_IDS: Record<string, string> = {
-  'user_cQBA4gKgHPEiHAtaEtHHdPx1jt73LwL0N9BCvHUG4Nu': 'Taha Keremoglu',
   'user_mKNHQXqBAlqlizVUnEln7ng516kATkBys7WU96zg0E6': 'Johannes Bohn',
 }
 

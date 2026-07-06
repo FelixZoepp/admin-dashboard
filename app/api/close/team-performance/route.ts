@@ -38,7 +38,7 @@ const COLD_CALL_ENTSCHEIDER = 'custom.cf_0qd3PlDb9re1MU97cxNV7MJUXjHVYGmuifQc5Cs
 const FOLLOW_UP_NAECHSTER_SCHRITT = 'custom.cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN'
 const SETTING_NAECHSTER_SCHRITT = 'custom.cf_xPhL5XUDQ8i4gCcUF4pz5uMaHUoIMwZXB3af8Xv0A6B'
 
-const OPENER_NAMES = ['Taha Keremoglu', 'Johannes Bohn']
+const OPENER_NAMES = ['Johannes Bohn']
 const SETTER_NAMES = ['Felix Zoepp']
 const CLOSER_NAMES = ['Felix Zoepp']
 

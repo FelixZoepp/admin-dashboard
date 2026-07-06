@@ -9,7 +9,6 @@ const INTERNES_DASHBOARD_URL = 'https://internes-salesdashboard-felix-1214s-proj
 // Name-Mapping: internes Dashboard -> Admin Dashboard (Supabase opener_name)
 const NAME_MAP: Record<string, string> = {
   'Johannes': 'Johannes Bohn',
-  'Taha': 'Taha Keremoglu',
 }
 
 function getSupabase() {

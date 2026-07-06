@@ -634,7 +634,7 @@ export async function fetchCloseData() {
     const settingProtocolsWeek = filterActivities(CUSTOM_ACTIVITY_TYPES.setting, weekStartDate).length
 
     // Team roles
-    const OPENER_NAMES = ['Taha Keremoglu', 'Johannes Bohn']
+    const OPENER_NAMES = ['Johannes Bohn']
     const SETTER_NAMES = ['Felix Zoepp']
     const CLOSER_NAMES = ['Felix Zoepp']
 
