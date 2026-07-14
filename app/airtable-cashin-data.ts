@@ -69,7 +69,6 @@ const NON_PAYING: NonPayingCustomer[] = [
   { kundenId: 'CL-012', firma: 'Ditella', paket: 'Coaching', rateMonat: 1000, reason: 'Inaktiv', offenerBetrag: 0 },
   { kundenId: 'CL-035', firma: 'ASS-KO solutions', paket: 'Software-Abo', rateMonat: 450, reason: 'Ausgelaufen', offenerBetrag: 0 },
   { kundenId: 'CL-046', firma: 'KFZ Meisterwerk', paket: 'Ads Management', rateMonat: 1000, reason: 'Gekündigt', offenerBetrag: 0 },
-  { kundenId: 'CL-044', firma: 'KAOS/Carbunus', paket: 'LinkedIn Profiloptimierung', rateMonat: 0, reason: 'Abgeschlossen (einmalig)', offenerBetrag: 0 },
   { kundenId: 'CL-049', firma: 'Patrick Schnelle', paket: 'LinkedIn Profiloptimierung', rateMonat: 0, reason: 'Abgeschlossen (einmalig)', offenerBetrag: 0 },
   { kundenId: 'CL-051', firma: 'Navi8 Consulting', paket: 'LinkedIn Profiloptimierung', rateMonat: 0, reason: 'Abgeschlossen (einmalig)', offenerBetrag: 0 },
   { kundenId: 'CL-045', firma: 'OCEC Ltd.', paket: 'D4Y Leadposts', rateMonat: 2000, reason: 'Duplikat (Stefan Berns)', offenerBetrag: 0 },

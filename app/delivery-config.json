@@ -70,7 +70,8 @@
       "firma": "B&C Direct Sales",
       "paket": "Recruiting Ads",
       "rate_monat": 2000,
-      "cash_in_monat": 2000,
+      "cash_in_monat": 4500,
+      "hinweis": "Juli + August 2026 je +2.500€ netto. Ab September 2026 cash_in_monat wieder auf 2000 setzen.",
       "status": "aktiv",
       "delivery": {
         "felix_hours": 0,
@@ -89,6 +90,7 @@
       "paket": "Agentur Champion",
       "rate_monat": 5500,
       "status": "aktiv",
+      "hinweis": "Juli 2026: um 12 Monate verlängert (à 3.500€ netto) — gesamt bleibt 5.500€ netto/Mo.",
       "delivery": {
         "felix_hours": 1,
         "nils_hours": 4,
@@ -99,7 +101,7 @@
         "margin_euro": 5336.2,
         "margin_percent": 97
       },
-      "cash_in_monat": 7000
+      "cash_in_monat": 5500
     },
     {
       "cl_id": "CL-015",
@@ -217,7 +219,8 @@
       "firma": "Pro Augmentum",
       "paket": "DFY LinkedIn",
       "rate_monat": 2250,
-      "status": "aktiv",
+      "status": "gekuendigt",
+      "hinweis": "Raus seit Juli 2026.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -252,8 +255,10 @@
       "cl_id": "CL-016",
       "firma": "LeanSteer Consulting",
       "paket": "Coaching 90-Tage",
-      "rate_monat": 875,
-      "status": "gekuendigt",
+      "rate_monat": 750,
+      "cash_in_monat": 750,
+      "status": "aktiv",
+      "hinweis": "Neuer Deal Juli 2026: 4 Monate à 750€ netto (Juli–Oktober 2026). Ab November 2026 auf gekuendigt setzen.",
       "delivery": {
         "felix_hours": 1.3,
         "nils_hours": 0,
@@ -261,8 +266,8 @@
         "lisa_hours": 0,
         "tasks": "Felix: Gruppencoaching anteilig (1.3h). Kein anderer Aufwand.",
         "delivery_cost": 44.72,
-        "margin_euro": 830.28,
-        "margin_percent": 94.9
+        "margin_euro": 705.28,
+        "margin_percent": 94
       }
     },
     {
@@ -387,7 +392,9 @@
       "firma": "BRK Konzepte UG",
       "paket": "Quiz-Funnel AVGS + Upsell",
       "rate_monat": 2100,
+      "laufzeit_monate": 12,
       "status": "aktiv",
+      "hinweis": "Laufzeit 12 Monate. Juli 2026: 3.400€ netto statt 2.100€. Ab August 2026 cash_in_monat wieder auf 2100 setzen.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -405,8 +412,10 @@
       "firma": "KAOS/Carbunus Werbeagentur",
       "paket": "LinkedIn Profiloptimierung",
       "rate_monat": 0,
-      "status": "gekuendigt",
+      "cash_in_monat": 3500,
+      "status": "aktiv",
       "umsatztyp": "einmalig",
+      "hinweis": "Neuer Deal Juli 2026: 3.500€ netto (einmalig). Ab August 2026 cash_in_monat entfernen / auf gekuendigt setzen.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -415,23 +424,6 @@
         "tasks": "",
         "delivery_cost": 0,
         "margin_euro": 0,
-        "margin_percent": 100
-      }
-    },
-    {
-      "cl_id": "CL-045",
-      "firma": "OCEC Ltd.",
-      "paket": "D4Y Leadposts (Reverse Charge)",
-      "rate_monat": 2000,
-      "status": "aktiv",
-      "delivery": {
-        "felix_hours": 0,
-        "nils_hours": 0,
-        "marcel_hours": 0,
-        "lisa_hours": 0,
-        "tasks": "",
-        "delivery_cost": 0,
-        "margin_euro": 2000,
         "margin_percent": 100
       }
     },
@@ -510,6 +502,7 @@
       "paket": "Upsell",
       "rate_monat": 4000,
       "status": "aktiv",
+      "hinweis": "OCEC Ltd. (CL-045, Reverse Charge) = Stefan Berns, eine Position. Kein Streitfall.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -582,8 +575,9 @@
       "firma": "Körtner Sicherheit",
       "paket": "Altkunde (Einmalzahlung Juni)",
       "rate_monat": 0,
-      "status": "aktiv",
+      "status": "gekuendigt",
       "umsatztyp": "einmalig",
+      "hinweis": "Raus seit Juli 2026. Einmalzahlung war Juni 2026.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -593,16 +587,15 @@
         "delivery_cost": 0,
         "margin_euro": 0,
         "margin_percent": 100
-      },
-      "cash_in_monat": 1250
+      }
     }
   ],
   "summary": {
-    "total_active_mrr": 39550,
-    "total_delivery_cost": 1864.92,
-    "total_margin": 37685.08,
-    "avg_margin_percent": 95.3,
-    "total_delivery_hours_felix": 20.2,
+    "total_active_mrr": 36050,
+    "total_delivery_cost": 1909.64,
+    "total_margin": 36140.36,
+    "avg_margin_percent": 95,
+    "total_delivery_hours_felix": 21.5,
     "total_delivery_hours_nils": 38.5,
     "total_delivery_hours_marcel": 0.8,
     "total_delivery_hours_lisa": 0,
