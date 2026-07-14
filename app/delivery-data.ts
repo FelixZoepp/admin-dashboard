@@ -49,6 +49,9 @@ export interface DeliveryMetrics {
   netProfitPercent: number
   cashInMonatNetto: number
   cashInMonatBrutto: number
+  streitfallMonatNetto: number
+  cashInSollNetto: number
+  cashInSollBrutto: number
 }
 
 export function getDeliveryMetrics(): DeliveryMetrics {
@@ -108,8 +111,18 @@ export function getDeliveryMetrics(): DeliveryMetrics {
     .filter((c: DeliveryCustomer) => c.paymentStatus !== 'streitfall' && c.rateMonat > 0)
     .reduce((s: number, c: DeliveryCustomer) => s + c.rateMonat, 0)
 
-  const cashInMonatNetto = customers.reduce((s: number, c: any) => s + (c.cashInMonat || c.rateMonat), 0)
+  // Nur zahlende Kunden — Streitfälle (beim Anwalt) zahlen aktuell nicht
+  const cashInMonatNetto = customers
+    .filter((c: DeliveryCustomer) => c.paymentStatus !== 'streitfall')
+    .reduce((s: number, c: DeliveryCustomer) => s + c.cashInMonat, 0)
   const cashInMonatBrutto = Math.round(cashInMonatNetto * 1.19)
+
+  // Soll inkl. Streitfälle (was reinkommen müsste, wenn alle zahlen würden)
+  const streitfallMonatNetto = customers
+    .filter((c: DeliveryCustomer) => c.paymentStatus === 'streitfall')
+    .reduce((s: number, c: DeliveryCustomer) => s + c.cashInMonat, 0)
+  const cashInSollNetto = cashInMonatNetto + streitfallMonatNetto
+  const cashInSollBrutto = Math.round(cashInSollNetto * 1.19)
 
   const netProfit = cashInMonatNetto - totalFixedCosts
   const netProfitPercent = cashInMonatNetto > 0 ? Math.round((netProfit / cashInMonatNetto) * 1000) / 10 : 0
@@ -132,5 +145,8 @@ export function getDeliveryMetrics(): DeliveryMetrics {
     netProfitPercent,
     cashInMonatNetto,
     cashInMonatBrutto,
+    streitfallMonatNetto,
+    cashInSollNetto,
+    cashInSollBrutto,
   }
 }

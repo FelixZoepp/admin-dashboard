@@ -407,6 +407,9 @@ interface DashboardData {
     netProfitPercent: number
     cashInMonatNetto: number
     cashInMonatBrutto: number
+    streitfallMonatNetto: number
+    cashInSollNetto: number
+    cashInSollBrutto: number
   }
   outreachMetrics: {
     available: boolean
@@ -4123,6 +4126,8 @@ export default function Dashboard({ data }: { data: DashboardData }) {
             const selectedCashIn = cashInMonths.find(m => m.year === selYear && m.month === selMonth)
             const cashInNetto = selectedCashIn?.totalNetto ?? dm.cashInMonatNetto
             const cashInBrutto = selectedCashIn?.totalBrutto ?? dm.cashInMonatBrutto
+            const streitfallNetto = dm.streitfallMonatNetto || 0
+            const cashInSollNetto = cashInNetto + streitfallNetto
             const cashInCustomers = selectedCashIn?.customers || []
             const cashInLabel = selectedCashIn?.label || finanzMonat
             const fc = dm.fixedCosts || { teamInklKK: 15000, toolsAmex: 10000, buchhaltung: 2500, total: 27500 }
@@ -4162,12 +4167,17 @@ export default function Dashboard({ data }: { data: DashboardData }) {
                 <div className="za-panel fade-up" style={{ animationDelay: '40ms', borderTop: '3px solid var(--za-success, #22c55e)' }}>
                   <div className="kpi-top"><span className="kpi-label">Cash-In {cashInLabel} (netto)</span></div>
                   <div className="kpi-value" style={{ color: 'var(--za-success, #22c55e)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(cashInNetto)}</div>
-                  <div className="kpi-foot"><span className="kpi-caption">{cashInCustomers.length} Positionen</span></div>
+                  <div className="kpi-foot"><span className="kpi-caption">{cashInCustomers.length} Positionen &middot; nur zahlende Kunden</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '100ms', borderTop: '3px solid var(--za-success, #22c55e)' }}>
                   <div className="kpi-top"><span className="kpi-label">Cash-In {cashInLabel} (brutto)</span></div>
                   <div className="kpi-value" style={{ color: 'var(--za-success, #22c55e)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(cashInBrutto)}</div>
                   <div className="kpi-foot"><span className="kpi-caption">inkl. 19% MwSt.</span></div>
+                </div>
+                <div className="za-panel fade-up" style={{ animationDelay: '130ms', borderTop: '3px solid var(--za-warning, #f59e0b)' }}>
+                  <div className="kpi-top"><span className="kpi-label">Soll inkl. Streitf&auml;lle (netto)</span></div>
+                  <div className="kpi-value" style={{ color: 'var(--za-warning, #f59e0b)' }}><span className="kpi-unit-prefix">&euro;</span>{fmtNum(cashInSollNetto)}</div>
+                  <div className="kpi-foot"><span className="kpi-caption">&euro;{fmtNum(streitfallNetto)} Streitf&auml;lle (beim Anwalt)</span></div>
                 </div>
                 <div className="za-panel fade-up" style={{ animationDelay: '160ms', borderTop: '2px solid var(--za-gold)' }}>
                   <div className="kpi-top"><span className="kpi-label">Fixkosten gesamt</span></div>
