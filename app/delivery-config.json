@@ -165,7 +165,8 @@
       "firma": "ManyReasons",
       "paket": "Social Media Management",
       "rate_monat": 2000,
-      "status": "aktiv",
+      "status": "gekuendigt",
+      "hinweis": "Raus seit Juli 2026.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 12.5,
@@ -395,7 +396,7 @@
       "rate_monat": 2100,
       "laufzeit_monate": 12,
       "status": "aktiv",
-      "hinweis": "Laufzeit 12 Monate. Juli 2026: 3.400€ netto statt 2.100€. Ab August 2026 cash_in_monat wieder auf 2100 setzen.",
+      "hinweis": "Laufzeit 12 Monate. Juli 2026: 3.400€ (alte Nachzahlung). Aug+Sep 2026: 3.400€ (Basis 2.100 + Upsell 1.300). Okt–Dez 2026: cash_in_monat auf 2.400 setzen (Basis 2.100 + Upsell 300). Ab Jan 2027: cash_in_monat auf 2.100 setzen.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -557,8 +558,11 @@
       "firma": "Ruesch Media",
       "billing_day": 1,
       "paket": "DFY LinkedIn",
-      "rate_monat": 1500,
-      "status": "aktiv",
+      "rate_monat": 0,
+      "status": "gekuendigt",
+      "umsatztyp": "einmalig",
+      "cash_in_monat": 1500,
+      "hinweis": "Raus. Letzte Einmalzahlung 1.500€ im Juli 2026. Ab August 2026 auf gekuendigt ohne cash_in setzen.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -589,17 +593,177 @@
         "margin_euro": 0,
         "margin_percent": 100
       }
+    },
+    {
+      "cl_id": "CL-054",
+      "firma": "Wasmund Versicherungen",
+      "paket": "Erstdeal",
+      "rate_monat": 1000,
+      "status": "aktiv",
+      "hinweis": "Start 15. August 2026, 3 Monate Laufzeit (bis November 2026). Ab Dezember 2026 auf gekuendigt setzen.",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "",
+        "delivery_cost": 0,
+        "margin_euro": 1000,
+        "margin_percent": 100
+      }
+    },
+    {
+      "cl_id": "CL-055",
+      "firma": "Denis Mandic",
+      "paket": "LinkedIn Profiloptimierung",
+      "rate_monat": 0,
+      "status": "aktiv",
+      "umsatztyp": "einmalig",
+      "cash_in_monat": 2000,
+      "hinweis": "2.000€ einmalig für Profiloptimierung, August 2026. Ab September 2026 auf gekuendigt setzen.",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "",
+        "delivery_cost": 0,
+        "margin_euro": 0,
+        "margin_percent": 100
+      }
+    },
+    {
+      "cl_id": "CL-056",
+      "firma": "Kiendl Marketing GmbH",
+      "paket": "Setup + Laufzeit",
+      "rate_monat": 0,
+      "status": "aktiv",
+      "umsatztyp": "einmalig",
+      "cash_in_monat": 2250,
+      "hinweis": "4.500€ netto gesamt. Hälfte Juli 2026 (2.250€), Hälfte August 2026 (2.250€). Ab September 2026 auf gekuendigt setzen.",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "",
+        "delivery_cost": 0,
+        "margin_euro": 0,
+        "margin_percent": 100
+      }
+    },
+    {
+      "cl_id": "CL-057",
+      "firma": "Sales Focus GmbH",
+      "paket": "Recruiting + Social Media + Videodreh",
+      "rate_monat": 1500,
+      "billing_day": 15,
+      "status": "aktiv",
+      "cash_in_monat": 4500,
+      "hinweis": "AG0172. Start 15.08.2026, 3 Monate. Aug 2026: 4.500€ (1.500 + 3.000 Videodreh). Sep+Okt: cash_in_monat auf 1.500 setzen. Ab Dez 2026 auf gekuendigt setzen.",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "",
+        "delivery_cost": 0,
+        "margin_euro": 1500,
+        "margin_percent": 100
+      }
+    },
+    {
+      "cl_id": "CL-058",
+      "firma": "Turhan Vertriebs GmbH",
+      "paket": "Recruiting Ads",
+      "rate_monat": 1000,
+      "billing_day": 15,
+      "status": "aktiv",
+      "cash_in_monat": 3000,
+      "hinweis": "AG0173. Start 15.08.2026, 3 Monate. Aug 2026: 3.000€ (1.000 + 2.000 Setup). Sep+Okt: cash_in_monat auf 1.000 setzen. Ab Dez 2026 auf gekuendigt setzen.",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "",
+        "delivery_cost": 0,
+        "margin_euro": 1000,
+        "margin_percent": 100
+      }
+    },
+    {
+      "cl_id": "CL-059",
+      "firma": "Fadi Abbes",
+      "paket": "Recruiting Setup",
+      "rate_monat": 0,
+      "billing_day": 17,
+      "status": "aktiv",
+      "umsatztyp": "einmalig",
+      "cash_in_monat": 2000,
+      "hinweis": "AG0174. 2.000€ einmalig. Start 17.08.2026, 30 Tage. 30-Bewerber-Garantie. Ab Okt 2026 auf gekuendigt setzen.",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "",
+        "delivery_cost": 0,
+        "margin_euro": 0,
+        "margin_percent": 100
+      }
+    },
+    {
+      "cl_id": "CL-060",
+      "firma": "Livara Service GmbH",
+      "paket": "D4Y Outreach + Recruiting",
+      "rate_monat": 2500,
+      "billing_day": 1,
+      "status": "aktiv",
+      "cash_in_monat": 2500,
+      "hinweis": "AG0169. Start 01.08.2026, 2 Monate. 2.500€/Mo. Ab Okt 2026 auf gekuendigt setzen. Ziel: 3 Probewöchler in 60 Tagen.",
+      "delivery": {
+        "felix_hours": 1,
+        "nils_hours": 2,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "Felix: 1x Call/Woche (1h/Mo). Nils: 8 Posts/Mo (2h).",
+        "delivery_cost": 94.4,
+        "margin_euro": 2405.6,
+        "margin_percent": 96.2
+      }
+    },
+    {
+      "cl_id": "CL-051",
+      "firma": "Navi8 Consulting GmbH (Outreach)",
+      "paket": "LinkedIn Outreach Setup",
+      "rate_monat": 0,
+      "billing_day": 5,
+      "status": "aktiv",
+      "umsatztyp": "einmalig",
+      "cash_in_monat": 1500,
+      "hinweis": "AG0170. 1.500€ einmalig. Start 05.08.2026, 1 Monat. Ab Sep 2026 auf gekuendigt setzen.",
+      "delivery": {
+        "felix_hours": 0,
+        "nils_hours": 0,
+        "marcel_hours": 0,
+        "lisa_hours": 0,
+        "tasks": "",
+        "delivery_cost": 0,
+        "margin_euro": 0,
+        "margin_percent": 100
+      }
     }
   ],
   "summary": {
-    "total_active_mrr": 36050,
+    "total_active_mrr": 47800,
     "total_delivery_cost": 1909.64,
-    "total_margin": 36140.36,
+    "total_margin": 45890.36,
     "avg_margin_percent": 95,
     "total_delivery_hours_felix": 21.5,
     "total_delivery_hours_nils": 38.5,
     "total_delivery_hours_marcel": 0.8,
     "total_delivery_hours_lisa": 0,
-    "cash_in_monat": 61350
+    "cash_in_monat": 63600
   }
 }

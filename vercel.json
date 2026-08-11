@@ -2,18 +2,6 @@
   "framework": "nextjs",
   "crons": [
     {
-      "path": "/api/cron/weekly-report",
-      "schedule": "0 17 * * 5"
-    },
-    {
-      "path": "/api/cron/daily-call-analysis",
-      "schedule": "30 16 * * 1-5"
-    },
-    {
-      "path": "/api/cron/daily-opener-report",
-      "schedule": "0 17 * * 1-5"
-    },
-    {
       "path": "/api/cron/daily-eod-sync",
       "schedule": "0 20 * * 1-5"
     }
