@@ -377,6 +377,7 @@
       "paket": "Recruiting",
       "rate_monat": 1000,
       "status": "aktiv",
+      "hinweis": "Aug 2026: +2.500€ Upsell, cash_in 5.500€. Ab Sep 2026 cash_in_monat auf 3.000 zurücksetzen.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -387,16 +388,16 @@
         "margin_euro": 1000,
         "margin_percent": 100
       },
-      "cash_in_monat": 3000
+      "cash_in_monat": 5500
     },
     {
       "cl_id": "CL-043",
       "firma": "BRK Konzepte UG",
       "paket": "Quiz-Funnel AVGS + Upsell",
-      "rate_monat": 2100,
+      "rate_monat": 2700,
       "laufzeit_monate": 12,
       "status": "aktiv",
-      "hinweis": "Laufzeit 12 Monate. Juli 2026: 3.400€ (alte Nachzahlung). Aug+Sep 2026: 3.400€ (Basis 2.100 + Upsell 1.300). Okt–Dez 2026: cash_in_monat auf 2.400 setzen (Basis 2.100 + Upsell 300). Ab Jan 2027: cash_in_monat auf 2.100 setzen.",
+      "hinweis": "MRR 2.700€. Aug 2026: cash_in 4.500€. Ab Sep 2026 cash_in prüfen.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -404,20 +405,19 @@
         "lisa_hours": 0,
         "tasks": "",
         "delivery_cost": 0,
-        "margin_euro": 2100,
+        "margin_euro": 2700,
         "margin_percent": 100
       },
-      "cash_in_monat": 3400
+      "cash_in_monat": 4500
     },
     {
       "cl_id": "CL-044",
       "firma": "KAOS/Carbunus Werbeagentur",
       "paket": "LinkedIn Profiloptimierung",
       "rate_monat": 0,
-      "cash_in_monat": 3500,
-      "status": "aktiv",
+      "status": "gekuendigt",
       "umsatztyp": "einmalig",
-      "hinweis": "Neuer Deal Juli 2026: 3.500€ netto (einmalig). Ab August 2026 cash_in_monat entfernen / auf gekuendigt setzen.",
+      "hinweis": "Einmalzahlung Juli 2026 abgeschlossen. Gekuendigt seit August 2026.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -561,8 +561,7 @@
       "rate_monat": 0,
       "status": "gekuendigt",
       "umsatztyp": "einmalig",
-      "cash_in_monat": 1500,
-      "hinweis": "Raus. Letzte Einmalzahlung 1.500€ im Juli 2026. Ab August 2026 auf gekuendigt ohne cash_in setzen.",
+      "hinweis": "Raus. Letzte Einmalzahlung war Juli 2026.",
       "delivery": {
         "felix_hours": 0,
         "nils_hours": 0,
@@ -570,10 +569,9 @@
         "lisa_hours": 0,
         "tasks": "",
         "delivery_cost": 0,
-        "margin_euro": 1500,
+        "margin_euro": 0,
         "margin_percent": 100
-      },
-      "cash_in_monat": 1500
+      }
     },
     {
       "cl_id": "CL-032",
@@ -756,14 +754,14 @@
     }
   ],
   "summary": {
-    "total_active_mrr": 47800,
-    "total_delivery_cost": 1909.64,
-    "total_margin": 45890.36,
-    "avg_margin_percent": 95,
-    "total_delivery_hours_felix": 21.5,
-    "total_delivery_hours_nils": 38.5,
+    "total_active_mrr": 41250,
+    "total_delivery_cost": 1629.04,
+    "total_margin": 62470.96,
+    "avg_margin_percent": 97,
+    "total_delivery_hours_felix": 22.8,
+    "total_delivery_hours_nils": 28,
     "total_delivery_hours_marcel": 0.8,
     "total_delivery_hours_lisa": 0,
-    "cash_in_monat": 63600
+    "cash_in_monat": 62200
   }
 }
